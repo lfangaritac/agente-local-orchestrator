@@ -1,242 +1,327 @@
 # PROJECT_CONTEXT.md
-## Contexto vivo del proyecto — Agente Local + Replit + Premium
-
-## 1. Propósito del proyecto
-
-Construir una arquitectura híbrida de IA para apoyar desarrollo de software y gestión técnica de proyectos, combinando:
-
-- entorno local de desarrollo;
-- modelos locales vía Ollama;
-- VS Code + Continue como copiloto;
-- OpenCode como agente local operativo de codificación;
-- Replit como agente híbrido de planificación, validación y ejecución avanzada;
-- modelos premium como capa excepcional de razonamiento o ejecución crítica.
-
-El objetivo no es reemplazar Replit ni modelos premium, sino optimizar su uso mediante contexto local persistente, planificación previa, filtrado de información y documentación continua.
 
 ---
 
-## 2. Estado actual del entorno local
+## 1. PROPÓSITO
 
-Equipo configurado con:
+Este documento define la arquitectura, principios operativos y contexto estructural del sistema de agente híbrido local + Replit + modelos premium.
 
-- Windows
-- VS Code
-- Git
-- GitHub
-- Python 3.13.13
-- Docker Desktop
-- Ollama
-- Continue.dev
-- Open WebUI vía Docker
-- Repositorio local: `C:\Agente`
-- Repositorio remoto: `https://github.com/lfangaritac/agente-local-orchestrator.git`
+Su objetivo es:
+
+- consolidar la lógica del sistema;
+- garantizar coherencia entre componentes;
+- servir como fuente de contexto para agentes;
+- evolucionar como memoria viva del proyecto.
 
 ---
 
-## 3. Modelos locales instalados
+## 2. VISIÓN GENERAL DEL SISTEMA
 
-Modelos disponibles en Ollama:
+El sistema es una arquitectura híbrida de agentes donde:
 
-- `qwen2.5-coder:7b`
-- `deepseek-coder:6.7b`
-- `mistral:7b`
+- un agente local orquesta;
+- múltiples modelos locales ejecutan tareas;
+- Replit actúa como agente híbrido de validación;
+- modelos premium se utilizan bajo criterios controlados.
 
-Uso previsto:
-
-- Qwen Coder: código diario, Flask, React, SQL, refactor básico.
-- DeepSeek Coder: revisión técnica, debugging, código más complejo.
-- Mistral: análisis funcional, documentación, síntesis y planeación general.
+El sistema no depende de un modelo, sino de la **orquestación inteligente del contexto y capacidades**.
 
 ---
 
-## 4. Componentes de la arquitectura
+## 3. PRINCIPIOS FUNDAMENTALES
+
+### 3.1 Orquestación sobre modelos
+
+El valor del sistema no está en los modelos, sino en:
+
+- la orquestación;
+- la gestión del contexto;
+- la trazabilidad;
+- la validación estructurada.
+
+---
+
+### 3.2 Contexto como activo principal
+
+El sistema debe:
+
+- conservar el contexto completo del proyecto;
+- construir contextos parciales optimizados por tarea;
+- evitar enviar contexto irrelevante a modelos externos.
+
+---
+
+### 3.3 Trazabilidad total
+
+Cada acción relevante debe quedar registrada:
+
+- decisiones;
+- instrucciones;
+- errores;
+- soluciones;
+- cambios en código;
+- validaciones.
+
+---
+
+### 3.4 Minimización de costo externo
+
+El sistema debe:
+
+1. resolver localmente;
+2. validar externamente solo cuando aporte valor;
+3. escalar solo cuando sea necesario.
+
+---
+
+### 3.5 Evolución continua
+
+El sistema no es estático.
+
+Debe:
+
+- aprender de cada interacción;
+- mejorar sus reglas;
+- enriquecer su contexto;
+- optimizar su comportamiento.
+
+---
+
+## 4. ARQUITECTURA DEL AGENTE LOCAL
+
+---
 
 ### 4.1 Agente de Orquestación Local
 
-Actualmente es una capa lógica compuesta por:
+El agente de orquestación local no es una única herramienta.
+
+Es una **capa lógica compuesta por**:
 
 - usuario;
-- documentación viva;
+- documentación viva (Markdown);
 - Continue;
-- modelos locales;
+- OpenCode;
+- modelos locales (Ollama);
 - Git;
-- reglas operativas.
-
-A futuro podrá convertirse en un componente explícito mediante script, CLI, MCP server o agente local dedicado.
-
-Responsabilidades:
-
-- recorrer contexto total del proyecto;
-- filtrar información relevante;
-- construir ventanas depuradas de contexto;
-- coordinar Continue, OpenCode, Replit y modelos premium;
-- documentar decisiones, errores, aprendizajes y cambios;
-- reducir consumo de tokens externos.
+- reglas operativas;
+- futuras herramientas (scripts, MCP, CLI).
 
 ---
 
-### 4.2 Continue
+### 4.2 Responsabilidades del Agente Local
+
+- recorrer el contexto completo del proyecto;
+- identificar información relevante;
+- construir ventanas de contexto optimizadas;
+- coordinar la interacción entre agentes;
+- definir cuándo usar modelos locales;
+- definir cuándo validar con Replit;
+- definir cuándo escalar a modelos premium;
+- documentar cada paso relevante;
+- mantener coherencia global del sistema.
+
+---
+
+### 4.3 Concertación entre Continue y OpenCode
+
+Continue y OpenCode:
+
+- acceden al mismo contexto relevante;
+- analizan desde perspectivas distintas;
+- aportan criterio dentro de su dominio;
+- no actúan de forma autónoma descontrolada.
+
+El sistema debe generar una **salida unificada**, no respuestas paralelas.
+
+---
+
+### 4.4 Continue
 
 Rol:
 
-- copiloto conversacional dentro de VS Code;
-- interfaz de trabajo con modelos locales;
-- generación de planes iniciales;
-- análisis contextual;
+- interpretación de instrucciones del usuario;
+- comprensión semántica;
+- construcción de contexto;
+- generación de planes;
 - síntesis de respuestas;
-- apoyo al usuario en lectura, edición y revisión.
+- coordinación conversacional.
 
-Continue no debe entenderse como único orquestador definitivo, sino como interfaz/copiloto dentro del sistema de orquestación local.
+Continue lidera la **fase de planeación y estructuración**.
 
 ---
 
-### 4.3 OpenCode
+### 4.5 OpenCode
 
-Rol previsto:
+Rol:
 
-- agente local especializado en codificación;
-- operación sobre repositorio;
-- creación y modificación de archivos;
-- ejecución de comandos autorizados;
+- análisis técnico del repositorio;
+- validación de planes contra código real;
+- identificación de riesgos de implementación;
+- ejecución de cambios;
 - generación de diffs;
 - ejecución de pruebas;
-- preparación de handoffs técnicos.
+- preparación de handoff técnico.
 
-OpenCode no reemplaza a Continue ni a Replit. Actúa como ejecutor técnico local bajo reglas y trazabilidad.
+OpenCode participa en:
 
----
-
-### 4.4 Replit
-
-Replit tiene doble rol:
-
-1. Agente híbrido continuo:
-   - planificación;
-   - revisión;
-   - validación;
-   - arquitectura;
-   - debugging;
-   - ejecución en entorno Replit.
-
-2. Capa de escalamiento avanzado:
-   - cuando se requiere ejecución real;
-   - cuando el entorno local es insuficiente;
-   - cuando se requiere validación integrada, despliegue o revisión compleja.
-
-La lógica deseada es que Replit no reciba contexto bruto, sino instrucciones depuradas y verificables generadas por el entorno local.
+- validación técnica del plan;
+- ejecución controlada de instrucciones.
 
 ---
 
-### 4.5 Modelos premium
+## 5. MODELOS LOCALES
 
-Se consideran como soporte excepcional para:
+Modelos disponibles:
 
-- arquitectura crítica;
-- razonamiento complejo;
+- Qwen (principal)
+- DeepSeek (análisis)
+- Mistral (fallback)
+
+Uso:
+
+- desarrollo estándar;
+- análisis técnico;
+- tareas de bajo costo;
+- pre-validación antes de escalar.
+
+---
+
+## 6. REPLIT COMO AGENTE HÍBRIDO
+
+Replit cumple dos roles:
+
+---
+
+### 6.1 Validación de planes
+
+- recibe contexto filtrado;
+- evalúa plan propuesto;
+- responde con:
+  - validación;
+  - observaciones puntuales.
+
+Debe evitar:
+
+- redundancia;
+- reescritura completa innecesaria.
+
+---
+
+### 6.2 Revisión técnica avanzada
+
+- arquitectura;
+- coherencia global;
 - seguridad;
-- fallos repetidos del loop local-Replit;
-- decisiones de alto impacto.
+- calidad de solución.
 
-El usuario podrá elegir entre opciones premium disponibles cuando el escalamiento sea necesario.
-
----
-
-## 5. Flujo operativo deseado
-
-1. Usuario plantea una necesidad.
-2. Agente local recorre contexto total.
-3. Agente local filtra y prepara contexto relevante.
-4. Continue genera plan inicial.
-5. OpenCode valida técnicamente contra el repositorio.
-6. Continue sintetiza plan unificado.
-7. Replit valida en modo plan si aplica.
-8. OpenCode o entorno local ejecuta cambios.
-9. Se ejecutan pruebas y revisión local.
-10. Se actualiza documentación viva.
-11. Se sincroniza código con Git/GitHub.
-12. Replit valida conformidad si aplica.
-13. Si hay observaciones, se reinicia el ciclo.
-14. Si se superan capacidades locales o híbridas, se escala a modelo premium.
+Replit no reemplaza al agente local, lo complementa.
 
 ---
 
-## 6. Principio de contexto vivo
+## 7. ESCALAMIENTO A MODELOS PREMIUM
 
-Cada proyecto debe mantener documentación viva y acumulativa.
+Se activa cuando:
 
-Debe registrarse:
+- el agente local detecta limitaciones;
+- Replit lo recomienda;
+- el usuario lo solicita.
 
-- instrucciones relevantes;
-- decisiones técnicas;
-- planes;
-- errores;
-- pruebas;
-- resultados;
-- diffs;
-- handoffs;
-- feedback de Replit;
-- aprendizajes;
-- ajustes de arquitectura;
-- criterios de escalamiento.
+Criterios:
 
-La documentación no debe simplificar aprendizajes previos válidos. Debe enriquecer progresivamente el contexto.
+- alta complejidad;
+- ambigüedad;
+- impacto crítico;
+- necesidad de razonamiento profundo.
 
 ---
 
-## 7. Archivos base del sistema
+## 8. FLUJO OPERATIVO DEL SISTEMA
 
-Este repositorio contiene:
+Flujo estándar:
 
-- `AGENT_RULES.md`: protocolo operativo general.
-- `PROJECT_CONTEXT.md`: contexto vivo principal.
-- `MODEL_ROUTING.md`: criterios de selección de modelos.
-- `REPLIT_HANDOFF.md`: reglas para entregar contexto a Replit.
-- `SECURITY_POLICY.md`: reglas de seguridad y límites operativos.
-
----
-
-## 8. Decisiones tomadas
-
-- El agente local no reemplaza a Replit.
-- El agente local debe funcionar como curador y orquestador de contexto.
-- Replit participa como agente híbrido, no solo como escalamiento premium.
-- Continue y OpenCode pueden participar en concertación estructurada, no en autonomía simultánea caótica.
-- El sistema debe privilegiar trazabilidad, contexto depurado y control humano.
-- GitHub `lfangaritac` será usado como identidad y repositorio remoto.
-- El correo Git configurado es `felipe@onceasesores.net`.
+1. Usuario emite instrucción
+2. Agente local recorre contexto completo
+3. Se construye contexto relevante
+4. Continue genera plan
+5. OpenCode valida factibilidad técnica
+6. Se genera plan unificado
+7. Replit valida (según criticidad)
+8. OpenCode ejecuta cambios
+9. Se ejecutan pruebas
+10. Replit valida resultado
+11. Se documenta
+12. Se versiona en Git
 
 ---
 
-## 9. Estado actual de Git
+## 9. GESTIÓN DEL CONTEXTO
 
-Repositorio local:
+El sistema debe mantener:
 
-`C:\Agente`
+- documentación estructurada;
+- historial de decisiones;
+- contexto técnico del código;
+- logs de errores y soluciones;
+- evolución del proyecto.
 
-Repositorio remoto:
-
-`https://github.com/lfangaritac/agente-local-orchestrator.git`
-
-Rama principal:
-
-`main`
-
-Primer commit realizado:
-
-`Inicialización documentación base del agente local (rules, routing, context, seguridad, handoff)`
+El agente local actúa como **curador del contexto**.
 
 ---
 
-## 10. Próximos hitos
+## 10. MEMORIA VIVA DEL PROYECTO
 
-1. Completar `MODEL_ROUTING.md`.
-2. Completar `REPLIT_HANDOFF.md`.
-3. Completar `SECURITY_POLICY.md`.
-4. Diseñar protocolo de concertación inter-agente.
-5. Evaluar incorporación formal de OpenCode.
-6. Definir protocolo `INIT_PROJECT`.
-7. Construir router local v1.
-8. Diseñar estructura de memoria por proyecto.
-9. Integrar flujo GitHub/Replit.
-10. Evaluar escalamiento premium bajo criterios técnicos y económicos.
+El proyecto no depende de memoria de modelo.
+
+Depende de:
+
+- archivos Markdown;
+- commits en Git;
+- estructura documental;
+- reglas operativas.
+
+---
+
+## 11. RELACIÓN CON GIT
+
+Git es:
+
+- registro de cambios;
+- fuente de verdad;
+- mecanismo de trazabilidad;
+- base para reconstrucción de contexto.
+
+Cada cambio relevante debe:
+
+- documentarse;
+- versionarse;
+- justificarse.
+
+---
+
+## 12. CRITERIO DE FINALIZACIÓN
+
+Una tarea se considera finalizada cuando:
+
+- el código funciona correctamente;
+- las pruebas pasan;
+- la solución es coherente;
+- la arquitectura es válida;
+- la documentación está actualizada;
+- el cambio está versionado.
+
+---
+
+## 13. EVOLUCIÓN
+
+Este documento:
+
+- debe evolucionar continuamente;
+- debe adaptarse al proyecto;
+- debe enriquecerse con la experiencia;
+- debe incorporar mejoras del sistema.
+
+No es un documento estático.
+
+Es parte del sistema.
+
+---
