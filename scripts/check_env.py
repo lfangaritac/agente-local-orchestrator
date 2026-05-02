@@ -1,49 +1,41 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 check_env.py
 
-Valida que las variables de entorno requeridas estén presentes.
-No imprime valores reales.
+Valida configuración mínima del orquestador local.
+
+Este proyecto no debe exigir variables de base de datos por defecto.
+Las variables sensibles de proyectos específicos deben validarse dentro de cada proyecto activado,
+no en el orquestador base.
 """
 
 from __future__ import annotations
 
 import os
-import sys
 
-
-REQUIRED_VARS = [
-    "DB_HOST",
-    "DB_NAME",
-    "DB_USER",
-    "DB_PASSWORD",
-
-]
 
 OPTIONAL_VARS = [
     "OPENAI_API_KEY",
-    "RESEND_API_KEY",
-    "AZURE_STORAGE_CONNECTION_STRING",
-
+    "ANTHROPIC_API_KEY",
+    "GITHUB_TOKEN",
+    "REPLIT_API_TOKEN",
+    "OLLAMA_HOST",
 ]
 
 
 def main() -> None:
-    missing = [name for name in REQUIRED_VARS if not os.getenv(name)]
-
-    if missing:
-        print("Missing required environment variables:")
-        for name in missing:
-            print(f"- {name}")
-        sys.exit(1)
-
-    print("Required environment variables are present.")
+    print("Base orchestrator environment check completed.")
 
     configured_optional = [name for name in OPTIONAL_VARS if os.getenv(name)]
+
     if configured_optional:
         print("Configured optional variables:")
         for name in configured_optional:
             print(f"- {name}")
+    else:
+        print("No optional integration variables detected.")
+
+    print("No required environment variables are enforced at the base orchestrator level.")
 
 
 if __name__ == "__main__":
