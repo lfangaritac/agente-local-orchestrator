@@ -7,3 +7,6 @@
 *.db
 .venv/
 __pycache__/
+
+# Generated activation reports
+docs/test_reports/activation_report_*.md
