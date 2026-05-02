@@ -1,37 +1,43 @@
-# CONTINUE_USAGE_PROTOCOL.md
+﻿# CONTINUE_USAGE_PROTOCOL.md
 
 ## Propósito
 
-Guía operativa mínima para usar Continue dentro de VS Code.
+Este documento define cómo usar Continue en VS Code dentro del orquestador local de agentes.
 
-## Archivos que Continue debe considerar
+Continue debe operar como copiloto principal de análisis, revisión, edición menor, preparación de tareas para OpenCode y preparación de handoffs hacia Replit.
 
-- AGENT_RULES.md
-- PROJECT_CONTEXT.md
-- MODEL_ROUTING.md
-- SECURITY_POLICY.md
-- REPLIT_HANDOFF.md
-- PROJECT_ACTIVATION_PROTOCOL.md
-- SECRETS_MANIFEST.md
+El objetivo es trabajar de forma eficiente, sin generar documentación innecesaria y sin perder trazabilidad.
 
-## Prompts sugeridos
+---
 
-### Revisar contexto
+## Rol de Continue
 
-Revisa AGENT_RULES.md, PROJECT_CONTEXT.md, MODEL_ROUTING.md y SECURITY_POLICY.md. Luego resume qué debes tener en cuenta antes de modificar este proyecto.
+Continue cumple estas funciones:
 
-### Elegir modelo/agente
+1. Leer y usar el contexto del proyecto.
+2. Ayudar a clasificar tareas.
+3. Recomendar modelo, agente o entorno según `MODEL_ROUTING.md`.
+4. Proponer cambios controlados.
+5. Ejecutar ediciones menores cuando el riesgo sea bajo.
+6. Preparar tareas estructuradas para OpenCode.
+7. Preparar handoffs compactos para Replit.
+8. Revisar diffs, errores, logs y resultados de pruebas.
+9. Ayudar a actualizar documentación mínima cuando haya cambios reales.
 
-Según MODEL_ROUTING.md, clasifica esta tarea y dime si conviene resolverla con Continue, OpenCode, Replit o un modelo premium.
+Continue no debe actuar como ejecutor autónomo de cambios complejos sin plan.
 
-### Preparar tarea para OpenCode
+---
 
-Prepara una tarea estructurada para OpenCode con objetivo, alcance, archivos relevantes, restricciones, pruebas esperadas y formato de handoff.
+## Archivos de contexto que debe revisar
 
-### Preparar handoff para Replit
+Antes de trabajar sobre un proyecto activado, Continue debe considerar estos archivos:
 
-Usando REPLIT_HANDOFF.md, prepara un handoff compacto para Replit con el contexto mínimo necesario, cambios recientes, pruebas y pregunta concreta.
-
-## Límites
-
-Continue no debe inventar secrets, asumir comandos no verificados, hacer cambios multiarchivo complejos sin plan, modificar seguridad o despliegue sin revisión ni sustituir pruebas reales.
+```text
+AGENT_RULES.md
+PROJECT_CONTEXT.md
+MODEL_ROUTING.md
+SECURITY_POLICY.md
+REPLIT_HANDOFF.md
+PROJECT_ACTIVATION_PROTOCOL.md
+SECRETS_MANIFEST.md
+QUICK_START.md
