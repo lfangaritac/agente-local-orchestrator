@@ -115,7 +115,10 @@ def main() -> None:
         copied,
         skipped,
     )
-
+    print(
+        "\nNota: scripts/check_env.py se copia como plantilla inicial. "
+        "Cada proyecto destino debe ajustarlo a sus variables reales y actualizar SECRETS_MANIFEST.md sin incluir valores sensibles."
+    )
     print("\nSistema aplicado al proyecto destino.\n")
     print(f"Destino: {target_root}")
 
