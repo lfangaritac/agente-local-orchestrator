@@ -41,3 +41,23 @@ Resultado operativo:
 - Git limpio en ambos extremos.
 
 Conclusion: el escenario local-first queda validado como ruta viable para iniciar proyectos desde VS Code/local, versionarlos en GitHub y operarlos posteriormente desde Replit.
+
+## Escenario validado: replit-first
+
+Flujo validado: Replit -> GitHub -> local -> GitHub.
+
+Resultado operativo:
+- Proyecto minimo creado directamente en Replit.
+- Git inicializado en Replit.
+- Commit inicial realizado desde Replit.
+- Repositorio privado creado en GitHub.
+- Push desde Replit hacia GitHub realizado.
+- Repositorio clonado en local.
+- Sistema operativo de agentes aplicado desde el orquestador local.
+- Activador ejecutado correctamente en local.
+- check_env.py validado correctamente.
+- Commit local con sistema de agentes realizado.
+- Push desde local hacia GitHub realizado.
+- Git limpio al finalizar.
+
+Conclusion: el escenario replit-first queda validado como ruta viable para iniciar proyectos desde Replit, versionarlos en GitHub, traerlos a VS Code/local y activar posteriormente el sistema operativo de agentes.
