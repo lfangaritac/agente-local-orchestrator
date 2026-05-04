@@ -61,3 +61,25 @@ Resultado operativo:
 - Git limpio al finalizar.
 
 Conclusion: el escenario replit-first queda validado como ruta viable para iniciar proyectos desde Replit, versionarlos en GitHub, traerlos a VS Code/local y activar posteriormente el sistema operativo de agentes.
+
+## Rutas operativas soportadas
+
+El orquestador reconoce dos rutas principales de activacion de proyectos:
+
+### Ruta local-first
+
+Usar cuando el proyecto nace o se trabaja inicialmente en VS Code/local.
+
+Flujo: local -> GitHub -> Replit -> GitHub -> local.
+
+### Ruta replit-first
+
+Usar cuando el proyecto nace o se prototipa inicialmente en Replit.
+
+Flujo: Replit -> GitHub -> local -> GitHub.
+
+### Regla operativa
+
+En ambos casos, GitHub funciona como punto de sincronizacion verificable entre local y Replit.
+
+El sistema operativo de agentes debe quedar versionado en el repositorio del proyecto destino, y cada entorno debe terminar con git status limpio antes de continuar.
