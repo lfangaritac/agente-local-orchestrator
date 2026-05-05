@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 apply_to_project.py
 
@@ -27,6 +27,7 @@ FILES_TO_COPY = [
     "REPLIT_HANDOFF.md",
     "SECURITY_POLICY.md",
     "MODEL_ROUTING.md",
+    "DEVELOPMENT_CHECKS.md",
     "PROJECT_ACTIVATION_PROTOCOL.md",
     "CONTINUE_USAGE_PROTOCOL.md",
     "SECRETS_MANIFEST.md",
@@ -140,10 +141,11 @@ def main() -> None:
     print("\nSiguientes pasos en el proyecto destino:")
     print("1. Revisar PROJECT_CONTEXT.md.")
     print("2. Revisar SECRETS_MANIFEST.md.")
-    print("3. Ejecutar: .\\activate-agents.bat")
-    print("4. Ejecutar: python .\\scripts\\check_env.py")
-    print("5. Revisar: git status")
-    print("6. Versionar manualmente si corresponde.")
+    print("3. Revisar DEVELOPMENT_CHECKS.md.")
+    print("4. Ejecutar: .\\activate-agents.bat")
+    print("5. Ejecutar: python .\\scripts\\check_env.py")
+    print("6. Revisar: git status")
+    print("7. Versionar manualmente si corresponde.")
 
 
 if __name__ == "__main__":
