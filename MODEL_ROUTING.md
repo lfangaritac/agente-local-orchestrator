@@ -12,6 +12,274 @@ El valor del sistema no depende de usar siempre el modelo mas fuerte.
 
 Depende de usar el agente correcto, con el modelo correcto, en la fase correcta, con contexto suficiente, verificacion tecnica y trazabilidad.
 
+<!-- START: ROUTING_GO_ZEN_PREMIUM_V0_2 -->
+
+---
+
+## Actualización v0.2 — Routing Go + Zen + Premium
+
+Esta sección actualiza la baseline operativa del routing de modelos e incorpora la arquitectura definida en `AGENT_ORCHESTRATION.md`.
+
+La ruta estándar será:
+
+    Go -> Zen continuidad -> Zen económico -> Zen premium -> Replit
+
+### 1. Principio actualizado
+
+El sistema no debe usar siempre el modelo más fuerte. Debe usar el modelo suficiente, seguro y costo-eficiente para cada fase.
+
+Regla central:
+
+    Go primero.
+    Zen continuidad si Go se agota.
+    Zen económico si se requiere contraste o continuidad no premium.
+    Zen premium si el usuario lo solicita o si el riesgo, complejidad o volumen lo exige.
+    Replit si se requiere entorno real, secrets, deployment o validación remota.
+
+### 2. OpenCode Go como primera línea
+
+OpenCode Go será la primera línea para:
+
+- clasificación de tareas;
+- validación de contexto;
+- planificación simple o media;
+- ejecución controlada de código;
+- cambios pequeños;
+- debugging moderado;
+- revisión normal de diffs;
+- documentación técnica no crítica;
+- handoffs no críticos.
+
+Modelos Go definidos:
+
+- Builder principal: `opencode-go/kimi-k2.6`
+- Small model / tareas rápidas: `opencode-go/deepseek-v4-flash`
+- Validador de contexto: `opencode-go/qwen3.6-plus`
+- Debugger moderado: `opencode-go/deepseek-v4-pro`
+- Auxiliar liviano: `opencode-go/qwen3.5-plus`
+
+### 3. Zen como continuidad de Go
+
+Zen no debe entenderse solo como escalamiento premium.
+
+Cuando Go alcance límites de uso, Zen podrá continuar la tarea como capa pay-as-you-go usando el mismo modelo o un equivalente funcional.
+
+Equivalencias base:
+
+- `opencode-go/kimi-k2.6` -> `opencode/kimi-k2.6`
+- `opencode-go/qwen3.6-plus` -> `opencode/qwen3.6-plus`
+- `opencode-go/qwen3.5-plus` -> `opencode/qwen3.5-plus`
+- `opencode-go/deepseek-v4-flash` -> `opencode/qwen3.5-plus` o `opencode/minimax-m2.7`
+- `opencode-go/deepseek-v4-pro` -> `opencode/kimi-k2.6`, `opencode/qwen3.6-plus` o `opencode/glm-5`
+
+Zen continuidad se usa cuando:
+
+- Go alcanza límite de ventana;
+- Go alcanza límite semanal;
+- Go alcanza límite mensual;
+- se necesita terminar una tarea iniciada;
+- se requiere continuidad inmediata sin esperar renovación de Go.
+
+### 4. Zen económico
+
+Zen económico se usará cuando:
+
+- Go produjo una respuesta débil;
+- se requiere segundo criterio;
+- hay volumen medio o alto sin sensibilidad crítica;
+- se quiere comparar modelos;
+- se requiere un modelo abierto no disponible en Go;
+- Go se agotó, pero la tarea no justifica premium.
+
+Modelos sugeridos:
+
+- `opencode/kimi-k2.6`
+- `opencode/qwen3.6-plus`
+- `opencode/qwen3.5-plus`
+- `opencode/glm-5`
+- `opencode/glm-5.1`
+- `opencode/gemini-3-flash`
+- `opencode/minimax-m2.7`
+
+### 5. Zen premium
+
+Zen premium se activa por:
+
+1. Solicitud expresa del usuario.
+2. Seguridad, auth, permisos, secrets o datos personales.
+3. Debugging complejo o persistente.
+4. Cambio arquitectónico.
+5. Refactor transversal.
+6. Migraciones o persistencia crítica.
+7. Deployment, CI/CD, Replit o entorno real.
+8. Alto volumen de información con necesidad de juicio técnico.
+9. Falla de Go o Zen económico después de intentos razonables.
+10. Revisión final sensible antes de merge o handoff.
+11. Costo de equivocarse superior al costo de escalar.
+
+Modelos premium sugeridos:
+
+- Planificación arquitectónica: `opencode/claude-opus-4-7`
+- Planificación media premium: `opencode/claude-sonnet-4-6`
+- Ejecución premium balanceada: `opencode/claude-sonnet-4-6` o `opencode/gpt-5.4`
+- Debugging complejo: `opencode/gpt-5.5`
+- Seguridad: `opencode/gpt-5.5`
+- Diff sensible: `opencode/gpt-5.5`
+- Documentación premium: `opencode/claude-sonnet-4-6`
+
+### 6. Solicitud expresa del usuario
+
+Cuando el usuario pida escalar a premium, no se debe forzar el paso previo por Go para esa fase.
+
+Ejemplos:
+
+- Revisión premium de diff normal -> `opencode/gpt-5.4`
+- Revisión premium de diff sensible -> `opencode/gpt-5.5`
+- Debugging con el modelo más fuerte -> `opencode/gpt-5.5`
+- Planificación premium de arquitectura -> `opencode/claude-opus-4-7`
+- Revisión premium de seguridad -> `opencode/gpt-5.5`
+- Documentación premium -> `opencode/claude-sonnet-4-6`
+
+Regla:
+
+    Solicitud premium no significa siempre usar el modelo más caro.
+    Significa usar el modelo premium adecuado para el escenario.
+
+### 7. Routing por volumen
+
+Volumen bajo:
+
+- 1 a 3 archivos pequeños;
+- sin documentación extensa;
+- sin impacto transversal;
+- sin seguridad.
+
+Modelo sugerido: Go.
+
+Volumen medio:
+
+- 4 a 8 archivos;
+- código más documentación;
+- dependencias moderadas;
+- riesgo controlado.
+
+Modelo sugerido: Go fuerte o Zen continuidad.
+
+Volumen alto:
+
+- más de 8 archivos;
+- documentación extensa;
+- handoffs previos;
+- arquitectura más código más reglas;
+- necesidad de razonamiento transversal.
+
+Modelos sugeridos:
+
+- `opencode/gemini-3-flash`
+- `opencode/qwen3.6-plus`
+- `opencode/claude-sonnet-4-6`
+- `opencode/gpt-5.4`
+
+Volumen alto sensible:
+
+- mucho contexto;
+- seguridad;
+- auth;
+- DB;
+- datos personales;
+- deployment;
+- producción.
+
+Modelos sugeridos:
+
+- `opencode/gpt-5.5`
+- `opencode/claude-opus-4-7`
+
+### 8. Routing resumido por escenario
+
+| Escenario | Go default | Zen continuidad | Premium |
+|---|---|---|---|
+| Clasificación | `opencode-go/deepseek-v4-flash` | `opencode/qwen3.5-plus` | `opencode/gpt-5.4` |
+| Validación de contexto | `opencode-go/qwen3.6-plus` | `opencode/qwen3.6-plus` / `opencode/gemini-3-flash` | `opencode/claude-sonnet-4-6` / `opencode/gpt-5.4` |
+| Plan simple/media | `opencode-go/kimi-k2.6` | `opencode/kimi-k2.6` | `opencode/claude-sonnet-4-6` |
+| Plan arquitectónico | `opencode-go/kimi-k2.6` preliminar | `opencode/kimi-k2.6` / `opencode/glm-5` | `opencode/claude-opus-4-7` / `opencode/gpt-5.5` |
+| Código controlado | `opencode-go/kimi-k2.6` | `opencode/kimi-k2.6` | `opencode/claude-sonnet-4-6` / `opencode/gpt-5.4` |
+| Cambios pequeños | `opencode-go/deepseek-v4-flash` | `opencode/qwen3.5-plus` | `opencode/gpt-5.4` solo si se pide |
+| Debugging moderado | `opencode-go/deepseek-v4-pro` | `opencode/kimi-k2.6` / `opencode/qwen3.6-plus` | `opencode/gpt-5.4` / `opencode/gpt-5.5` |
+| Debugging crítico | `opencode-go/deepseek-v4-pro` preliminar | `opencode/kimi-k2.6` | `opencode/gpt-5.5` / `opencode/claude-opus-4-7` |
+| Diff normal | `opencode-go/qwen3.6-plus` | `opencode/qwen3.6-plus` | `opencode/gpt-5.4` / `opencode/gpt-5.5` si sensible |
+| Seguridad | `opencode-go/qwen3.6-plus` pre-review | `opencode/qwen3.6-plus` pre-review | `opencode/gpt-5.5` / `opencode/claude-opus-4-7` |
+| Handoff Replit | `opencode-go/qwen3.6-plus` | `opencode/qwen3.6-plus` | `opencode/gpt-5.4` / `opencode/gpt-5.5` |
+| Documentación | `opencode-go/qwen3.6-plus` | `opencode/qwen3.6-plus` / `opencode/gemini-3-flash` | `opencode/claude-sonnet-4-6` |
+
+### 9. Escalamiento con transferencia de insumos
+
+Cuando un modelo de primera línea escala a Zen o premium, su resultado no debe descartarse.
+
+Debe convertirse en insumo estructurado para el siguiente modelo.
+
+Paquete mínimo de escalamiento:
+
+    {
+      "original_user_request": "",
+      "scenario": "",
+      "risk_level": "",
+      "information_volume": "",
+      "first_line_agent": "",
+      "first_line_model": "",
+      "first_line_summary": "",
+      "first_line_findings": [],
+      "first_line_plan": [],
+      "files_reviewed": [],
+      "files_modified": [],
+      "commands_suggested": [],
+      "risks_detected": [],
+      "open_questions": [],
+      "confidence": "low | medium | high",
+      "reason_for_escalation": "",
+      "specific_question_for_escalated_model": "",
+      "expected_output": "",
+      "constraints": [],
+      "do_not_do": []
+    }
+
+Regla:
+
+    El modelo escalado debe validar, corregir, completar o profundizar el resultado previo.
+    No debe reiniciar la tarea desde cero sin aprovechar el insumo de primera línea.
+
+### 10. Criterios de suficiencia de Go
+
+Go es suficiente si:
+
+- entiende correctamente la tarea;
+- respeta restricciones;
+- identifica archivos relevantes;
+- no inventa contexto;
+- no solicita secrets;
+- propone plan acotado;
+- toca pocos archivos;
+- justifica cambios;
+- identifica riesgos razonables;
+- produce salida accionable;
+- no hay seguridad ni criticidad.
+
+Go no es suficiente si:
+
+- responde genérico;
+- contradice reglas;
+- omite riesgos evidentes;
+- propone cambios masivos innecesarios;
+- no entiende arquitectura;
+- falla dos veces en bug;
+- no explica el diff;
+- no identifica archivos clave;
+- hay seguridad, auth, datos o deployment;
+- el usuario pidió premium.
+
+Ver detalle completo de agentes, estados, paquetes y mini-orquestador en `AGENT_ORCHESTRATION.md`.
+
+<!-- END: ROUTING_GO_ZEN_PREMIUM_V0_2 -->
 ## Roles de agentes
 
 ### Continue
@@ -264,3 +532,4 @@ El sistema no debe:
 Contexto primero, agente correcto despues, ejecucion controlada al final.
 
 La arquitectura debe favorecer contexto depurado, plan verificable, cambios trazables, pruebas documentadas y sincronizacion por GitHub.
+
