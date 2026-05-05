@@ -1,377 +1,266 @@
-# MODEL_ROUTING.md
+﻿# MODEL_ROUTING.md
 
-## 1. PROPÓSITO
+## Proposito
 
-Definir cómo el sistema selecciona modelos, agentes y capas de validación dentro de la arquitectura híbrida:
+Definir como se seleccionan agentes y modelos dentro del orquestador local, segun tipo de tarea, riesgo, contexto requerido y necesidad de validacion local o remota.
 
-- Continue
-- OpenCode
-- modelos locales vía Ollama
-- Replit
-- modelos premium
+Este documento es una baseline operativa provisional basada en pruebas reales realizadas con OpenCode, Ollama, Continue y Replit.
 
-El objetivo es maximizar calidad, reducir costo externo, evitar redundancia y mantener trazabilidad.
+## Principio central
 
----
+El valor del sistema no depende de usar siempre el modelo mas fuerte.
 
-## 2. PRINCIPIO CENTRAL
+Depende de usar el agente correcto, con el modelo correcto, en la fase correcta, con contexto suficiente, verificacion tecnica y trazabilidad.
 
-El sistema no decide por preferencia de modelo.
+## Roles de agentes
 
-Decide según:
+### Continue
 
-- fase del ciclo operativo;
-- complejidad;
-- criticidad;
-- impacto arquitectónico;
-- necesidad de acceso a código real;
-- necesidad de validación externa;
-- costo/beneficio.
+Continue opera como copiloto IDE e integrador de contexto.
 
----
+Responsabilidades principales:
 
-## 3. MODELOS DISPONIBLES
+- asistir al usuario dentro de VS Code;
+- revisar documentacion y codigo relevante;
+- consolidar ventana de contexto;
+- preparar o revisar handoffs;
+- explicar diffs y decisiones;
+- apoyar revisiones ligeras;
+- no actuar como unico ejecutor de cambios complejos.
 
-### 3.1 Qwen Coder
+Continue puede incluir codigo en su contexto, pero no se debe asumir cobertura total automatica del repositorio.
 
-Modelo local principal para desarrollo diario.
+Regla: Continue debe declarar que fuentes o archivos reviso cuando consolide contexto para una tarea relevante.
 
-Usar para:
+### OpenCode
 
-- generación de código base;
-- Flask, React, SQL, scripts;
-- refactor menor;
-- explicaciones técnicas;
-- primer análisis de errores.
+OpenCode opera como agente local especializado de codificacion.
 
----
+Responsabilidades principales:
 
-### 3.2 DeepSeek Coder
+- leer archivos reales del repositorio;
+- diagnosticar problemas tecnicos;
+- proponer planes de cambio;
+- ejecutar cambios locales solo con autorizacion;
+- revisar git diff y git status;
+- ejecutar verificaciones definidas en DEVELOPMENT_CHECKS.md;
+- generar reporte tecnico o handoff cuando aplique.
 
-Modelo local de apoyo técnico.
+OpenCode no necesita operar dentro de VS Code. Debe operar sobre el repositorio y dejar evidencia verificable.
 
-Usar para:
+### Replit Agent
 
-- revisión de código;
-- debugging más exigente;
-- análisis de errores;
-- validación técnica;
-- comparación de alternativas de implementación.
+Replit Agent opera como agente remoto de validacion, preview, runtime y entorno Replit.
 
----
+Responsabilidades principales:
 
-### 3.3 Mistral
+- validar ejecucion en Replit;
+- revisar preview;
+- diagnosticar errores de runtime remoto;
+- validar build, deployment o configuracion Replit;
+- revisar cambios sincronizados por GitHub cuando el entorno Replit aporte valor.
 
-Modelo local generalista.
+Replit Agent no debe usarse para tareas triviales si la validacion local es suficiente.
 
-Usar para:
+### ChatGPT / supervisor metodologico
 
-- análisis funcional;
-- documentación;
-- síntesis;
-- estructuración de contexto;
-- redacción de handoffs.
+ChatGPT acompana la configuracion, clasifica decisiones, mantiene foco operativo y ayuda a consolidar documentacion maestra.
 
----
+No sustituye los artefactos del repo ni la evidencia de Git, pruebas o logs.
 
-## 4. ROUTING POR FASE DEL CICLO
+## Modelos disponibles y resultado de pruebas
 
-### 4.1 Construcción de contexto
+### OpenCode hosted
 
-Responsable principal:
+Modelos probados:
 
-- Continue
+- opencode/minimax-m2.5-free;
+- opencode/nemotron-3-super-free;
+- opencode/hy3-preview-free;
+- opencode/big-pickle;
+- opencode/gpt-5-nano.
 
-Modelo sugerido:
+Resultado provisional:
 
-- Mistral o Qwen
+1. opencode/minimax-m2.5-free
+   - Mejor balance observado para diagnostico corto.
+   - Preciso, concreto y alineado con la logica del orquestador.
 
-Función:
+2. opencode/nemotron-3-super-free
+   - Buen entendimiento operativo.
+   - Util para proponer wrappers, logs, validaciones externas y riesgos.
 
-- recorrer documentación viva;
-- identificar información relevante;
-- construir ventana depurada;
-- evitar enviar contexto completo innecesariamente.
+3. opencode/hy3-preview-free
+   - Prudente, seguro y conservador.
+   - Util para revision de bajo riesgo y mejoras documentales.
 
-OpenCode no debe recibir todo el contexto inicial, sino un paquete técnico filtrado cuando sea necesario.
+4. opencode/big-pickle
+   - Buena lectura real de archivos.
+   - Puede proponer soluciones sobredimensionadas.
+   - Usar como fallback o contraste enfocado.
 
----
+5. opencode/gpt-5-nano
+   - Rapido y estructurado.
+   - En prueba invento capacidades actuales de check_env.py.
+   - Usar para tareas rapidas no criticas, no como diagnostico preciso principal.
 
-### 4.2 Planeación inicial
+### Ollama local
 
-Responsable principal:
+Modelos instalados:
 
-- Continue
+- qwen2.5-coder:7b;
+- deepseek-coder:6.7b;
+- mistral:7b.
 
-Modelo sugerido:
+Resultado provisional:
 
-- Mistral para análisis funcional;
-- Qwen para planificación técnica simple;
-- DeepSeek si hay complejidad técnica.
+1. qwen2.5-coder:7b
+   - Mejor candidato local para codificacion.
+   - Fuera de OpenCode fue correcto pero superficial.
+   - Dentro de OpenCode intento emitir accion de edicion pese a instruccion de no modificar.
+   - No usar todavia como modelo principal de diagnostico sin cambios.
 
-Salida esperada:
+2. deepseek-coder:6.7b
+   - Respaldo local de codigo.
+   - En prueba inicial fue poco util y pidio mas informacion.
 
-- interpretación de la solicitud;
-- alcance;
-- plan inicial;
+3. mistral:7b
+   - Modelo general local.
+   - Usar para redaccion, explicacion, resumen o apoyo conceptual.
+   - No es coder principal.
+
+## Routing por tipo de tarea
+
+| Tipo de tarea | Agente principal | Modelo recomendado | Observaciones |
+|---|---|---|---|
+| Diagnostico sin cambios | OpenCode | opencode/minimax-m2.5-free | Debe leer archivos reales y no modificar. |
+| Diagnostico alterno | OpenCode | opencode/nemotron-3-super-free | Usar para segunda opinion tecnica. |
+| Revision prudente | OpenCode | opencode/hy3-preview-free | Bueno para tareas conservadoras. |
+| Contexto IDE | Continue | qwen2.5-coder:7b via Ollama, si esta configurado | Continue integra contexto, no ejecuta cambios grandes. |
+| Redaccion tecnica local | Continue/Ollama | mistral:7b | Para documentacion y explicacion. |
+| Codificacion local autorizada | OpenCode | candidato: ollama/qwen2.5-coder:7b | Solo con autorizacion explicita y DEVELOPMENT_CHECKS.md. |
+| Fallback OpenCode | OpenCode | opencode/big-pickle | Para contraste o tareas enfocadas. |
+| Validacion remota | Replit Agent | modelo Replit disponible | Preview, runtime, build, deployment. |
+| Alta criticidad | Replit Agent + premium | segun caso | Seguridad, schema, deployment, arquitectura. |
+
+## Mini-orquestacion de contexto
+
+Para tareas medianas o complejas, el contexto no debe depender de un solo agente.
+
+Flujo recomendado:
+
+1. Usuario formula tarea.
+2. Se clasifica alcance y riesgo.
+3. OpenCode genera lectura tecnica del repo.
+4. Continue integra la ventana final de contexto.
+5. Se decide agente principal.
+6. Se prepara handoff si aplica.
+
+OpenCode debe aportar:
+
+- archivos relevantes;
+- funciones, rutas o componentes relacionados;
+- dependencias;
+- comandos de verificacion disponibles;
+- riesgos tecnicos;
+- archivos sensibles o que no deben tocarse;
+- dudas o vacios de contexto.
+
+Continue debe consolidar:
+
+- objetivo de la tarea;
+- alcance autorizado;
+- archivos revisados;
+- contexto documental relevante;
 - riesgos;
-- archivos o componentes probablemente afectados.
+- comandos de verificacion;
+- agente recomendado;
+- si debe intervenir Replit Agent;
+- si se requiere aprobacion humana.
 
----
+No siempre se requiere mini-orquestacion de contexto. Activarla cuando exista:
 
-### 4.3 Validación técnica interna
+- cambio multiarchivo;
+- backend/frontend conectados;
+- integracion local/Replit;
+- ambiguedad funcional;
+- riesgo de secrets;
+- migraciones;
+- deployment;
+- errores de runtime;
+- necesidad de handoff a Replit.
 
-Responsable principal:
+## Doble planificacion
 
-- OpenCode
+Para tareas de riesgo medio o alto, OpenCode puede generar dos planes alternativos antes de ejecutar.
 
-Modelo sugerido:
+Modelos sugeridos:
 
-- DeepSeek como principal;
-- Qwen como apoyo.
+- Plan A: opencode/minimax-m2.5-free;
+- Plan B: opencode/nemotron-3-super-free;
+- Contraste opcional: opencode/hy3-preview-free.
 
-Función:
+Continue debe revisar los planes y producir un curso de accion unificado.
 
-- revisar factibilidad técnica contra el repositorio;
-- identificar archivos afectados;
-- validar dependencias;
-- detectar riesgos de implementación.
+El plan unificado debe incluir:
 
-OpenCode debe trabajar con:
+- puntos coincidentes;
+- divergencias;
+- riesgos;
+- archivos a modificar;
+- archivos a no tocar;
+- comandos de verificacion;
+- necesidad de Replit;
+- necesidad de autorizacion humana.
 
-- plan inicial;
-- contexto técnico filtrado;
-- archivos relevantes;
-- estructura real del repositorio.
+Regla: no se ejecutan cambios hasta que el usuario autorice el plan.
 
----
+## Tareas de codificacion
 
-### 4.4 Concertación Continue + OpenCode
+Toda tarea de codificacion queda gobernada por DEVELOPMENT_CHECKS.md.
 
-Responsables:
+Reglas obligatorias:
 
-- Continue
-- OpenCode
+- OpenCode solo modifica archivos con autorizacion explicita;
+- debe ejecutar verificaciones disponibles;
+- debe revisar git diff;
+- debe revisar git status;
+- debe reportar comandos ejecutados y resultados;
+- no debe declarar exito sin evidencia;
+- si no hay pruebas, debe reportarlo;
+- si requiere preview o runtime remoto, debe preparar handoff a Replit.
 
-Objetivo:
+## Escalamiento
 
-- combinar criterio funcional y técnico;
-- resolver inconsistencias;
-- producir una única salida consolidada.
+Escalar a Replit Agent, modelo premium o revision humana cuando exista:
 
-Regla:
+- baja confianza en el modelo local;
+- cambios de schema o migraciones;
+- deployment;
+- manejo de secrets;
+- errores persistentes;
+- impacto multiarchivo alto;
+- seguridad;
+- arquitectura;
+- conflicto entre recomendaciones de agentes;
+- necesidad de preview o runtime en Replit.
 
-- no se permite ejecutar con dos planes divergentes;
-- debe existir un plan unificado antes de la ejecución.
+## Restricciones
 
----
+El sistema no debe:
 
-### 4.5 Validación con Replit
-
-Usar Replit cuando:
-
-- exista impacto arquitectónico;
-- haya incertidumbre;
-- el cambio sea mediano o grande;
-- se requiera validación del entorno Replit;
-- el usuario lo solicite.
-
-Replit debe recibir:
-
-- objetivo;
-- contexto filtrado;
-- plan unificado;
-- preguntas concretas.
-
-Respuesta esperada:
-
-- aprobación breve; o
-- observaciones puntuales de valor.
-
-No se busca una reescritura completa salvo que se solicite expresamente.
-
----
-
-### 4.6 Ejecución
-
-Responsable principal:
-
-- OpenCode
-
-Modelo sugerido:
-
-- Qwen para implementación estándar;
-- DeepSeek para implementación compleja.
-
-Función:
-
-- modificar archivos;
-- generar diffs;
-- ejecutar comandos autorizados;
-- correr pruebas;
-- reportar resultados.
-
----
-
-### 4.7 Validación local
-
-Responsables:
-
-- OpenCode
-- Continue
-
-Modelo sugerido:
-
-- DeepSeek para revisión técnica;
-- Mistral para documentación y síntesis.
-
-Validar:
-
-- errores;
-- pruebas;
-- coherencia;
-- impacto;
-- cumplimiento del requerimiento.
-
----
-
-### 4.8 Validación post-ejecución con Replit
-
-Usar cuando:
-
-- hubo cambios significativos;
-- hubo cambios arquitectónicos;
-- se requiere conformidad con entorno Replit;
-- el usuario lo pide.
-
-Enviar:
-
-- objetivo inicial;
-- resumen de cambios;
-- diff relevante;
-- pruebas ejecutadas;
-- dudas concretas.
-
----
-
-### 4.9 Documentación y memoria
-
-Responsable principal:
-
-- Continue
-
-Modelo sugerido:
-
-- Mistral
-
-Actualizar:
-
-- PROJECT_CONTEXT.md;
-- handoffs;
-- decisiones;
-- errores;
-- aprendizajes;
-- próximos pasos.
-
----
-
-## 5. ESCALAMIENTO PREMIUM
-
-Activar modelos premium cuando:
-
-- los modelos locales no ofrecen confianza suficiente;
-- Replit identifica riesgo o insuficiencia;
-- hay alta criticidad;
-- la tarea requiere razonamiento profundo;
-- el usuario lo solicita.
-
-El usuario debe poder elegir la opción premium disponible.
-
-El escalamiento debe registrar:
-
-- motivo;
-- contexto enviado;
-- resultado;
-- decisión adoptada.
-
----
-
-## 6. REGLAS DE CONTEXTO
-
-### 6.1 Continue
-
-Puede acceder al contexto amplio del proyecto para:
-
-- entender intención;
-- sintetizar;
-- construir ventanas depuradas;
-- preparar handoffs.
-
-### 6.2 OpenCode
-
-No debe recibir contexto completo por defecto.
-
-Debe recibir:
-
-- contexto técnico filtrado;
-- plan validado;
-- archivos relevantes;
-- instrucciones claras;
-- criterios de prueba.
-
-### 6.3 Replit y premium
-
-Nunca deben recibir contexto completo sin filtrado.
-
-Solo deben recibir:
-
-- contexto mínimo suficiente;
-- datos sanitizados;
-- objetivo concreto;
-- pregunta o validación específica.
-
----
-
-## 7. REGLAS DE OPTIMIZACIÓN
-
-El sistema debe evitar:
-
-- enviar la misma tarea a varios modelos sin propósito;
-- generar análisis redundantes;
+- enviar la misma tarea a varios modelos sin proposito;
+- generar analisis redundante;
 - usar Replit para tareas triviales;
-- usar premium sin justificación;
-- cargar contexto innecesario.
+- usar premium sin justificacion;
+- cargar contexto innecesario;
+- modificar archivos sin autorizacion;
+- ejecutar migraciones sin autorizacion;
+- imprimir secrets;
+- versionar archivos .env.
 
-El sistema debe priorizar:
+## Principio final
 
-- contexto depurado;
-- validación puntual;
-- ejecución controlada;
-- documentación continua.
+Contexto primero, agente correcto despues, ejecucion controlada al final.
 
----
-
-## 8. CRITERIOS RÁPIDOS DE SELECCIÓN
-
-| Caso | Modelo / Agente recomendado |
-|---|---|
-| Código simple | Qwen |
-| Código complejo | DeepSeek |
-| Documentación | Mistral |
-| Síntesis funcional | Mistral |
-| Plan inicial | Continue + Qwen/Mistral |
-| Validación técnica | OpenCode + DeepSeek |
-| Ejecución local | OpenCode |
-| Validación arquitectónica | Replit |
-| Alta criticidad | Replit + Premium |
-| Handoff a Replit | Mistral / Continue |
-
----
-
-## 9. PRINCIPIO FINAL
-
-El valor del sistema no depende de usar siempre el modelo más fuerte.
-
-Depende de usar el modelo correcto, en la fase correcta, con el contexto correcto y con trazabilidad suficiente.
-
----
+La arquitectura debe favorecer contexto depurado, plan verificable, cambios trazables, pruebas documentadas y sincronizacion por GitHub.
