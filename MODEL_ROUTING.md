@@ -1,4 +1,116 @@
-﻿# MODEL_ROUTING.md
+﻿<!-- START: MODEL_ROUTING_ESCALATION_SCHEMA_V0_3 -->
+
+---
+
+## Actualización v0.3 — Routing con paquete canónico de escalamiento
+
+Esta sección alinea `MODEL_ROUTING.md` con el schema canónico definido en `AGENT_ORCHESTRATION.md`.
+
+A partir de esta versión, todo escalamiento desde Go hacia Zen continuidad, Zen económico, Zen premium o Replit debe usar el paquete canónico anidado.
+
+### 1. Regla de routing con paquete canónico
+
+El routing no debe enviar directamente una respuesta suelta de Go al modelo escalado.
+
+Debe enviar un paquete estructurado con:
+
+- metadata de orquestación;
+- validación de contexto;
+- salida normalizada de primera línea;
+- motivo de escalamiento;
+- pregunta específica para el modelo escalado;
+- salida esperada;
+- restricciones;
+- acciones prohibidas.
+
+### 2. Uso por tipo de escalamiento
+
+#### Go → Zen continuidad
+
+Usar cuando Go se agota.
+
+    escalation_type = zen_continuity
+    trigger = go_exhausted
+
+El modelo Zen debe continuar la tarea, no tratarla como revisión premium.
+
+#### Go → Zen económico
+
+Usar cuando Go fue insuficiente, pero la tarea no justifica premium.
+
+    escalation_type = zen_economic
+    trigger = low_quality | second_opinion | medium_high_volume
+
+#### Go → Zen premium
+
+Usar cuando exista solicitud del usuario, riesgo, complejidad, volumen alto sensible o revisión crítica.
+
+    escalation_type = zen_premium
+    trigger = user_request | architectural_change | security | critical_debugging | high_sensitive_volume | final_sensitive_review
+
+#### Go / Zen → Replit
+
+Usar cuando se requiera entorno real, secrets reales, deployment, runtime o validación remota.
+
+    escalation_type = replit_handoff
+    trigger = real_environment_validation | deployment | runtime | secrets_required
+
+### 3. Regla de suficiencia y routing
+
+La decisión de routing debe ocurrir después de `evaluate_sufficiency()`.
+
+Si Go es suficiente:
+
+    return first_line_result
+
+Si Go no es suficiente:
+
+    normalizar salida Go
+    construir paquete canónico
+    validar paquete
+    enviar según routing
+
+### 4. Compatibilidad con campos planos previos
+
+Cuando documentos anteriores hagan referencia a:
+
+- `first_line_summary`
+- `first_line_findings`
+- `first_line_plan`
+
+deben entenderse como equivalentes internos de:
+
+- `first_line_output.summary`
+- `first_line_output.findings`
+- `first_line_output.plan`
+
+La estructura oficial será la anidada bajo `first_line_output`.
+
+### 5. Regla de modelos
+
+El modelo escalado debe recibir el paquete completo.
+
+No debe recibir únicamente:
+
+- un resumen informal;
+- una pregunta aislada;
+- el resultado bruto de Go;
+- un diff sin contexto;
+- una instrucción sin motivo de escalamiento.
+
+### 6. Regla de selección premium
+
+La existencia de un paquete de escalamiento no implica usar siempre premium.
+
+El routing debe seguir aplicando:
+
+    Go -> Zen continuidad -> Zen económico -> Zen premium -> Replit
+
+Premium se activa únicamente cuando exista activador válido conforme a este documento y a `AGENT_RULES.md`.
+
+<!-- END: MODEL_ROUTING_ESCALATION_SCHEMA_V0_3 -->
+
+# MODEL_ROUTING.md
 
 ## Proposito
 
@@ -532,4 +644,5 @@ El sistema no debe:
 Contexto primero, agente correcto despues, ejecucion controlada al final.
 
 La arquitectura debe favorecer contexto depurado, plan verificable, cambios trazables, pruebas documentadas y sincronizacion por GitHub.
+
 

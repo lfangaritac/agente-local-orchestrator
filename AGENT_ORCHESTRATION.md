@@ -1,4 +1,261 @@
-﻿# AGENT_ORCHESTRATION.md
+﻿<!-- START: ESCALATION_PACKAGE_CANONICAL_SCHEMA_V0_3 -->
+
+---
+
+## Actualización v0.3 — Schema canónico y generación automática del paquete de escalamiento
+
+Esta sección resuelve los hallazgos de la prueba controlada `classifier → context-validator → planner → escalamiento simulado a Zen premium`.
+
+La prueba confirmó que la arquitectura es funcional, pero requiere tres precisiones antes de implementación real:
+
+1. Definir un schema canónico único del paquete de escalamiento.
+2. Documentar el mecanismo de extracción automática desde salidas Go.
+3. Precisar el punto exacto de inserción dentro del mini-orquestador.
+
+### 1. Decisión canónica
+
+Se adopta como canónico el schema anidado del paquete de escalamiento.
+
+Razones:
+
+- Separa la metadata de orquestación de la salida del modelo de primera línea.
+- Evita contaminar el objeto raíz con campos operativos.
+- Conserva trazabilidad completa del resultado de Go.
+- Facilita que Zen premium valide, corrija, complete o profundice sin reiniciar desde cero.
+- Permite agregar metadatos futuros sin romper la estructura principal.
+
+A partir de esta versión, `first_line_output` será el contenedor oficial de la salida normalizada del modelo de primera línea.
+
+### 2. Schema canónico
+
+Formato oficial:
+
+    {
+      "escalation_type": "zen_continuity | zen_economic | zen_premium | replit_handoff",
+      "trigger": "",
+      "original_user_request": "",
+      "scenario": "",
+      "risk_level": "low | medium | medium-high | high | critical",
+      "information_volume": "low | medium | high | high_sensitive",
+      "first_line_agent": "",
+      "first_line_model": "",
+      "context_validation": {
+        "files_reviewed": [],
+        "rules_applied": [],
+        "constraints": [],
+        "assumptions": [],
+        "risks": []
+      },
+      "first_line_output": {
+        "summary": "",
+        "findings": [],
+        "plan": [],
+        "files_reviewed": [],
+        "files_modified": [],
+        "commands_suggested": [],
+        "commands_executed": [],
+        "risks_detected": [],
+        "open_questions": [],
+        "confidence": "low | medium | high"
+      },
+      "reason_for_escalation": "",
+      "specific_question_for_escalated_model": "",
+      "expected_output": "",
+      "constraints": [],
+      "security_notes": [],
+      "do_not_do": []
+    }
+
+### 3. Campos mínimos obligatorios
+
+Todo paquete de escalamiento debe contener:
+
+- `escalation_type`
+- `trigger`
+- `original_user_request`
+- `scenario`
+- `risk_level`
+- `information_volume`
+- `first_line_agent`
+- `first_line_model`
+- `first_line_output.summary`
+- `first_line_output.findings`
+- `first_line_output.plan`
+- `reason_for_escalation`
+- `specific_question_for_escalated_model`
+- `expected_output`
+- `constraints`
+- `do_not_do`
+
+Si un campo no puede completarse automáticamente, debe quedar como `unknown` o como lista vacía. No se debe inventar información.
+
+### 4. Extracción automática desde salidas Go
+
+La generación del paquete debe realizarse mediante una función lógica de normalización:
+
+    normalize_first_line_output()
+
+Entradas mínimas:
+
+- solicitud original del usuario;
+- clasificación de tarea;
+- resultado del context-validator, si existe;
+- resultado del agente Go de primera línea;
+- evaluación de suficiencia;
+- motivo de escalamiento.
+
+Salidas:
+
+- `first_line_output` normalizado;
+- paquete canónico de escalamiento;
+- lista de campos incompletos, si aplica.
+
+Reglas de extracción:
+
+- `summary`: extraer de resumen, conclusión, objetivo entendido o diagnóstico principal.
+- `findings`: extraer de hallazgos, observaciones, riesgos, inconsistencias o evidencias.
+- `plan`: extraer de pasos, plan de ejecución, recomendaciones o próximos pasos.
+- `files_reviewed`: extraer de archivos o fuentes declaradas como revisadas.
+- `files_modified`: extraer de cambios realizados o diff; en solo lectura debe ser lista vacía.
+- `commands_suggested`: comandos recomendados, no ejecutados.
+- `commands_executed`: comandos realmente ejecutados.
+- `risks_detected`: riesgos, restricciones, incertidumbres o advertencias.
+- `open_questions`: dudas, decisiones pendientes o información faltante.
+- `confidence`: `high`, `medium` o `low` según suficiencia, trazabilidad y calidad del resultado.
+
+### 5. Punto exacto de inserción
+
+La generación automática del paquete debe ocurrir después de `evaluate_sufficiency()` y antes de invocar Zen continuidad, Zen económico, Zen premium o Replit.
+
+Flujo actualizado:
+
+    first_line_result
+            ↓
+    evaluate_sufficiency()
+            ↓
+    si suficiente:
+        retornar resultado Go
+    si no suficiente:
+        normalize_first_line_output()
+            ↓
+        build_escalation_package()
+            ↓
+        validate_escalation_package()
+            ↓
+        enviar a Zen continuidad / Zen económico / Zen premium / Replit
+
+### 6. Pseudocódigo actualizado
+
+    def orchestrate_task(task):
+        classification = run_agent("classifier", task)
+
+        routing = determine_routing(
+            scenario=classification.scenario,
+            risk=classification.risk_level,
+            volume=classification.information_volume,
+            user_requested_premium=classification.user_requested_premium,
+            go_available=check_go_availability()
+        )
+
+        context_result = None
+
+        if routing.requires_context_validation:
+            context_result = run_agent(
+                "context-validator",
+                build_context_prompt(task, classification)
+            )
+
+        first_line_result = run_agent(
+            routing.go_agent,
+            build_first_line_prompt(
+                task=task,
+                classification=classification,
+                context_result=context_result
+            )
+        )
+
+        sufficiency = evaluate_sufficiency(
+            task=task,
+            classification=classification,
+            first_line_result=first_line_result
+        )
+
+        if sufficiency.is_sufficient and not routing.user_requested_premium:
+            return first_line_result
+
+        normalized_output = normalize_first_line_output(
+            task=task,
+            classification=classification,
+            context_result=context_result,
+            first_line_result=first_line_result,
+            sufficiency=sufficiency
+        )
+
+        escalation_package = build_escalation_package(
+            task=task,
+            classification=classification,
+            context_result=context_result,
+            normalized_output=normalized_output,
+            sufficiency=sufficiency,
+            routing=routing
+        )
+
+        validation = validate_escalation_package(escalation_package)
+
+        if not validation.is_valid:
+            return request_human_review(
+                reason="Escalation package incomplete",
+                missing_fields=validation.missing_fields,
+                package=escalation_package
+            )
+
+        if routing.go_exhausted:
+            return run_agent(routing.zen_continuity_agent, escalation_package)
+
+        if routing.requires_premium or routing.user_requested_premium:
+            return run_agent(routing.premium_agent, escalation_package)
+
+        return run_agent(routing.zen_economic_agent, escalation_package)
+
+### 7. Validación previa del paquete
+
+Antes de escalar, debe ejecutarse:
+
+    validate_escalation_package()
+
+Debe verificar:
+
+- campos mínimos obligatorios;
+- ausencia de secrets o credenciales;
+- existencia de solicitud original;
+- existencia de motivo de escalamiento;
+- existencia de pregunta específica para el modelo escalado;
+- consistencia entre `scenario`, `risk_level` y `escalation_type`;
+- claridad de `expected_output`.
+
+Si falla la validación, debe solicitar revisión humana antes de escalar.
+
+### 8. Regla de no reinicio
+
+Todo prompt hacia Zen premium debe incluir:
+
+    Tu tarea no es empezar desde cero. Debes usar el paquete de escalamiento como insumo principal, validar el análisis previo, corregir errores, completar omisiones y profundizar donde sea necesario.
+
+### 9. Prevalencia documental
+
+Esta sección prevalece sobre versiones anteriores del paquete de escalamiento cuando exista inconsistencia.
+
+Documentos que deben alinearse:
+
+- `MODEL_ROUTING.md`
+- `AGENT_RULES.md`
+- `REPLIT_HANDOFF.md`
+- `CONTINUE_USAGE_PROTOCOL.md`
+- `docs/test_reports/*`
+
+<!-- END: ESCALATION_PACKAGE_CANONICAL_SCHEMA_V0_3 -->
+
+# AGENT_ORCHESTRATION.md
 
 ## 1. Propósito
 
@@ -1332,3 +1589,4 @@ El escalamiento premium podrá activarse por:
 La mini-orquestación deberá garantizar que el resultado del modelo de primera línea no se descarte. En todo evento de escalamiento, el análisis, diagnóstico, plan, diff, riesgos y preguntas abiertas generados por Go deberán estructurarse como insumo para el modelo Zen o premium.
 
 El modelo escalado deberá validar, corregir, completar o profundizar el resultado previo, no reiniciar la tarea sin aprovecharlo.
+

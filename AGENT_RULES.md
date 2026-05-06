@@ -1,4 +1,102 @@
-﻿<!-- START: AGENT_RULES_GO_ZEN_PREMIUM_V0_2 -->
+﻿<!-- START: AGENT_RULES_ESCALATION_SCHEMA_V0_3 -->
+
+---
+
+## Actualización v0.3 — Reglas obligatorias del paquete canónico de escalamiento
+
+Esta sección convierte el paquete canónico de escalamiento en una regla operativa obligatoria para todos los agentes.
+
+### 1. Regla canónica
+
+Todo escalamiento desde Go hacia Zen continuidad, Zen económico, Zen premium o Replit debe usar el paquete canónico definido en `AGENT_ORCHESTRATION.md`.
+
+No se permite escalar únicamente con:
+
+- una respuesta suelta;
+- una conclusión informal;
+- una pregunta aislada;
+- un diff sin contexto;
+- una instrucción sin motivo de escalamiento.
+
+### 2. Regla de normalización
+
+Antes de escalar, el mini-orquestador debe normalizar la salida de Go dentro de:
+
+    first_line_output
+
+Ese objeto debe contener:
+
+- summary;
+- findings;
+- plan;
+- files_reviewed;
+- files_modified;
+- commands_suggested;
+- commands_executed;
+- risks_detected;
+- open_questions;
+- confidence.
+
+### 3. Regla de extracción automática
+
+La extracción debe ser automática siempre que exista resultado de Go.
+
+Si un campo no puede extraerse, debe quedar como `unknown` o lista vacía.
+
+No se debe inventar información para completar campos faltantes.
+
+### 4. Regla de validación previa
+
+Antes de escalar, el paquete debe validarse.
+
+La validación debe revisar:
+
+- campos mínimos obligatorios;
+- ausencia de secrets;
+- motivo de escalamiento;
+- pregunta específica para el modelo escalado;
+- salida esperada;
+- restricciones;
+- acciones prohibidas.
+
+Si la validación falla, debe pedirse revisión humana antes de continuar.
+
+### 5. Regla de no reinicio
+
+Todo modelo escalado debe recibir esta instrucción:
+
+    No empieces desde cero. Usa el paquete de escalamiento como insumo principal. Valida, corrige, completa o profundiza el resultado previo.
+
+### 6. Regla de seguridad
+
+El paquete de escalamiento nunca debe contener:
+
+- `.env`;
+- `.env.*`;
+- secrets;
+- tokens;
+- credenciales;
+- llaves privadas;
+- dumps de base de datos;
+- datos personales reales;
+- logs con PII;
+- valores reales de variables de entorno.
+
+### 7. Regla de trazabilidad
+
+El paquete debe permitir reconstruir:
+
+- qué pidió el usuario;
+- qué agente actuó primero;
+- qué modelo se usó;
+- qué archivos se revisaron;
+- qué se encontró;
+- por qué se escaló;
+- qué se espera del modelo escalado.
+
+<!-- END: AGENT_RULES_ESCALATION_SCHEMA_V0_3 -->
+
+<!-- START: AGENT_RULES_GO_ZEN_PREMIUM_V0_2 -->
 
 ---
 
@@ -567,4 +665,5 @@ Pero nunca debe comprometer:
 - seguridad
 - trazabilidad
 - control del sistema
+
 
