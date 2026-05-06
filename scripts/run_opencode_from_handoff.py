@@ -24,6 +24,24 @@ import datetime
 import json
 import subprocess
 import sys
+import os
+
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
+
+def safe_print(value: object = "") -> None:
+    text = str(value)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write((text + "\n").encode("utf-8", errors="replace"))
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -232,7 +250,7 @@ def main() -> None:
         handoff_path = latest_handoff_md()
 
     if not handoff_path:
-        print("ERROR: No se encontró handoff Markdown en docs/agent_queue/inbox.")
+        safe_print("ERROR: No se encontró handoff Markdown en docs/agent_queue/inbox.")
         sys.exit(1)
 
     package = load_package_for_handoff(handoff_path)
@@ -255,21 +273,21 @@ def main() -> None:
         args.prompt,
     ]
 
-    print("=== Invocando OpenCode ===")
-    print(" ".join(command[:-1]) + " <prompt>")
+    safe_print("=== Invocando OpenCode ===")
+    safe_print(" ".join(command[:-1]) + " <prompt>")
 
     code, stdout, stderr = run_command(command)
 
     if stderr:
-        print("=== STDERR ===")
-        print(stderr)
+        safe_print("=== STDERR ===")
+        safe_print(stderr)
 
     if stdout:
-        print("=== STDOUT ===")
-        print(stdout)
+        safe_print("=== STDOUT ===")
+        safe_print(stdout)
 
     if code != 0:
-        print(f"ERROR: opencode.cmd run falló con código {code}")
+        safe_print(f"ERROR: opencode.cmd run falló con código {code}")
         sys.exit(code)
 
     parsed = parse_opencode_jsonl(stdout)
@@ -311,8 +329,8 @@ def main() -> None:
     append_trace(run_id, agent, status, summary, model, handoff_path)
     write_run_summary(run_id)
 
-    print("=== Resultado registrado ===")
-    print(json.dumps({
+    safe_print("=== Resultado registrado ===")
+    safe_print(json.dumps({
         "status": "recorded",
         "run_id": run_id,
         "agent": agent,
@@ -322,7 +340,7 @@ def main() -> None:
         "summary": summary,
     }, ensure_ascii=True, indent=2))
 
-    print("=== Visualización actualizada ===")
+    safe_print("=== Visualización actualizada ===")
     show_code, show_out, show_err = run_command([
         sys.executable,
         "scripts/show_latest_run.py",
@@ -331,9 +349,9 @@ def main() -> None:
     ])
 
     if show_out:
-        print(show_out)
+        safe_print(show_out)
     if show_err:
-        print(show_err)
+        safe_print(show_err)
 
     if show_code != 0:
         print(f"ADVERTENCIA: show_latest_run.py terminó con código {show_code}")
@@ -341,3 +359,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

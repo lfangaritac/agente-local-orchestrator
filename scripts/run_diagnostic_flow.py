@@ -10,9 +10,18 @@ Objetivo:
 - Registrar un resultado diagnóstico inicial.
 - Generar RUN_SUMMARY.md y TRACE.md.
 - Mostrar el último flujo al usuario.
+- Opcionalmente invocar OpenCode real desde el handoff generado.
 
-Este script no invoca modelos, no modifica código funcional y no ejecuta acciones de agentes reales.
-Opera como prueba semiautomática de coordinación y trazabilidad.
+Modo base:
+- No invoca modelos.
+- No ejecuta agentes reales.
+- No modifica código funcional.
+- Opera como prueba semiautomática de coordinación y trazabilidad.
+
+Modo con --with-opencode:
+- Invoca OpenCode real mediante scripts/run_opencode_from_handoff.py.
+- Mantiene prompt diagnóstico.
+- No solicita edición de archivos ni ejecución de comandos.
 """
 
 from __future__ import annotations
@@ -23,6 +32,24 @@ import datetime
 import json
 import subprocess
 import sys
+import os
+
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
+
+def safe_print(value: object = "") -> None:
+    text = str(value)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write((text + "\n").encode("utf-8", errors="replace"))
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +76,28 @@ def print_section(title: str) -> None:
     print("=" * 80)
     print(title)
     print("=" * 80)
+
+
+def run_or_exit(command: list[str], label: str) -> tuple[dict | None, str]:
+    code, stdout, stderr = run_command(command)
+
+    if stdout:
+        safe_print(stdout)
+
+    if stderr:
+        safe_print(stderr)
+
+    if code != 0:
+        safe_print(f"ERROR: {label} falló con código {code}")
+        sys.exit(code)
+
+    parsed = None
+    try:
+        parsed = parse_json_output(stdout)
+    except Exception:
+        parsed = None
+
+    return parsed, stdout
 
 
 def main() -> None:
@@ -78,87 +127,78 @@ def main() -> None:
         default=(
             "Flujo diagnóstico semiautomático: ejecutar preflight, seleccionar agente/modelo, "
             "crear paquete de handoff, registrar resultado inicial y mostrar trazabilidad visible "
-            "sin invocar modelos ni modificar documentación funcional."
+            "sin modificar documentación funcional."
         ),
         help="Objetivo del flujo diagnóstico.",
+    )
+    parser.add_argument(
+        "--with-opencode",
+        action="store_true",
+        help="Invoca OpenCode real desde el handoff generado, en modo diagnóstico controlado.",
     )
     args = parser.parse_args()
 
     print_section("1. PREFLIGHT")
-    preflight_code, preflight_out, preflight_err = run_command([
-        sys.executable,
-        "scripts/orchestrator_preflight.py",
-    ])
+    preflight, _ = run_or_exit(
+        [sys.executable, "scripts/orchestrator_preflight.py"],
+        "orchestrator_preflight.py",
+    )
 
-    if preflight_out:
-        print(preflight_out)
-    if preflight_err:
-        print(preflight_err)
-
-    if preflight_code != 0:
-        print(f"ERROR: orchestrator_preflight.py falló con código {preflight_code}")
-        sys.exit(preflight_code)
-
-    preflight = parse_json_output(preflight_out)
+    if preflight is None:
+        safe_print("ERROR: No se pudo parsear JSON de preflight.")
+        sys.exit(1)
 
     print_section("2. SELECCIÓN DE AGENTE / MODELO")
-    selector_code, selector_out, selector_err = run_command([
-        sys.executable,
-        "scripts/select_agent_model.py",
-        "--scenario",
-        args.scenario,
-        "--risk",
-        args.risk,
-        "--volume",
-        args.volume,
-    ])
+    selector, _ = run_or_exit(
+        [
+            sys.executable,
+            "scripts/select_agent_model.py",
+            "--scenario",
+            args.scenario,
+            "--risk",
+            args.risk,
+            "--volume",
+            args.volume,
+        ],
+        "select_agent_model.py",
+    )
 
-    if selector_out:
-        print(selector_out)
-    if selector_err:
-        print(selector_err)
-
-    if selector_code != 0:
-        print(f"ERROR: select_agent_model.py falló con código {selector_code}")
-        sys.exit(selector_code)
-
-    selector = parse_json_output(selector_out)
+    if selector is None:
+        safe_print("ERROR: No se pudo parsear JSON de select_agent_model.py.")
+        sys.exit(1)
 
     target_agent = selector.get("recommended_agent", "context-validator")
 
     print_section("3. CREACIÓN DE PAQUETE DE HANDOFF")
-    build_code, build_out, build_err = run_command([
-        sys.executable,
-        "scripts/build_handoff_package.py",
-        "--project-id",
-        args.project_id,
-        "--source-agent",
-        "user",
-        "--target-agent",
-        target_agent,
-        "--scenario",
-        args.scenario,
-        "--risk",
-        args.risk,
-        "--volume",
-        args.volume,
-        "--objective",
-        args.objective,
-    ])
+    build, _ = run_or_exit(
+        [
+            sys.executable,
+            "scripts/build_handoff_package.py",
+            "--project-id",
+            args.project_id,
+            "--source-agent",
+            "user",
+            "--target-agent",
+            target_agent,
+            "--scenario",
+            args.scenario,
+            "--risk",
+            args.risk,
+            "--volume",
+            args.volume,
+            "--objective",
+            args.objective,
+        ],
+        "build_handoff_package.py",
+    )
 
-    if build_out:
-        print(build_out)
-    if build_err:
-        print(build_err)
+    if build is None:
+        safe_print("ERROR: No se pudo parsear JSON de build_handoff_package.py.")
+        sys.exit(1)
 
-    if build_code != 0:
-        print(f"ERROR: build_handoff_package.py falló con código {build_code}")
-        sys.exit(build_code)
-
-    build = parse_json_output(build_out)
     run_id = build["run_id"]
 
-    print_section("4. REGISTRO DE RESULTADO DIAGNÓSTICO")
+    print_section("4. REGISTRO DE RESULTADO DIAGNÓSTICO INICIAL")
     summary = (
         "Flujo diagnóstico semiautomático ejecutado: preflight ok, "
         f"{len(preflight.get('context_sources', []))} fuentes, "
@@ -167,46 +207,53 @@ def main() -> None:
         f"agente recomendado {selector.get('recommended_agent')} con modelo {selector.get('recommended_model')}."
     )
 
-    record_code, record_out, record_err = run_command([
-        sys.executable,
-        "scripts/record_agent_result.py",
-        "--run-id",
-        run_id,
-        "--agent",
-        "orchestrator-diagnostic-flow",
-        "--status",
-        "diagnostic",
-        "--summary",
-        summary,
-    ])
+    run_or_exit(
+        [
+            sys.executable,
+            "scripts/record_agent_result.py",
+            "--run-id",
+            run_id,
+            "--agent",
+            "orchestrator-diagnostic-flow",
+            "--status",
+            "diagnostic",
+            "--summary",
+            summary,
+        ],
+        "record_agent_result.py",
+    )
 
-    if record_out:
-        print(record_out)
-    if record_err:
-        print(record_err)
+    if args.with_opencode:
+        print_section("5. INVOCACIÓN REAL CONTROLADA DE OPENCODE")
+        run_or_exit(
+            [
+                sys.executable,
+                "scripts/run_opencode_from_handoff.py",
+                "--run-id",
+                run_id,
+                "--agent",
+                selector.get("recommended_agent", "context-validator"),
+                "--model",
+                selector.get("recommended_model", "opencode-go/qwen3.6-plus"),
+            ],
+            "run_opencode_from_handoff.py",
+        )
+    else:
+        print_section("5. OPENCODE OMITIDO")
+        safe_print("OpenCode no fue invocado porque no se usó --with-opencode.")
 
-    if record_code != 0:
-        print(f"ERROR: record_agent_result.py falló con código {record_code}")
-        sys.exit(record_code)
+    print_section("6. VISUALIZACIÓN DEL FLUJO")
+    run_or_exit(
+        [
+            sys.executable,
+            "scripts/show_latest_run.py",
+            "--run-id",
+            run_id,
+        ],
+        "show_latest_run.py",
+    )
 
-    print_section("5. VISUALIZACIÓN DEL FLUJO")
-    show_code, show_out, show_err = run_command([
-        sys.executable,
-        "scripts/show_latest_run.py",
-        "--run-id",
-        run_id,
-    ])
-
-    if show_out:
-        print(show_out)
-    if show_err:
-        print(show_err)
-
-    if show_code != 0:
-        print(f"ERROR: show_latest_run.py falló con código {show_code}")
-        sys.exit(show_code)
-
-    print_section("6. RESULTADO")
+    print_section("7. RESULTADO")
     result = {
         "status": "ok",
         "run_id": run_id,
@@ -216,13 +263,15 @@ def main() -> None:
         "volume": args.volume,
         "recommended_agent": selector.get("recommended_agent"),
         "recommended_model": selector.get("recommended_model"),
+        "with_opencode": args.with_opencode,
         "context_sources_count": len(preflight.get("context_sources", [])),
         "alerts_checked_count": len(preflight.get("alerts_checked", [])),
         "lessons_checked_count": len(preflight.get("lessons_checked", [])),
         "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
     }
-    print(json.dumps(result, ensure_ascii=True, indent=2))
+    safe_print(json.dumps(result, ensure_ascii=True, indent=2))
 
 
 if __name__ == "__main__":
     main()
+

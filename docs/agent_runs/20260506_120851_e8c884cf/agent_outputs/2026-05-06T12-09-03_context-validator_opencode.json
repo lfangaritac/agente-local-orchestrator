@@ -1,0 +1,23 @@
+{
+  "run_id": "20260506_120851_e8c884cf",
+  "timestamp": "2026-05-06T12:09:03",
+  "agent": "context-validator",
+  "model": "opencode-go/qwen3.6-plus",
+  "status": "diagnostic",
+  "handoff_path": "docs\\agent_queue\\inbox\\20260506_120851_e8c884cf.md",
+  "summary": "```json {   \"status\": \"created\",   \"agent\": \"context-validator\",   \"model\": \"opencode-go/qwen3.6-plus\",   \"file_read\": \"C:\\\\Agente\\\\docs\\\\agent_queue\\\\inbox\\\\20260506_120851_e8c884cf.md\",   \"summary\": \"Handoff de usuario para flujo diagn\u00f3stico semiautom\u00e1tico: ejecutar preflight, seleccionar agente/modelo, crear paquete de handoff, registrar resultado y mostrar trazabilidad sin modificar documentaci\u00f3n funcional. Proyecto: orchestrator. Riesgo: medium. Volumen: high. Preflight: ok. Alertas y lecciones globales consultadas.\",   \"next_action\": \"Ejecutar validaci\u00f3n de contexto: verificar que los archivos de reglas, protocolos, alertas y lecciones referidos existen, est\u00e1n vigentes y son consistent",
+  "opencode_session_id": "ses_201bc7195ffe9K8ofIJ4dCBuj4",
+  "events_count": 3,
+  "tokens": {
+    "total": 55904,
+    "input": 6,
+    "output": 404,
+    "reasoning": 0,
+    "cache": {
+      "write": 923,
+      "read": 54571
+    }
+  },
+  "cost": 0.004520425,
+  "text": "```json\n{\n  \"status\": \"created\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"C:\\\\Agente\\\\docs\\\\agent_queue\\\\inbox\\\\20260506_120851_e8c884cf.md\",\n  \"summary\": \"Handoff de usuario para flujo diagn\u00f3stico semiautom\u00e1tico: ejecutar preflight, seleccionar agente/modelo, crear paquete de handoff, registrar resultado y mostrar trazabilidad sin modificar documentaci\u00f3n funcional. Proyecto: orchestrator. Riesgo: medium. Volumen: high. Preflight: ok. Alertas y lecciones globales consultadas.\",\n  \"next_action\": \"Ejecutar validaci\u00f3n de contexto: verificar que los archivos de reglas, protocolos, alertas y lecciones referidos existen, est\u00e1n vigentes y son consistentes con el objetivo del handoff. Declarar suficiencia contextual o devolver feedback al usuario.\"\n}\n```"
+}
