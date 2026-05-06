@@ -1,136 +1,143 @@
 ﻿{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "opencode-go/kimi-k2.6",
-  "small_model": "opencode-go/deepseek-v4-flash",
-  "instructions": [
-    "AGENT_RULES.md",
-    "PROJECT_CONTEXT.md",
-    "MODEL_ROUTING.md",
-    "SECURITY_POLICY.md",
-    "CONTINUE_USAGE_PROTOCOL.md",
-    "REPLIT_HANDOFF.md",
-    "AGENT_ORCHESTRATION.md"
-  ],
-  "permission": {
-    "edit": "ask",
-    "bash": "ask"
-  },
-  "agent": {
-    "classifier": {
-      "description": "Clasifica tarea, riesgo, volumen y routing recomendado sin modificar archivos.",
-      "model": "opencode-go/deepseek-v4-flash",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "context-validator": {
-      "description": "Valida contexto, reglas, alcance, archivos relevantes y riesgos antes de ejecutar.",
-      "model": "opencode-go/qwen3.6-plus",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "planner": {
-      "description": "Planifica cambios simples o moderados sin editar archivos.",
-      "model": "opencode-go/kimi-k2.6",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "architect-planner": {
-      "description": "Planifica cambios arquitectónicos, complejos o transversales sin editar.",
-      "model": "opencode/claude-opus-4-7",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "builder": {
-      "description": "Ejecuta cambios controlados de código con aprobación humana.",
-      "model": "opencode-go/kimi-k2.6"
-    },
-    "light-builder": {
-      "description": "Ejecuta cambios pequeños, localizados y de bajo riesgo.",
-      "model": "opencode-go/deepseek-v4-flash"
-    },
-    "debugger": {
-      "description": "Diagnostica errores moderados, logs depurados y fallos de pruebas.",
-      "model": "opencode-go/deepseek-v4-pro"
-    },
-    "critical-debugger": {
-      "description": "Diagnostica errores complejos, persistentes o de alto impacto.",
-      "model": "opencode/gpt-5.5"
-    },
-    "diff-reviewer": {
-      "description": "Revisa diffs normales contra alcance, reglas y coherencia.",
-      "model": "opencode-go/qwen3.6-plus",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "security-reviewer": {
-      "description": "Revisa seguridad, secrets, auth, permisos y exposición de datos. Usar premium para revisión final sensible.",
-      "model": "opencode/gpt-5.5",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "handoff-writer": {
-      "description": "Prepara handoffs para Replit, Continue, humano desarrollador u otros agentes.",
-      "model": "opencode-go/qwen3.6-plus"
-    },
-    "documentation-writer": {
-      "description": "Documenta decisiones, aprendizajes, protocolos y resultados relevantes.",
-      "model": "opencode-go/qwen3.6-plus"
-    },
-    "model-evaluator": {
-      "description": "Compara modelos Go, Zen económico y Zen premium bajo criterios de calidad, costo y riesgo.",
-      "model": "opencode-go/qwen3.6-plus",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "go-continuity-builder": {
-      "description": "Continuidad pay-as-you-go en Zen para builder cuando Go se agota.",
-      "model": "opencode/kimi-k2.6"
-    },
-    "go-continuity-context-validator": {
-      "description": "Continuidad pay-as-you-go en Zen para validación de contexto cuando Go se agota.",
-      "model": "opencode/qwen3.6-plus",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "go-continuity-light-task": {
-      "description": "Continuidad económica en Zen para tareas livianas cuando Go se agota.",
-      "model": "opencode/qwen3.5-plus"
-    },
-    "premium-planner": {
-      "description": "Escalamiento premium para planificación compleja por solicitud, riesgo o arquitectura.",
-      "model": "opencode/claude-opus-4-7",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    },
-    "premium-debugger": {
-      "description": "Escalamiento premium para debugging persistente o crítico.",
-      "model": "opencode/gpt-5.5"
-    },
-    "premium-security-reviewer": {
-      "description": "Escalamiento premium para revisión sensible de seguridad, auth, secrets y datos.",
-      "model": "opencode/gpt-5.5",
-      "tools": {
-        "write": false,
-        "bash": false
-      }
-    }
-  }
+    "$schema":  "https://opencode.ai/config.json",
+    "model":  "opencode-go/kimi-k2.6",
+    "small_model":  "opencode-go/deepseek-v4-flash",
+    "instructions":  [
+                         "AGENT_RULES.md",
+                         "PROJECT_CONTEXT.md",
+                         "MODEL_ROUTING.md",
+                         "SECURITY_POLICY.md",
+                         "CONTINUE_USAGE_PROTOCOL.md",
+                         "REPLIT_HANDOFF.md",
+                         "AGENT_ORCHESTRATION.md",
+                         "TARGET_PROJECT_CONTEXT_CONTRACT.md",
+                         "PROJECT_REGISTRY.md",
+                         "docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md",
+                         "docs/protocols/CONTEXT_SYNC_PROTOCOL.md",
+                         "docs/protocols/DOCUMENTATION_CODE_ALIGNMENT_PROTOCOL.md",
+                         "docs/alerts/GLOBAL_CRITICAL_ALERTS.md",
+                         "docs/lessons/GLOBAL_LESSONS_LEARNED.md"
+                     ],
+    "permission":  {
+                       "edit":  "ask",
+                       "bash":  "ask"
+                   },
+    "agent":  {
+                  "classifier":  {
+                                     "description":  "Clasifica tarea, riesgo, volumen y routing recomendado sin modificar archivos.",
+                                     "model":  "opencode-go/deepseek-v4-flash",
+                                     "tools":  {
+                                                   "write":  false,
+                                                   "bash":  false
+                                               }
+                                 },
+                  "context-validator":  {
+                                            "description":  "Valida contexto, reglas, alcance, archivos relevantes y riesgos antes de ejecutar.",
+                                            "model":  "opencode-go/qwen3.6-plus",
+                                            "tools":  {
+                                                          "write":  false,
+                                                          "bash":  false
+                                                      }
+                                        },
+                  "planner":  {
+                                  "description":  "Planifica cambios simples o moderados sin editar archivos.",
+                                  "model":  "opencode-go/kimi-k2.6",
+                                  "tools":  {
+                                                "write":  false,
+                                                "bash":  false
+                                            }
+                              },
+                  "architect-planner":  {
+                                            "description":  "Planifica cambios arquitectónicos, complejos o transversales sin editar.",
+                                            "model":  "opencode/claude-opus-4-7",
+                                            "tools":  {
+                                                          "write":  false,
+                                                          "bash":  false
+                                                      }
+                                        },
+                  "builder":  {
+                                  "description":  "Ejecuta cambios controlados de código con aprobación humana.",
+                                  "model":  "opencode-go/kimi-k2.6"
+                              },
+                  "light-builder":  {
+                                        "description":  "Ejecuta cambios pequeños, localizados y de bajo riesgo.",
+                                        "model":  "opencode-go/deepseek-v4-flash"
+                                    },
+                  "debugger":  {
+                                   "description":  "Diagnostica errores moderados, logs depurados y fallos de pruebas.",
+                                   "model":  "opencode-go/deepseek-v4-pro"
+                               },
+                  "critical-debugger":  {
+                                            "description":  "Diagnostica errores complejos, persistentes o de alto impacto.",
+                                            "model":  "opencode/gpt-5.5"
+                                        },
+                  "diff-reviewer":  {
+                                        "description":  "Revisa diffs normales contra alcance, reglas y coherencia.",
+                                        "model":  "opencode-go/qwen3.6-plus",
+                                        "tools":  {
+                                                      "write":  false,
+                                                      "bash":  false
+                                                  }
+                                    },
+                  "security-reviewer":  {
+                                            "description":  "Revisa seguridad, secrets, auth, permisos y exposición de datos. Usar premium para revisión final sensible.",
+                                            "model":  "opencode/gpt-5.5",
+                                            "tools":  {
+                                                          "write":  false,
+                                                          "bash":  false
+                                                      }
+                                        },
+                  "handoff-writer":  {
+                                         "description":  "Prepara handoffs para Replit, Continue, humano desarrollador u otros agentes.",
+                                         "model":  "opencode-go/qwen3.6-plus"
+                                     },
+                  "documentation-writer":  {
+                                               "description":  "Documenta decisiones, aprendizajes, protocolos y resultados relevantes.",
+                                               "model":  "opencode-go/qwen3.6-plus"
+                                           },
+                  "model-evaluator":  {
+                                          "description":  "Compara modelos Go, Zen económico y Zen premium bajo criterios de calidad, costo y riesgo.",
+                                          "model":  "opencode-go/qwen3.6-plus",
+                                          "tools":  {
+                                                        "write":  false,
+                                                        "bash":  false
+                                                    }
+                                      },
+                  "go-continuity-builder":  {
+                                                "description":  "Continuidad pay-as-you-go en Zen para builder cuando Go se agota.",
+                                                "model":  "opencode/kimi-k2.6"
+                                            },
+                  "go-continuity-context-validator":  {
+                                                          "description":  "Continuidad pay-as-you-go en Zen para validación de contexto cuando Go se agota.",
+                                                          "model":  "opencode/qwen3.6-plus",
+                                                          "tools":  {
+                                                                        "write":  false,
+                                                                        "bash":  false
+                                                                    }
+                                                      },
+                  "go-continuity-light-task":  {
+                                                   "description":  "Continuidad económica en Zen para tareas livianas cuando Go se agota.",
+                                                   "model":  "opencode/qwen3.5-plus"
+                                               },
+                  "premium-planner":  {
+                                          "description":  "Escalamiento premium para planificación compleja por solicitud, riesgo o arquitectura.",
+                                          "model":  "opencode/claude-opus-4-7",
+                                          "tools":  {
+                                                        "write":  false,
+                                                        "bash":  false
+                                                    }
+                                      },
+                  "premium-debugger":  {
+                                           "description":  "Escalamiento premium para debugging persistente o crítico.",
+                                           "model":  "opencode/gpt-5.5"
+                                       },
+                  "premium-security-reviewer":  {
+                                                    "description":  "Escalamiento premium para revisión sensible de seguridad, auth, secrets y datos.",
+                                                    "model":  "opencode/gpt-5.5",
+                                                    "tools":  {
+                                                                  "write":  false,
+                                                                  "bash":  false
+                                                              }
+                                                }
+              }
 }

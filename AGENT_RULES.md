@@ -1,4 +1,142 @@
-﻿<!-- START: AGENT_RULES_ESCALATION_SCHEMA_V0_3 -->
+﻿<!-- START: AGENT_RULES_CONTEXT_GOVERNANCE_V0_4 -->
+
+---
+
+## Actualización v0.4 — Gobierno de contexto multi-proyecto y mini-orquestación bidireccional
+
+Esta sección incorpora reglas operativas obligatorias para que OpenCode, Continue y demás agentes trabajen bajo el contrato de contexto multi-proyecto.
+
+### 1. Consulta obligatoria de contrato, alertas y lecciones
+
+Antes de tareas de complejidad media, alta o crítica, los agentes deben consultar:
+
+- `TARGET_PROJECT_CONTEXT_CONTRACT.md`
+- `PROJECT_REGISTRY.md`
+- `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`
+- `docs/protocols/CONTEXT_SYNC_PROTOCOL.md`
+- `docs/protocols/DOCUMENTATION_CODE_ALIGNMENT_PROTOCOL.md`
+- `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`
+- `docs/lessons/GLOBAL_LESSONS_LEARNED.md`
+
+Si la tarea se refiere a un proyecto objetivo, también deben consultar o solicitar:
+
+- perfil del proyecto objetivo;
+- índice de contexto;
+- mapa de código;
+- auditoría documentación-código;
+- alertas locales;
+- lecciones locales;
+- estado de sincronización.
+
+### 2. Identificación del proyecto objetivo
+
+Ningún agente debe actuar sobre un proyecto objetivo sin identificarlo o declarar que no está confirmado.
+
+Si el proyecto objetivo no está confirmado, el agente debe operar en modo diagnóstico.
+
+No debe inventarse el nombre del proyecto objetivo.
+
+### 3. Indagación contextual
+
+El orquestador y los agentes deben indagar:
+
+- documentación explícita;
+- contexto embebido;
+- código relevante;
+- comentarios;
+- estructura;
+- scripts;
+- configuración;
+- tests;
+- rutas;
+- endpoints;
+- modelos;
+- dependencias;
+- decisiones;
+- alertas;
+- lecciones.
+
+### 4. Continue con nivel 3 contextual
+
+Continue puede acceder a nivel 3 al código cuando sea necesario para construir contexto preciso, contrastar documentación o preparar handoffs.
+
+Continue no debe actuar como ejecutor principal ni reemplazar a OpenCode en validación técnica, ejecución, debugging o revisión de diffs.
+
+### 5. OpenCode con nivel 3 operativo
+
+OpenCode debe usar nivel 3 cuando sea necesario para validar técnicamente, planificar, ejecutar, depurar, revisar diffs, probar o preparar escalamiento.
+
+OpenCode no debe asumir que el handoff de Continue es suficiente sin validación.
+
+### 6. Mini-orquestación bidireccional
+
+Para complejidad media o superior, los agentes deben permitir retroalimentación bidireccional:
+
+`Continue contextualiza → OpenCode valida → Continue refina → OpenCode actúa`
+
+No debe existir conversación indefinida entre agentes.
+
+Si después de los ciclos permitidos persisten contradicciones o insuficiencia contextual, debe pedirse decisión humana o escalar según routing.
+
+### 7. Prevención de colusión y condescendencia
+
+Los agentes deben evitar:
+
+- condescendencia;
+- colusión;
+- validación acrítica de otro agente;
+- confirmación automática de premisas del usuario;
+- suavización de alertas críticas;
+- omisión de incertidumbre;
+- invención de contexto.
+
+Deben promover contradicción técnica fundada, verificación cruzada, trazabilidad y roles diferenciados.
+
+### 8. Bloqueo por contexto incompleto
+
+Si el contexto necesario está incompleto, el agente debe operar en modo diagnóstico y no en modo ejecución.
+
+Debe bloquear ejecución si:
+
+- no identifica proyecto objetivo;
+- falta contexto obligatorio;
+- faltan alertas críticas;
+- hay contradicción documentación-código no resuelta;
+- se requiere código y no se revisó código;
+- se requiere premium y no existe paquete canónico;
+- hay riesgo de secrets.
+
+### 9. Alertas y lecciones
+
+Si una tarea revela una alerta crítica o lección transversal, el agente debe proponer actualización de:
+
+- `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`
+- `docs/lessons/GLOBAL_LESSONS_LEARNED.md`
+
+No debe actualizar automáticamente reglas globales sin autorización cuando el cambio tenga impacto transversal significativo.
+
+### 10. Automatización futura
+
+El objetivo final es que el usuario permanezca en un solo punto de interacción.
+
+El sistema debe tender a automatizar:
+
+- identificación del proyecto objetivo;
+- consulta de registro;
+- consulta de alertas;
+- consulta de lecciones;
+- selección de agente;
+- selección de modelo;
+- transferencia de handoffs;
+- validación de suficiencia;
+- generación de paquetes de escalamiento;
+- documentación de resultados.
+
+Hasta que esa automatización exista, los agentes deben dejar claro qué paso manual sustituye una transferencia automática pendiente.
+
+<!-- END: AGENT_RULES_CONTEXT_GOVERNANCE_V0_4 -->
+
+<!-- START: AGENT_RULES_ESCALATION_SCHEMA_V0_3 -->
 
 ---
 
@@ -665,5 +803,6 @@ Pero nunca debe comprometer:
 - seguridad
 - trazabilidad
 - control del sistema
+
 
 
