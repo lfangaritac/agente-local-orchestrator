@@ -220,3 +220,18 @@ Este documento debe actualizarse cuando:
 - una experiencia local revele una mejora global del sistema.
 
 Cada actualización debe registrarse en Git y, si aplica, reflejarse también en reglas, protocolos o alertas.
+
+---
+
+### LESSON-GLOBAL-011 — Las reglas no automatizan sin capa ejecutable
+
+- `lesson_id`: LESSON-GLOBAL-011
+- `title`: Las reglas no automatizan sin capa ejecutable
+- `scope`: global
+- `source`: diseño de automatización Continue ↔ OpenCode
+- `problem`: Documentar que los agentes deben interactuar automáticamente no produce automatización real. Sin una capa ejecutable, el usuario sigue copiando handoffs, seleccionando modelos y trasladando contexto manualmente.
+- `lesson`: Las reglas definen comportamiento esperado, pero la automatización requiere una capa operativa que conecte contexto, agentes, modelos, handoffs, alertas, lecciones, autorización humana y trazabilidad.
+- `recommended_rule_or_change`: construir progresivamente una capa semiautomática, luego MCP local y posteriormente integración con OpenCode, manteniendo visibilidad del proceso para el usuario.
+- `applies_to`: automation, Continue, OpenCode, MCP, model routing, handoffs
+- `status`: active
+- `last_verified`: 2026-05-05
