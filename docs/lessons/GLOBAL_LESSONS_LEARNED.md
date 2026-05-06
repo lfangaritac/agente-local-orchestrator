@@ -235,3 +235,18 @@ Cada actualización debe registrarse en Git y, si aplica, reflejarse también en
 - `applies_to`: automation, Continue, OpenCode, MCP, model routing, handoffs
 - `status`: active
 - `last_verified`: 2026-05-05
+
+---
+
+### LESSON-GLOBAL-012 — MCP debe exponer capacidades ya probadas, no saltar a autonomía total
+
+- `lesson_id`: LESSON-GLOBAL-012
+- `title`: MCP debe exponer capacidades ya probadas, no saltar a autonomía total
+- `scope`: global
+- `source`: transición desde flujo semiautomático con OpenCode integrado hacia MCP local para Continue
+- `problem`: Existe riesgo de intentar construir una integración MCP demasiado amplia antes de estabilizar las capacidades locales ya probadas.
+- `lesson`: La primera versión MCP debe envolver scripts existentes y limitarse a diagnóstico, trazabilidad, handoffs e invocación controlada de OpenCode. No debe habilitar edición, ejecución arbitraria, secrets, deployment ni escalamiento premium automático.
+- `recommended_rule_or_change`: implementar MCP v0.1 como capa controlada sobre `run_diagnostic_flow.py`, `run_opencode_from_handoff.py`, `show_latest_run.py`, `orchestrator_preflight.py` y scripts asociados.
+- `applies_to`: MCP, Continue, OpenCode, automation, security
+- `status`: active
+- `last_verified`: 2026-05-06
