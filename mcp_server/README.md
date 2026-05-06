@@ -105,3 +105,25 @@ Conectar el servidor MCP local en Continue y validar que desde el chat se puedan
 
 <!-- END: MCP_STDIO_VALIDATION_V0_1 -->
 
+
+---
+
+## Herramienta async para OpenCode
+
+Cuando Continue invoca OpenCode directamente desde una herramienta MCP, la llamada puede tardar demasiado o producir salida extensa.
+
+Para evitar bloqueos se agregó:
+
+    start_opencode_from_handoff_async
+
+Uso esperado desde Continue:
+
+1. Ejecutar `run_diagnostic_flow` con `with_opencode=false`.
+2. Tomar el `run_id`.
+3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.
+4. Esperar unos segundos.
+5. Ejecutar `show_latest_run` para revisar `TRACE.md`, `RUN_SUMMARY.md`, `agent_outputs/` y `raw_outputs/`.
+
+Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
+
+    docs/agent_runs/<run-id>/background/

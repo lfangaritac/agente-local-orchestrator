@@ -1,0 +1,23 @@
+{
+  "run_id": "20260506_171549_0e258229",
+  "timestamp": "2026-05-06T17:28:28",
+  "agent": "context-validator",
+  "model": "opencode-go/qwen3.6-plus",
+  "status": "diagnostic",
+  "handoff_path": "docs\\agent_queue\\inbox\\20260506_171549_0e258229.md",
+  "summary": "```json {   \"status\": \"ready\",   \"agent\": \"context-validator\",   \"model\": \"opencode-go/qwen3.6-plus\",   \"file_read\": \"C:\\\\Agente\\\\docs\\\\agent_queue\\\\inbox\\\\20260506_171549_0e258229.md\",   \"summary\": \"Handoff package recibido de usuario para flujo diagn\u00f3stico MCP v0.1. Preflight OK, alertas ALERT-GLOBAL-001 a 010 consultadas, lecciones LESSON-GLOBAL-001 a 012 consultadas, sin archivos faltantes. Proyecto objetivo: orchestrator. Riesgo medio, volumen alto.\",   \"next_action\": \"Esperar instrucci\u00f3n del usuario o derivar al agente especializado seg\u00fan routing. No ejecutar cambios en modo diagn\u00f3stico.\" } ```",
+  "opencode_session_id": "ses_200981898ffeavy7hprqUeidHk",
+  "events_count": 3,
+  "tokens": {
+    "total": 56285,
+    "input": 6,
+    "output": 527,
+    "reasoning": 0,
+    "cache": {
+      "write": 55752,
+      "read": 0
+    }
+  },
+  "cost": 0.036429,
+  "text": "```json\n{\n  \"status\": \"ready\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"C:\\\\Agente\\\\docs\\\\agent_queue\\\\inbox\\\\20260506_171549_0e258229.md\",\n  \"summary\": \"Handoff package recibido de usuario para flujo diagn\u00f3stico MCP v0.1. Preflight OK, alertas ALERT-GLOBAL-001 a 010 consultadas, lecciones LESSON-GLOBAL-001 a 012 consultadas, sin archivos faltantes. Proyecto objetivo: orchestrator. Riesgo medio, volumen alto.\",\n  \"next_action\": \"Esperar instrucci\u00f3n del usuario o derivar al agente especializado seg\u00fan routing. No ejecutar cambios en modo diagn\u00f3stico.\"\n}\n```"
+}

@@ -175,5 +175,33 @@ TOOL_SCHEMAS = [
             "required": ["run_id"],
             "additionalProperties": False,
         },
-    },
+    },,
+    {
+        "name": "start_opencode_from_handoff_async",
+        "description": "Lanza OpenCode real desde un handoff existente en segundo plano y devuelve inmediatamente estado started.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "description": "Run ID del handoff existente."
+                },
+                "agent": {
+                    "type": "string",
+                    "default": "context-validator"
+                },
+                "model": {
+                    "type": "string",
+                    "default": "opencode-go/qwen3.6-plus"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "Prompt diagnóstico para OpenCode. No debe pedir edición ni ejecución de comandos."
+                }
+            },
+            "required": ["run_id"],
+            "additionalProperties": False
+        }
+    }
 ]
+

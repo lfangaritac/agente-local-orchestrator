@@ -31,6 +31,7 @@ ALLOWED_TOOLS = {
     "run_diagnostic_flow",
     "show_latest_run",
     "run_opencode_from_handoff",
+    "start_opencode_from_handoff_async",
 }
 
 
@@ -198,6 +199,38 @@ def run_opencode_from_handoff(arguments: dict[str, Any] | None = None) -> dict[s
     return _run_python_script(command, timeout=300)
 
 
+def start_opencode_from_handoff_async(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    run_id = arguments.get("run_id")
+    if not run_id:
+        return {
+            "ok": False,
+            "returncode": 2,
+            "stdout": "",
+            "stderr": "run_id es obligatorio.",
+        }
+
+    command = [
+        "scripts/start_opencode_from_handoff_async.py",
+        "--run-id",
+        str(run_id),
+        "--agent",
+        str(arguments.get("agent", "context-validator")),
+        "--model",
+        str(arguments.get("model", "opencode-go/qwen3.6-plus")),
+    ]
+
+    prompt = arguments.get("prompt")
+    if prompt:
+        command.extend(["--prompt", str(prompt)])
+
+    result = _run_python_script(command, timeout=30)
+    return {
+        **result,
+        "parsed": _json_or_text(result.get("stdout", "")),
+    }
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -205,6 +238,7 @@ TOOL_HANDLERS = {
     "run_diagnostic_flow": run_diagnostic_flow,
     "show_latest_run": show_latest_run,
     "run_opencode_from_handoff": run_opencode_from_handoff,
+    "start_opencode_from_handoff_async": start_opencode_from_handoff_async,
 }
 
 
@@ -240,3 +274,4 @@ if __name__ == "__main__":
 
     if args.self_test:
         self_test()
+
