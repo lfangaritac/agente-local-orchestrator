@@ -314,3 +314,72 @@ Todavía falta integrar MCP para que Continue pueda invocar este flujo desde un 
 
 <!-- END: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_V0_1 -->
 
+<!-- START: CONTINUE_MCP_OPENCODE_ASYNC_V0_1 -->
+
+---
+
+## Flujo recomendado desde Continue con OpenCode asíncrono
+
+Cuando el usuario opera desde Continue, el flujo recomendado para usar OpenCode real no debe invocar OpenCode dentro de una única llamada bloqueante.
+
+La prueba demostró que:
+
+- Continue puede invocar el MCP local correctamente.
+- Continue puede ejecutar `orchestrator_preflight`.
+- Continue puede ejecutar `run_diagnostic_flow` sin OpenCode.
+- La llamada bloqueante `run_diagnostic_flow` con `with_opencode=true` puede fallar o quedar incompleta por duración, salida extensa o límites del cliente.
+- La solución correcta es usar patrón asíncrono.
+
+### Patrón correcto
+
+Desde Continue:
+
+1. Ejecutar `run_diagnostic_flow` con `with_opencode=false`.
+2. Tomar el `run_id` generado.
+3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.
+4. Esperar unos segundos.
+5. Ejecutar `show_latest_run` con ese `run_id`.
+
+### Mensaje sugerido para Continue — Paso 1
+
+    Usa el MCP agente-local-orchestrator para ejecutar run_diagnostic_flow con project_id=orchestrator, scenario=context-validation, risk=medium, volume=high, with_opencode=false. Devuélveme solo run_id, recommended_agent, recommended_model, status y with_opencode.
+
+### Mensaje sugerido para Continue — Paso 2
+
+Reemplazar `<run-id>` por el valor devuelto en el paso anterior.
+
+    Usa el MCP agente-local-orchestrator para ejecutar start_opencode_from_handoff_async con run_id=<run-id>, agent=context-validator, model=opencode-go/qwen3.6-plus. Devuélveme status, run_id, pid y next_action.
+
+### Mensaje sugerido para Continue — Paso 3
+
+    Usa el MCP agente-local-orchestrator para ejecutar show_latest_run con run_id=<run-id>. Resume el resultado indicando si OpenCode registró salida en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.
+
+### Resultado validado
+
+La prueba asíncrona validada produjo:
+
+    run_id: 20260506_171549_0e258229
+    OpenCode async: started
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    agent_outputs: generado
+    raw_outputs: generado
+    TRACE.md: actualizado
+    RUN_SUMMARY.md: actualizado
+
+### Regla operativa
+
+Para Continue, usar por defecto:
+
+    run_diagnostic_flow with_opencode=false
+    -> start_opencode_from_handoff_async
+    -> show_latest_run
+
+Evitar por ahora:
+
+    run_diagnostic_flow with_opencode=true
+
+salvo pruebas controladas desde PowerShell.
+
+<!-- END: CONTINUE_MCP_OPENCODE_ASYNC_V0_1 -->
+

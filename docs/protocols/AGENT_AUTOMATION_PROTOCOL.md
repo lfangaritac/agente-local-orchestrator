@@ -961,3 +961,152 @@ El siguiente paso arquitectónico es exponer este flujo como herramienta MCP par
 
 <!-- END: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_OPERATION_V0_1 -->
 
+<!-- START: ASYNC_OPENCODE_OPERATION_V0_1 -->
+
+---
+
+## Anexo operativo v0.4 — Ejecución asíncrona de OpenCode vía MCP
+
+La ejecución asíncrona de OpenCode vía MCP resuelve el problema de llamadas bloqueantes desde Continue.
+
+### Problema identificado
+
+El flujo:
+
+    Continue -> MCP -> run_diagnostic_flow with_opencode=true
+
+puede fallar o quedar incompleto porque la invocación real de OpenCode:
+
+- puede tardar más que una llamada MCP cómoda para el cliente;
+- puede generar salida JSONL extensa;
+- puede bloquear la experiencia del chat;
+- puede exceder límites de tiempo o tolerancia del cliente;
+- puede impedir que Continue reciba respuesta limpia.
+
+### Solución definida
+
+Separar la orquestación en tres pasos:
+
+    Continue -> MCP -> run_diagnostic_flow with_opencode=false
+    Continue -> MCP -> start_opencode_from_handoff_async
+    Continue -> MCP -> show_latest_run
+
+### Herramienta asíncrona
+
+La herramienta agregada es:
+
+    start_opencode_from_handoff_async
+
+Script asociado:
+
+    scripts/start_opencode_from_handoff_async.py
+
+### Función de la herramienta
+
+La herramienta:
+
+1. Recibe un `run_id` existente.
+2. Valida que exista `docs/agent_runs/<run-id>/`.
+3. Lanza en segundo plano:
+
+       python scripts/run_opencode_from_handoff.py --run-id <run-id>
+
+4. Devuelve inmediatamente:
+
+       status: started
+       run_id
+       pid
+       agent
+       model
+       stdout_path
+       stderr_path
+       meta_path
+       next_action
+
+5. Registra logs en:
+
+       docs/agent_runs/<run-id>/background/
+
+6. Permite consultar luego el resultado con:
+
+       show_latest_run
+
+### Carpetas usadas
+
+La ejecución asíncrona puede generar:
+
+    docs/agent_runs/<run-id>/background/
+    docs/agent_runs/<run-id>/agent_outputs/
+    docs/agent_runs/<run-id>/raw_outputs/
+    docs/agent_runs/<run-id>/TRACE.md
+    docs/agent_runs/<run-id>/RUN_SUMMARY.md
+
+### Resultado validado
+
+La prueba validada produjo:
+
+    run_id: 20260506_171549_0e258229
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    status: diagnostic
+    background: generado
+    agent_outputs: generado
+    raw_outputs: generado
+    TRACE.md: actualizado
+    RUN_SUMMARY.md: actualizado
+
+### Regla operativa para Continue
+
+Desde Continue, no usar como ruta principal:
+
+    run_diagnostic_flow with_opencode=true
+
+Usar como ruta principal:
+
+    run_diagnostic_flow with_opencode=false
+    -> start_opencode_from_handoff_async
+    -> show_latest_run
+
+### Regla de transparencia
+
+La ejecución asíncrona no debe ocultar el proceso.
+
+El usuario debe poder ver:
+
+- el `run_id`;
+- el `pid`;
+- la ruta de logs de background;
+- el agente usado;
+- el modelo usado;
+- la salida procesada;
+- la salida cruda;
+- el resumen del run;
+- la traza del run.
+
+### Restricciones
+
+La ejecución asíncrona conserva las mismas restricciones:
+
+- modo diagnóstico por defecto;
+- no editar archivos funcionales salvo autorización;
+- no ejecutar comandos arbitrarios;
+- no acceder a secrets;
+- no hacer deployment;
+- no hacer migraciones;
+- no escalar a premium sin autorización;
+- no ocultar errores de OpenCode.
+
+### Criterio de éxito
+
+El patrón async se considera exitoso cuando:
+
+- `start_opencode_from_handoff_async` devuelve `status: started`;
+- se crea metadata en `background/`;
+- OpenCode registra salida en `agent_outputs/`;
+- la salida cruda queda en `raw_outputs/`;
+- `TRACE.md` incluye intervención de `context-validator`;
+- `RUN_SUMMARY.md` muestra más de una salida de agente;
+- `show_latest_run` permite visualizar el resultado.
+
+<!-- END: ASYNC_OPENCODE_OPERATION_V0_1 -->
+

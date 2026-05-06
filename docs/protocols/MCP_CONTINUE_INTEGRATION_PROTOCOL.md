@@ -397,3 +397,92 @@ El servidor puede avanzar a prueba con Continue porque:
 
 <!-- END: MCP_STDIO_VALIDATION_V0_1 -->
 
+<!-- START: MCP_ASYNC_OPENCODE_CONTINUE_FLOW_V0_1 -->
+
+---
+
+## Anexo operativo v0.2 — Flujo Continue -> MCP -> OpenCode asíncrono
+
+La prueba real desde Continue demostró que el MCP puede ejecutar herramientas del orquestador desde el chat.
+
+También demostró que la invocación bloqueante de OpenCode dentro de `run_diagnostic_flow with_opencode=true` no es la ruta recomendada para Continue.
+
+### Estado validado
+
+Validado desde Continue:
+
+    Continue -> MCP -> orchestrator_preflight: OK
+    Continue -> MCP -> run_diagnostic_flow with_opencode=false: OK
+
+Validado por patrón asíncrono:
+
+    Continue/PowerShell -> MCP/scripts -> start_opencode_from_handoff_async: OK
+    OpenCode async -> agent_outputs/raw_outputs/TRACE/RUN_SUMMARY: OK
+
+### Herramienta MCP agregada
+
+    start_opencode_from_handoff_async
+
+### Uso recomendado desde Continue
+
+#### Paso 1 — Crear run sin OpenCode
+
+    Usa el MCP agente-local-orchestrator para ejecutar run_diagnostic_flow con project_id=orchestrator, scenario=context-validation, risk=medium, volume=high, with_opencode=false. Devuélveme solo run_id, recommended_agent, recommended_model, status y with_opencode.
+
+#### Paso 2 — Lanzar OpenCode en segundo plano
+
+    Usa el MCP agente-local-orchestrator para ejecutar start_opencode_from_handoff_async con run_id=<run-id>, agent=context-validator, model=opencode-go/qwen3.6-plus. Devuélveme status, run_id, pid y next_action.
+
+#### Paso 3 — Consultar resultado
+
+    Usa el MCP agente-local-orchestrator para ejecutar show_latest_run con run_id=<run-id>. Resume si ya existe salida de OpenCode en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.
+
+### Por qué usar async
+
+El modo async evita que Continue tenga que esperar toda la ejecución de OpenCode dentro de una sola llamada MCP.
+
+Esto mejora:
+
+- estabilidad del chat;
+- tolerancia a salidas largas;
+- trazabilidad;
+- recuperación si OpenCode tarda;
+- capacidad de consultar estado;
+- separación entre iniciar trabajo y leer resultado.
+
+### No usar por defecto
+
+No usar como ruta principal desde Continue:
+
+    run_diagnostic_flow with_opencode=true
+
+Este modo puede mantenerse para pruebas desde PowerShell, pero no como flujo principal de Continue.
+
+### Resultado validado
+
+Run usado en validación:
+
+    20260506_171549_0e258229
+
+Resultado:
+
+- `background/`: generado;
+- `agent_outputs/`: generado;
+- `raw_outputs/`: generado;
+- `TRACE.md`: actualizado;
+- `RUN_SUMMARY.md`: actualizado;
+- `context-validator`: registrado;
+- `opencode-go/qwen3.6-plus`: usado.
+
+### Próximo paso
+
+Realizar una prueba final desde Continue con el patrón de tres pasos:
+
+    run_diagnostic_flow with_opencode=false
+    -> start_opencode_from_handoff_async
+    -> show_latest_run
+
+Si la prueba funciona desde Continue sin intervención de PowerShell, MCP v0.1 puede considerarse funcional para diagnóstico con OpenCode asíncrono.
+
+<!-- END: MCP_ASYNC_OPENCODE_CONTINUE_FLOW_V0_1 -->
+

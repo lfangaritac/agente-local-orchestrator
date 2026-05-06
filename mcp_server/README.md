@@ -127,3 +127,47 @@ Uso esperado desde Continue:
 Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
 
     docs/agent_runs/<run-id>/background/
+
+<!-- START: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->
+
+---
+
+## Uso recomendado con OpenCode asíncrono desde Continue
+
+Para usar OpenCode real desde Continue, usar el patrón en tres pasos:
+
+1. `run_diagnostic_flow` con `with_opencode=false`.
+2. `start_opencode_from_handoff_async` con el `run_id`.
+3. `show_latest_run` con el mismo `run_id`.
+
+### Herramienta async
+
+    start_opencode_from_handoff_async
+
+### Por qué existe
+
+Las llamadas MCP bloqueantes con OpenCode pueden ser largas o producir salida extensa.
+
+La herramienta async devuelve inmediatamente `status: started` y deja que OpenCode registre resultados en segundo plano.
+
+### Logs
+
+La herramienta escribe logs en:
+
+    docs/agent_runs/<run-id>/background/
+
+### Resultado final
+
+El resultado se consulta con:
+
+    show_latest_run
+
+y debe reflejar:
+
+- `agent_outputs/`;
+- `raw_outputs/`;
+- `TRACE.md`;
+- `RUN_SUMMARY.md`.
+
+<!-- END: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->
+
