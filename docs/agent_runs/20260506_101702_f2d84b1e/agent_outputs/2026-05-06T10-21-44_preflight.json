@@ -1,0 +1,7 @@
+{
+  "run_id": "20260506_101702_f2d84b1e",
+  "timestamp": "2026-05-06T10:21:44",
+  "agent": "preflight",
+  "status": "diagnostic",
+  "summary": "Prueba inicial correcta: se generó paquete de handoff semiautomático para context-validator con riesgo medio y volumen alto."
+}
