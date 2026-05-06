@@ -275,3 +275,125 @@ y recibir respuestas resumidas sin que el usuario copie comandos manualmente en 
 ## 12. Regla superior
 
 MCP debe aumentar automatización sin reducir control humano, trazabilidad ni seguridad.
+
+<!-- START: MCP_STDIO_VALIDATION_V0_1 -->
+
+---
+
+## Anexo operativo v0.1 — Validación local por stdio
+
+La primera validación local del servidor MCP por stdio fue exitosa.
+
+### Script de prueba
+
+    cd C:\Agente
+    python .\mcp_server\test_mcp_stdio.py
+
+### Objetivo de la prueba
+
+Validar el servidor MCP local antes de conectarlo con Continue.
+
+La prueba ejecuta mensajes JSON-RPC mínimos contra `mcp_server/server.py` y comprueba:
+
+- `initialize`
+- `tools/list`
+- `tools/call orchestrator_preflight`
+- `tools/call select_agent_model`
+- `tools/call run_diagnostic_flow` sin OpenCode
+
+### Resultado validado
+
+La prueba confirmó:
+
+    initialize_ok: true
+    tools_list_ok: true
+    preflight_call_ok: true
+    select_agent_model_ok: true
+    run_diagnostic_flow_ok: true
+
+### Herramientas validadas
+
+#### orchestrator_preflight
+
+Resultado:
+
+- `returncode: 0`
+- `status: ok`
+- fuentes de contexto cargadas;
+- alertas globales cargadas;
+- lecciones globales cargadas;
+- fuentes faltantes: ninguna.
+
+#### select_agent_model
+
+Resultado:
+
+    scenario: context-validation
+    risk: medium
+    volume: high
+    recommended_agent: context-validator
+    recommended_model: opencode-go/qwen3.6-plus
+    recommended_line: Go
+    requires_authorization: false
+    status: diagnostic_recommendation
+
+#### run_diagnostic_flow sin OpenCode
+
+Resultado:
+
+- run generado correctamente;
+- paquete de handoff creado;
+- `RUN_SUMMARY.md` generado;
+- `TRACE.md` generado;
+- OpenCode omitido correctamente al no usar `with_opencode`;
+- visualización del flujo disponible.
+
+### Run generado por la prueba
+
+La validación MCP por stdio generó:
+
+    run_id: 20260506_122350_1c5cc272
+
+Archivos asociados:
+
+    docs/agent_queue/inbox/20260506_122350_1c5cc272.json
+    docs/agent_queue/inbox/20260506_122350_1c5cc272.md
+    docs/agent_runs/20260506_122350_1c5cc272/RUN_SUMMARY.md
+    docs/agent_runs/20260506_122350_1c5cc272/TRACE.md
+    docs/agent_runs/20260506_122350_1c5cc272/agent_outputs/2026-05-06T12-23-50_orchestrator-diagnostic-flow.json
+
+### Alcance validado
+
+Esta validación confirma que el servidor MCP v0.1 puede:
+
+- inicializarse por JSON-RPC;
+- listar herramientas;
+- ejecutar herramientas diagnósticas;
+- envolver scripts locales ya probados;
+- devolver resultados estructurados a un cliente MCP.
+
+### Alcance no validado todavía
+
+Aún falta validar:
+
+- conexión real desde Continue;
+- configuración MCP en Continue;
+- llamada MCP desde chat de Continue;
+- ejecución `run_diagnostic_flow` con `with_opencode=true` desde MCP;
+- autorización humana integrada;
+- manejo de errores de larga duración;
+- visualización resumida dentro de Continue.
+
+### Criterio para avanzar a Continue
+
+El servidor puede avanzar a prueba con Continue porque:
+
+- compila correctamente;
+- responde por stdio;
+- lista herramientas;
+- ejecuta herramientas diagnósticas;
+- mantiene restricciones de seguridad;
+- no permite comandos arbitrarios.
+
+<!-- END: MCP_STDIO_VALIDATION_V0_1 -->
+
