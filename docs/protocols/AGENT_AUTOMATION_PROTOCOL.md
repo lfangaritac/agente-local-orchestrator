@@ -825,3 +825,139 @@ La integración con OpenCode debe aumentar automatización sin reducir transpare
 
 <!-- END: OPENCODE_REAL_INTEGRATION_OPERATION_V0_1 -->
 
+<!-- START: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_OPERATION_V0_1 -->
+
+---
+
+## Anexo operativo v0.3 — Comando unificado con OpenCode integrado
+
+El comando unificado con OpenCode integrado permite ejecutar una mini-orquestación diagnóstica real de punta a punta.
+
+### Comando oficial
+
+    cd C:\Agente
+    python .\scripts\run_diagnostic_flow.py --with-opencode
+
+### Script principal
+
+    scripts/run_diagnostic_flow.py
+
+### Flag operativo
+
+    --with-opencode
+
+Cuando se usa este flag, el flujo invoca:
+
+    scripts/run_opencode_from_handoff.py
+
+### Secuencia completa
+
+El comando ejecuta:
+
+1. `orchestrator_preflight.py`
+2. `select_agent_model.py`
+3. `build_handoff_package.py`
+4. `record_agent_result.py`
+5. `run_opencode_from_handoff.py`
+6. `show_latest_run.py`
+
+### Diferencia frente al modo base
+
+Modo base:
+
+    python .\scripts\run_diagnostic_flow.py
+
+- No invoca OpenCode real.
+- Valida preflight, routing, handoff, bitácora y visualización.
+- Es diagnóstico semiautomático.
+
+Modo con OpenCode:
+
+    python .\scripts\run_diagnostic_flow.py --with-opencode
+
+- Invoca OpenCode real.
+- Lee el handoff generado.
+- Captura respuesta JSONL.
+- Registra salida procesada y cruda.
+- Actualiza bitácora y resumen.
+- Mantiene restricciones de diagnóstico.
+
+### Resultado validado
+
+La ejecución validada produjo:
+
+    run_id: 20260506_120851_e8c884cf
+    project_id: orchestrator
+    scenario: context-validation
+    risk: medium
+    volume: high
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    status: diagnostic
+    handoff: docs/agent_queue/inbox/20260506_120851_e8c884cf.md
+
+### Archivos generados
+
+El flujo puede generar:
+
+    docs/agent_queue/inbox/<run-id>.json
+    docs/agent_queue/inbox/<run-id>.md
+    docs/agent_runs/<run-id>/RUN_SUMMARY.md
+    docs/agent_runs/<run-id>/TRACE.md
+    docs/agent_runs/<run-id>/agent_outputs/*_opencode.json
+    docs/agent_runs/<run-id>/raw_outputs/*_opencode_raw.json
+
+### Validación de éxito
+
+Un flujo exitoso debe demostrar:
+
+- `preflight_status: ok`;
+- fuentes de contexto cargadas;
+- alertas globales cargadas;
+- lecciones globales cargadas;
+- agente recomendado;
+- modelo recomendado;
+- OpenCode invocado;
+- respuesta capturada;
+- salida procesada registrada;
+- salida cruda registrada;
+- `TRACE.md` actualizado;
+- `RUN_SUMMARY.md` actualizado;
+- visualización disponible con `show_latest_run.py`.
+
+### Seguridad
+
+El flujo integrado no es autorización general de ejecución.
+
+OpenCode debe operar con prompt diagnóstico, sin edición ni ejecución de comandos, salvo instrucción explícita posterior.
+
+Cualquier transición hacia ejecución real debe requerir:
+
+- proyecto objetivo confirmado;
+- contexto suficiente;
+- alertas consultadas;
+- autorización humana si aplica;
+- plan de cambios;
+- control de Git;
+- validación de diffs;
+- pruebas.
+
+### Problema corregido
+
+Durante la validación se detectó un error de encoding en Windows/Python al imprimir caracteres reemplazados. Se corrigió mediante:
+
+- `PYTHONUTF8=1`;
+- `PYTHONIOENCODING=utf-8`;
+- `sys.stdout.reconfigure(... errors="replace")`;
+- `safe_print(...)`.
+
+Esta corrección debe conservarse para evitar fallos de consola en Windows.
+
+### Relación con automatización futura
+
+Este comando ya conecta la cola semiautomática con OpenCode real.
+
+El siguiente paso arquitectónico es exponer este flujo como herramienta MCP para que Continue pueda invocarlo desde un único chat.
+
+<!-- END: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_OPERATION_V0_1 -->
+

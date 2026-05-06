@@ -215,3 +215,102 @@ Aún falta:
 
 <!-- END: OPENCODE_REAL_INTEGRATION_V0_1 -->
 
+<!-- START: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_V0_1 -->
+
+---
+
+## Comando unificado con OpenCode integrado
+
+El orquestador ya permite ejecutar un flujo diagnóstico completo con OpenCode real integrado mediante un solo comando.
+
+### Comando oficial
+
+Ejecutar en PowerShell:
+
+    cd C:\Agente
+    python .\scripts\run_diagnostic_flow.py --with-opencode
+
+### Qué ejecuta este comando
+
+El comando realiza la secuencia completa:
+
+1. Ejecuta preflight transversal.
+2. Consulta fuentes de contexto.
+3. Consulta alertas globales.
+4. Consulta lecciones globales.
+5. Selecciona agente/modelo.
+6. Crea paquete de handoff.
+7. Registra resultado diagnóstico inicial.
+8. Invoca OpenCode real mediante `opencode.cmd run`.
+9. Adjunta el handoff Markdown.
+10. Captura salida JSONL de OpenCode.
+11. Extrae la respuesta útil.
+12. Registra resultado procesado en `agent_outputs/`.
+13. Registra salida cruda en `raw_outputs/`.
+14. Actualiza `TRACE.md`.
+15. Actualiza `RUN_SUMMARY.md`.
+16. Muestra el flujo visible al usuario.
+
+### Resultado esperado
+
+Un resultado exitoso debe incluir valores equivalentes a:
+
+    status: ok
+    with_opencode: true
+    recommended_agent: context-validator
+    recommended_model: opencode-go/qwen3.6-plus
+    context_sources_count: 13
+    alerts_checked_count: 10
+    lessons_checked_count: 11
+
+### Resultado validado
+
+La ejecución validada produjo:
+
+    run_id: 20260506_120851_e8c884cf
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    status: diagnostic
+    handoff: docs/agent_queue/inbox/20260506_120851_e8c884cf.md
+    TRACE.md: actualizado
+    RUN_SUMMARY.md: actualizado
+    agent_outputs: actualizado
+    raw_outputs: actualizado
+
+### Restricciones
+
+Aunque OpenCode se invoca realmente, el flujo sigue operando en modo diagnóstico controlado.
+
+No debe:
+
+- modificar archivos funcionales;
+- ejecutar comandos de proyecto;
+- acceder a secrets;
+- hacer deployment;
+- hacer migraciones;
+- aplicar cambios destructivos;
+- escalar a premium sin autorización.
+
+### Ver el último flujo
+
+Después de ejecutar el comando unificado:
+
+    cd C:\Agente
+    python .\scripts\show_latest_run.py
+
+### Estado actual
+
+Este comando representa la primera mini-orquestación real de punta a punta:
+
+    preflight
+    -> routing agente/modelo
+    -> handoff
+    -> OpenCode real
+    -> captura estructurada
+    -> bitácora visible
+    -> resumen visible
+
+Todavía falta integrar MCP para que Continue pueda invocar este flujo desde un único chat sin intervención manual de terminal.
+
+<!-- END: UNIFIED_DIAGNOSTIC_WITH_OPENCODE_V0_1 -->
+
