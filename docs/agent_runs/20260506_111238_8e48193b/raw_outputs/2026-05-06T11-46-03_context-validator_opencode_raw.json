@@ -1,0 +1,70 @@
+{
+  "session_id": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+  "text": "```json\n{\n  \"status\": \"diagnostic\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"docs/agent_queue/inbox/20260506_111238_8e48193b.md\",\n  \"summary\": \"Handoff package recibido para validaci\u00f3n de contexto del proyecto orchestrator. Preflight OK, alertas y lecciones globales consultadas. Objetivo: flujo diagn\u00f3stico semiautom\u00e1tico sin invocar modelos ni modificar documentaci\u00f3n.\",\n  \"next_action\": \"Validar suficiencia del paquete de handoff y declarar readiness para agente siguiente sin ejecutar cambios.\"\n}\n```",
+  "events_count": 3,
+  "tokens": {
+    "total": 55693,
+    "input": 6,
+    "output": 183,
+    "reasoning": 0,
+    "cache": {
+      "write": 0,
+      "read": 55504
+    }
+  },
+  "cost": 0.0033272,
+  "events": [
+    {
+      "type": "step_start",
+      "timestamp": 1778085960135,
+      "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+      "part": {
+        "id": "prt_dfe2e99c6001VJ6owjUCQV4NtK",
+        "messageID": "msg_dfe2e90d10017Z0nXR1M3JW6rn",
+        "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+        "snapshot": "bac37b5c8438f4e08089c53065b96b379ff892c8",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "text",
+      "timestamp": 1778085963302,
+      "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+      "part": {
+        "id": "prt_dfe2e9ab80011O4x5n2j0SNPKi",
+        "messageID": "msg_dfe2e90d10017Z0nXR1M3JW6rn",
+        "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+        "type": "text",
+        "text": "```json\n{\n  \"status\": \"diagnostic\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"docs/agent_queue/inbox/20260506_111238_8e48193b.md\",\n  \"summary\": \"Handoff package recibido para validaci\u00f3n de contexto del proyecto orchestrator. Preflight OK, alertas y lecciones globales consultadas. Objetivo: flujo diagn\u00f3stico semiautom\u00e1tico sin invocar modelos ni modificar documentaci\u00f3n.\",\n  \"next_action\": \"Validar suficiencia del paquete de handoff y declarar readiness para agente siguiente sin ejecutar cambios.\"\n}\n```",
+        "time": {
+          "start": 1778085960376,
+          "end": 1778085963301
+        }
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778085963602,
+      "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+      "part": {
+        "id": "prt_dfe2ea74f001axO71MS3P6Jvik",
+        "reason": "stop",
+        "snapshot": "bac37b5c8438f4e08089c53065b96b379ff892c8",
+        "messageID": "msg_dfe2e90d10017Z0nXR1M3JW6rn",
+        "sessionID": "ses_201d16fc3ffe3qqb4eYCO1I2I3",
+        "type": "step-finish",
+        "tokens": {
+          "total": 55693,
+          "input": 6,
+          "output": 183,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 55504
+          }
+        },
+        "cost": 0.0033272
+      }
+    }
+  ]
+}
