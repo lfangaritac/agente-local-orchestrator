@@ -123,3 +123,13 @@ Nunca incluir:
 - datos personales reales
 - logs con PII
 - valores reales de variables de entorno
+
+## Fallback obligatorio para AGENT_ORCHESTRATION.md
+
+Si Continue no puede ver `AGENT_ORCHESTRATION.md` en la raíz del workspace, debe revisar obligatoriamente:
+
+- `docs/AGENT_ORCHESTRATION.md`
+
+No debe afirmar que `AGENT_ORCHESTRATION.md` no existe sin revisar primero la copia en `docs/`.
+
+Para tareas de orquestación, routing, Go, Zen, Premium, OpenCode o mini-orquestador, `AGENT_ORCHESTRATION.md` o `docs/AGENT_ORCHESTRATION.md` es fuente obligatoria.
