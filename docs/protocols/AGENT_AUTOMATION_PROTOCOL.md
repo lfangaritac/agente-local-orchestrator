@@ -463,3 +463,166 @@ La automatización se considerará exitosa cuando:
 ## 24. Regla superior
 
 La automatización debe reducir carga operativa del usuario sin reducir transparencia, trazabilidad, control humano ni calidad técnica.
+
+<!-- START: DIAGNOSTIC_FLOW_OPERATION_V0_1 -->
+
+---
+
+## Anexo operativo v0.1 — Flujo diagnóstico semiautomático
+
+El flujo diagnóstico semiautomático implementa la primera capa operativa del protocolo de automatización entre agentes.
+
+Su función es validar que el orquestador puede ejecutar una secuencia mínima de coordinación sin intervención manual paso a paso.
+
+### Comando oficial
+
+Ejecutar en PowerShell:
+
+    cd C:\Agente
+    python .\scripts\run_diagnostic_flow.py
+
+### Secuencia ejecutada
+
+El script `scripts/run_diagnostic_flow.py` ejecuta:
+
+1. `scripts/orchestrator_preflight.py`
+2. `scripts/select_agent_model.py`
+3. `scripts/build_handoff_package.py`
+4. `scripts/record_agent_result.py`
+5. `scripts/show_latest_run.py`
+
+### Responsabilidad de cada script
+
+#### orchestrator_preflight.py
+
+Verifica fuentes transversales obligatorias y extrae automáticamente:
+
+- fuentes de contexto;
+- alertas globales;
+- lecciones globales;
+- estado del preflight;
+- fuentes faltantes.
+
+#### select_agent_model.py
+
+Realiza una recomendación diagnóstica de agente/modelo según:
+
+- escenario;
+- riesgo;
+- volumen;
+- solicitud premium, si existiera.
+
+Para el escenario `context-validation`, la recomendación esperada es:
+
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    line: Go
+
+#### build_handoff_package.py
+
+Crea un paquete de handoff en:
+
+    docs/agent_queue/inbox/
+
+El paquete debe incorporar automáticamente:
+
+- `context_sources`;
+- `alerts_checked`;
+- `lessons_checked`;
+- `preflight_status`;
+- `missing_files`.
+
+#### record_agent_result.py
+
+Registra el resultado del agente o del flujo en:
+
+    docs/agent_runs/<run-id>/agent_outputs/
+    docs/agent_runs/<run-id>/TRACE.md
+    docs/agent_runs/<run-id>/RUN_SUMMARY.md
+
+#### show_latest_run.py
+
+Muestra al usuario el último flujo registrado, incluyendo:
+
+- run_id;
+- objetivo;
+- contexto consultado;
+- alertas consultadas;
+- lecciones consultadas;
+- resumen del run;
+- traza del run;
+- rutas relevantes.
+
+### Criterio de éxito
+
+El flujo se considera exitoso cuando devuelve:
+
+    status: ok
+    preflight_status: ok
+    context_sources_count > 0
+    alerts_checked_count > 0
+    lessons_checked_count > 0
+    recommended_agent definido
+    recommended_model definido
+    RUN_SUMMARY.md generado
+    TRACE.md generado
+
+### Resultado validado
+
+La primera ejecución validada produjo:
+
+    run_id: 20260506_111238_8e48193b
+    status: ok
+    project_id: orchestrator
+    scenario: context-validation
+    risk: medium
+    volume: high
+    recommended_agent: context-validator
+    recommended_model: opencode-go/qwen3.6-plus
+    context_sources_count: 13
+    alerts_checked_count: 10
+    lessons_checked_count: 11
+
+### Transparencia para el usuario
+
+El flujo debe permitir que el usuario revise el proceso sin abrir manualmente cada JSON o Markdown.
+
+Para ello debe usarse:
+
+    cd C:\Agente
+    python .\scripts\show_latest_run.py
+
+### Estado de automatización
+
+Este flujo representa automatización semiautomática.
+
+Ya automatiza:
+
+- preflight;
+- selección diagnóstica de agente/modelo;
+- creación de paquete;
+- registro de resultado;
+- resumen visible;
+- traza visible.
+
+Todavía no automatiza:
+
+- invocación real de Continue;
+- invocación real de OpenCode;
+- transferencia MCP;
+- selección de modelo dentro de OpenCode;
+- ejecución de agentes reales;
+- autorización humana integrada;
+- escalamiento real a Zen, premium o Replit.
+
+### Próxima evolución
+
+La siguiente evolución debe ser una de estas dos rutas:
+
+1. Integrar el flujo semiautomático como herramienta MCP para Continue.
+2. Validar invocación controlada de OpenCode desde archivo/CLI si la instalación local lo permite.
+
+Hasta que exista esa integración, el flujo semiautomático debe considerarse una base operativa de trazabilidad y no una orquestación completamente autónoma.
+
+<!-- END: DIAGNOSTIC_FLOW_OPERATION_V0_1 -->
+
