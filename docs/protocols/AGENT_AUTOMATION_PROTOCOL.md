@@ -626,3 +626,202 @@ Hasta que exista esa integración, el flujo semiautomático debe considerarse un
 
 <!-- END: DIAGNOSTIC_FLOW_OPERATION_V0_1 -->
 
+<!-- START: OPENCODE_REAL_INTEGRATION_OPERATION_V0_1 -->
+
+---
+
+## Anexo operativo v0.2 — Integración real controlada con OpenCode
+
+La integración real controlada con OpenCode extiende el flujo diagnóstico semiautomático y permite invocar OpenCode desde un paquete de handoff previamente generado.
+
+Esta fase confirma que OpenCode puede participar en la orquestación real sin que el usuario copie manualmente el handoff en el chat de OpenCode.
+
+### Comando oficial
+
+Ejecutar en PowerShell:
+
+    cd C:\Agente
+    python .\scripts\run_opencode_from_handoff.py --run-id <run-id>
+
+Ejemplo validado:
+
+    cd C:\Agente
+    python .\scripts\run_opencode_from_handoff.py --run-id 20260506_111238_8e48193b
+
+### Dependencia operativa en Windows
+
+En Windows debe usarse:
+
+    opencode.cmd
+
+No debe usarse directamente:
+
+    opencode
+
+Motivo: PowerShell puede bloquear el shim `opencode.ps1` por política de ejecución de scripts. `opencode.cmd` evita ese bloqueo.
+
+### Capacidades confirmadas de OpenCode CLI
+
+La instalación local confirmó soporte para:
+
+- `opencode.cmd --help`
+- `opencode.cmd models`
+- `opencode.cmd run`
+- `--agent`
+- `--model`
+- `--file`
+- `--format json`
+
+También se confirmó que OpenCode devuelve eventos JSONL con tipos como:
+
+- `step_start`
+- `text`
+- `step_finish`
+
+Esto permite capturar y procesar la salida de forma programática.
+
+### Script operativo
+
+El script responsable es:
+
+    scripts/run_opencode_from_handoff.py
+
+### Funciones del script
+
+El script:
+
+1. Localiza el handoff Markdown por `--run-id` o toma el más reciente.
+2. Lee el paquete JSON asociado.
+3. Determina `run_id`.
+4. Determina agente objetivo.
+5. Determina modelo.
+6. Invoca `opencode.cmd run`.
+7. Adjunta el archivo de handoff con `--file`.
+8. Usa `--format json`.
+9. Captura stdout/stderr.
+10. Procesa la salida JSONL.
+11. Extrae eventos tipo `text`.
+12. Captura `session_id`.
+13. Captura tokens y costo si OpenCode los devuelve.
+14. Registra salida procesada en `agent_outputs/`.
+15. Registra salida cruda en `raw_outputs/`.
+16. Actualiza `TRACE.md`.
+17. Actualiza `RUN_SUMMARY.md`.
+18. Ejecuta `show_latest_run.py` para mostrar trazabilidad visible.
+
+### Carpetas usadas
+
+Salida procesada:
+
+    docs/agent_runs/<run-id>/agent_outputs/
+
+Salida cruda:
+
+    docs/agent_runs/<run-id>/raw_outputs/
+
+Bitácora:
+
+    docs/agent_runs/<run-id>/TRACE.md
+
+Resumen visible:
+
+    docs/agent_runs/<run-id>/RUN_SUMMARY.md
+
+### Prompt base del script
+
+El prompt base indica a OpenCode:
+
+    Lee el archivo de handoff adjunto. Actúa en modo diagnóstico.
+    No modifiques archivos. No ejecutes comandos.
+    Responde con un JSON corto con estas claves:
+    status, agent, model, file_read, summary, next_action.
+
+### Criterio de éxito
+
+La integración se considera exitosa cuando:
+
+- OpenCode responde por CLI;
+- OpenCode lee el archivo adjunto;
+- la respuesta queda registrada en `agent_outputs/`;
+- la salida cruda queda registrada en `raw_outputs/`;
+- `TRACE.md` se actualiza;
+- `RUN_SUMMARY.md` se actualiza;
+- `show_latest_run.py` muestra el resultado;
+- Git queda controlado después de versionar los archivos relevantes.
+
+### Resultado validado
+
+La primera ejecución real validada produjo:
+
+    run_id: 20260506_111238_8e48193b
+    agent: context-validator
+    model: opencode-go/qwen3.6-plus
+    status: diagnostic
+    handoff_path: docs/agent_queue/inbox/20260506_111238_8e48193b.md
+    OpenCode session: capturada
+    events_count: capturado
+    tokens: capturados
+    cost: capturado
+    output procesado: agent_outputs/
+    output crudo: raw_outputs/
+
+### Restricciones
+
+Esta integración no debe entenderse como autorización general de ejecución.
+
+Debe seguir operando bajo estas restricciones:
+
+- modo diagnóstico por defecto;
+- no modificar archivos salvo autorización explícita;
+- no ejecutar comandos de proyecto salvo autorización explícita;
+- no acceder a secrets;
+- no hacer deployment;
+- no hacer migraciones;
+- no aplicar cambios destructivos;
+- no escalar a premium sin autorización;
+- no ocultar costo, tokens, sesión o salida del agente.
+
+### Transparencia
+
+El resultado de OpenCode debe ser visible para el usuario a través de:
+
+    python .\scripts\show_latest_run.py
+
+El usuario debe poder ver:
+
+- qué handoff se usó;
+- qué agente intervino;
+- qué modelo se usó;
+- qué respondió OpenCode;
+- qué costo/tokens reportó OpenCode, si están disponibles;
+- qué quedó en `TRACE.md`;
+- qué quedó en `RUN_SUMMARY.md`;
+- dónde está la salida cruda.
+
+### Relación con la automatización futura
+
+Esta integración es un paso intermedio entre la cola semiautomática y una orquestación más avanzada.
+
+Ya permite:
+
+    paquete de handoff
+    → OpenCode real
+    → captura estructurada
+    → bitácora visible
+
+Todavía falta:
+
+- MCP local para Continue;
+- invocación automática de Continue;
+- transferencia bidireccional completa Continue ↔ OpenCode;
+- autorización humana integrada;
+- routing automático completo según `MODEL_ROUTING.md`;
+- soporte para proyectos objetivo habilitados;
+- ejecución controlada de cambios reales.
+
+### Regla superior
+
+La integración con OpenCode debe aumentar automatización sin reducir transparencia, trazabilidad ni control humano.
+
+<!-- END: OPENCODE_REAL_INTEGRATION_OPERATION_V0_1 -->
+
