@@ -1,0 +1,70 @@
+{
+  "session_id": "ses_1fff0526dffe6Gps5D66my0pJQ",
+  "text": "```json\n{\n  \"status\": \"diagnostic\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"docs/agent_queue/inbox/20260506_171549_0e258229.md\",\n  \"summary\": \"Handoff de flujo diagn\u00f3stico MCP v0.1. Preflight OK, sin archivos faltantes. Scenario: context-validation, riesgo medio, volumen alto. Target: context-validator sobre proyecto orchestrator.\",\n  \"next_action\": \"Ejecutar validaci\u00f3n de contexto del orquestador: verificar que archivos de reglas, protocolos, alertas y lecciones est\u00e9n vigentes y alineados con la arquitectura Go \u2192 Zen \u2192 Premium. MCP tools timed out; operar manualmente sobre los context sources declarados.\"\n}\n```",
+  "events_count": 3,
+  "tokens": {
+    "total": 56415,
+    "input": 6,
+    "output": 442,
+    "reasoning": 0,
+    "cache": {
+      "write": 55967,
+      "read": 0
+    }
+  },
+  "cost": 0.036308375,
+  "events": [
+    {
+      "type": "step_start",
+      "timestamp": 1778117497150,
+      "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+      "part": {
+        "id": "prt_e000fd139001XNHOvkSmEqoXwx",
+        "messageID": "msg_e000fae7e0016PaSHt2WW1J0K7",
+        "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+        "snapshot": "f27ead829df431f388123a325913f208f51da3c1",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "text",
+      "timestamp": 1778117504976,
+      "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+      "part": {
+        "id": "prt_e000fe212001ojZ8TLpgvxSA0l",
+        "messageID": "msg_e000fae7e0016PaSHt2WW1J0K7",
+        "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+        "type": "text",
+        "text": "```json\n{\n  \"status\": \"diagnostic\",\n  \"agent\": \"context-validator\",\n  \"model\": \"opencode-go/qwen3.6-plus\",\n  \"file_read\": \"docs/agent_queue/inbox/20260506_171549_0e258229.md\",\n  \"summary\": \"Handoff de flujo diagn\u00f3stico MCP v0.1. Preflight OK, sin archivos faltantes. Scenario: context-validation, riesgo medio, volumen alto. Target: context-validator sobre proyecto orchestrator.\",\n  \"next_action\": \"Ejecutar validaci\u00f3n de contexto del orquestador: verificar que archivos de reglas, protocolos, alertas y lecciones est\u00e9n vigentes y alineados con la arquitectura Go \u2192 Zen \u2192 Premium. MCP tools timed out; operar manualmente sobre los context sources declarados.\"\n}\n```",
+        "time": {
+          "start": 1778117501458,
+          "end": 1778117504974
+        }
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778117505389,
+      "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+      "part": {
+        "id": "prt_e000ff163001ioKelLkXDm3nKq",
+        "reason": "stop",
+        "snapshot": "f27ead829df431f388123a325913f208f51da3c1",
+        "messageID": "msg_e000fae7e0016PaSHt2WW1J0K7",
+        "sessionID": "ses_1fff0526dffe6Gps5D66my0pJQ",
+        "type": "step-finish",
+        "tokens": {
+          "total": 56415,
+          "input": 6,
+          "output": 442,
+          "reasoning": 0,
+          "cache": {
+            "write": 55967,
+            "read": 0
+          }
+        },
+        "cost": 0.036308375
+      }
+    }
+  ]
+}

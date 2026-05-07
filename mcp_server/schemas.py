@@ -175,7 +175,7 @@ TOOL_SCHEMAS = [
             "required": ["run_id"],
             "additionalProperties": False,
         },
-    },,
+    },
     {
         "name": "start_opencode_from_handoff_async",
         "description": "Lanza OpenCode real desde un handoff existente en segundo plano y devuelve inmediatamente estado started.",
@@ -218,4 +218,5 @@ TOOL_SCHEMAS = [
         }
     }
 ]
+
 
