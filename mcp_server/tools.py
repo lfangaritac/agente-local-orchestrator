@@ -232,6 +232,22 @@ def start_opencode_from_handoff_async(arguments: dict[str, Any] | None = None) -
         "parsed": _json_or_text(result.get("stdout", "")),
     }
 
+
+def get_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    command = ["scripts/get_run_status.py"]
+
+    run_id = arguments.get("run_id")
+    if run_id:
+        command.extend(["--run-id", str(run_id)])
+
+    result = _run_python_script(command, timeout=60)
+    return {
+        **result,
+        "parsed": _json_or_text(result.get("stdout", "")),
+    }
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -276,5 +292,6 @@ if __name__ == "__main__":
 
     if args.self_test:
         self_test()
+
 
 
