@@ -16,6 +16,10 @@ Fase v0.1. Implementación inicial segura.
 - `run_diagnostic_flow`
 - `show_latest_run`
 - `run_opencode_from_handoff`
+- `start_opencode_from_handoff_async`
+- `get_run_status`
+- `check_opencode_run_status`
+- `verify_master_files`
 
 ## Restricciones
 
@@ -208,3 +212,45 @@ Esta herramienta usa internamente la misma lógica de `get_run_status`, pero su 
 Uso recomendado desde Continue:
 
     Usa exclusivamente la herramienta MCP check_opencode_run_status del servidor agente-local-orchestrator con run_id=<run-id>. No uses show_latest_run. No uses terminal. Devuelve solo status, opencode_registered, counts y agents_in_trace.
+
+---
+
+## Herramienta de anclaje de realidad: verify_master_files
+
+Para reducir el riesgo de alucinaciones o diagnósticos falsos por visibilidad parcial del IDE, se agregó:
+
+    verify_master_files
+
+Esta herramienta verifica físicamente la existencia e integridad SHA-256 de los archivos maestros críticos del orquestador.
+
+### Archivos verificados por defecto
+
+- `TARGET_PROJECT_CONTEXT_CONTRACT.md`
+- `PROJECT_REGISTRY.md`
+- `AGENT_RULES.md`
+- `MODEL_ROUTING.md`
+- `AGENT_ORCHESTRATION.md`
+- `docs/AGENT_ORCHESTRATION.md`
+- `CONTINUE_USAGE_PROTOCOL.md`
+- `REPLIT_HANDOFF.md`
+- `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`
+- `docs/protocols/CONTEXT_SYNC_PROTOCOL.md`
+- `docs/protocols/DOCUMENTATION_CODE_ALIGNMENT_PROTOCOL.md`
+- `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md`
+- `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md`
+- `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`
+- `docs/lessons/GLOBAL_LESSONS_LEARNED.md`
+
+### Uso desde Continue
+
+    Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. Devuélveme solo summary: total_checked, total_existing, total_missing, all_ok, duplicate_candidates.
+
+### Detección de duplicidad
+
+Si existen tanto `AGENT_ORCHESTRATION.md` en raíz como `docs/AGENT_ORCHESTRATION.md`, la herramienta reporta `duplicate_candidates` con los hashes de ambos archivos para decidir cuál prevalece según el contrato de contexto.
+
+### Restricciones
+
+- No mueve, elimina ni renombra archivos.
+- Bloquea rutas fuera de ROOT.
+- Opera únicamente en modo lectura.

@@ -34,6 +34,7 @@ ALLOWED_TOOLS = {
     "start_opencode_from_handoff_async",
     "get_run_status",
     "check_opencode_run_status",
+    "verify_master_files",
 }
 
 
@@ -257,6 +258,23 @@ def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[s
     """
     return get_run_status(arguments)
 
+
+def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    command = ["scripts/verify_master_files.py"]
+    paths = arguments.get("paths")
+    if paths:
+        command.append("--paths")
+        command.extend([str(p) for p in paths])
+
+    result = _run_python_script(command, timeout=60)
+    return {
+        **result,
+        "parsed": _json_or_text(result.get("stdout", "")),
+    }
+
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -267,6 +285,7 @@ TOOL_HANDLERS = {
     "start_opencode_from_handoff_async": start_opencode_from_handoff_async,
     "get_run_status": get_run_status,
     "check_opencode_run_status": check_opencode_run_status,
+    "verify_master_files": verify_master_files,
 }
 
 

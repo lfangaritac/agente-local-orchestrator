@@ -231,6 +231,22 @@ TOOL_SCHEMAS = [
             "required": ["run_id"],
             "additionalProperties": False
         }
+    },
+    {
+        "name": "verify_master_files",
+        "description": "Verifica físicamente la existencia e integridad SHA-256 de los archivos maestros críticos del orquestador.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Rutas relativas a ROOT para verificar. Si se omite, usa la lista maestra completa.",
+                    "default": [],
+                }
+            },
+            "additionalProperties": False,
+        },
     }
 ]
 
