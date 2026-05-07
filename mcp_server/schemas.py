@@ -100,7 +100,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "run_diagnostic_flow",
-        "description": "Ejecuta el flujo diagnóstico semiautomático. Puede invocar OpenCode real si with_opencode=true.",
+        "description": "Ejecuta el flujo diagnóstico semiautomático. Puede invocar OpenCode real si with_opencode=True.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -214,9 +214,10 @@ TOOL_SCHEMAS = [
                     "description": "Run ID opcional. Si se omite, usa el run más reciente."
                 }
             },
-            "additionalProperties": false
+            "additionalProperties": False
         }
     }
 ]
+
 
 
