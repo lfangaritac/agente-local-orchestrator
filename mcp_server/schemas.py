@@ -202,6 +202,20 @@ TOOL_SCHEMAS = [
             "required": ["run_id"],
             "additionalProperties": False
         }
+    },
+    {
+        "name": "get_run_status",
+        "description": "Devuelve un resumen compacto de un run, incluyendo si OpenCode registró salida en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "description": "Run ID opcional. Si se omite, usa el run más reciente."
+                }
+            },
+            "additionalProperties": false
+        }
     }
 ]
 

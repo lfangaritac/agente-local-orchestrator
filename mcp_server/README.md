@@ -171,3 +171,26 @@ y debe reflejar:
 
 <!-- END: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->
 
+
+---
+
+## Herramienta compacta de estado de run
+
+Para evitar que Continue use comandos de terminal o respuestas demasiado extensas, se agregó:
+
+    get_run_status
+
+Uso recomendado desde Continue:
+
+    Usa el MCP agente-local-orchestrator para ejecutar get_run_status con run_id=<run-id>. Devuélveme solo status, opencode_registered, counts, agents_in_trace y files.
+
+Esta herramienta devuelve un JSON compacto con:
+
+- existencia de handoff;
+- existencia de RUN_SUMMARY.md;
+- existencia de TRACE.md;
+- conteo de agent_outputs;
+- conteo de raw_outputs;
+- conteo de background logs;
+- agentes detectados en TRACE;
+- si OpenCode quedó registrado.

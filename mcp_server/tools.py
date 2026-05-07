@@ -32,6 +32,7 @@ ALLOWED_TOOLS = {
     "show_latest_run",
     "run_opencode_from_handoff",
     "start_opencode_from_handoff_async",
+    "get_run_status",
 }
 
 
@@ -239,6 +240,7 @@ TOOL_HANDLERS = {
     "show_latest_run": show_latest_run,
     "run_opencode_from_handoff": run_opencode_from_handoff,
     "start_opencode_from_handoff_async": start_opencode_from_handoff_async,
+    "get_run_status": get_run_status,
 }
 
 
@@ -274,4 +276,5 @@ if __name__ == "__main__":
 
     if args.self_test:
         self_test()
+
 
