@@ -33,6 +33,7 @@ ALLOWED_TOOLS = {
     "run_opencode_from_handoff",
     "start_opencode_from_handoff_async",
     "get_run_status",
+    "check_opencode_run_status",
 }
 
 
@@ -248,6 +249,14 @@ def get_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         "parsed": _json_or_text(result.get("stdout", "")),
     }
 
+
+def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Alias semántico de get_run_status para que Continue seleccione mejor
+    la herramienta cuando el usuario pregunta por salidas de OpenCode.
+    """
+    return get_run_status(arguments)
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -257,6 +266,7 @@ TOOL_HANDLERS = {
     "run_opencode_from_handoff": run_opencode_from_handoff,
     "start_opencode_from_handoff_async": start_opencode_from_handoff_async,
     "get_run_status": get_run_status,
+    "check_opencode_run_status": check_opencode_run_status,
 }
 
 
@@ -292,6 +302,7 @@ if __name__ == "__main__":
 
     if args.self_test:
         self_test()
+
 
 
 

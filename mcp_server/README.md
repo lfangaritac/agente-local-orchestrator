@@ -194,3 +194,17 @@ Esta herramienta devuelve un JSON compacto con:
 - conteo de background logs;
 - agentes detectados en TRACE;
 - si OpenCode quedó registrado.
+
+---
+
+## Alias semántico para estado de OpenCode
+
+Para facilitar que Continue seleccione la herramienta correcta, se agregó el alias:
+
+    check_opencode_run_status
+
+Esta herramienta usa internamente la misma lógica de `get_run_status`, pero su nombre es más explícito para validar si OpenCode ya dejó resultados registrados.
+
+Uso recomendado desde Continue:
+
+    Usa exclusivamente la herramienta MCP check_opencode_run_status del servidor agente-local-orchestrator con run_id=<run-id>. No uses show_latest_run. No uses terminal. Devuelve solo status, opencode_registered, counts y agents_in_trace.

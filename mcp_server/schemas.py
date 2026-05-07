@@ -216,8 +216,21 @@ TOOL_SCHEMAS = [
             },
             "additionalProperties": False
         }
+    },
+    {
+        "name": "check_opencode_run_status",
+        "description": "Verifica de forma compacta si un run ya tiene salida de OpenCode registrada en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "description": "Run ID que se desea verificar."
+                }
+            },
+            "required": ["run_id"],
+            "additionalProperties": False
+        }
     }
 ]
-
-
 
