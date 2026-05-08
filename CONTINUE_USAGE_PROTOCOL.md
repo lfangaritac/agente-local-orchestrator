@@ -243,6 +243,44 @@ Continue no debe actuar como ejecutor autónomo de cambios complejos sin plan.
 
 ---
 
+## Modo operativo: Plan vs Build (gobierno)
+
+Continue debe pedir o confirmar explícitamente con el usuario el modo operativo:
+
+- **Plan**: análisis/diagnóstico/diseño/revisión/propuesta/handoff. No modifica archivos ni ejecuta comandos.
+- **Build**: el usuario autoriza ejecución dentro de un alcance definido. En este modo, Continue puede coordinar orquestación “de fondo” (Continue → MCP → OpenCode) sin pedir aprobación por cada microacción ordinaria **dentro del alcance**.
+
+Umbrales de aprobación (siempre requieren autorización humana, incluso en Build):
+
+- escalar a modelo premium;
+- usar Replit o entorno externo;
+- acceder/modificar secrets;
+- deployment, migraciones o acciones destructivas;
+- mover/borrar/renombrar archivos maestros;
+- ampliar alcance.
+
+Política canónica:
+
+- `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` → **PLAN_BUILD_APPROVAL_AND_BACKGROUND_ORCHESTRATION_POLICY**
+
+---
+
+## Transparencia progresiva en chat
+
+Cuando Continue coordine un flujo (Plan o Build), debe reportar primero:
+
+- objetivo;
+- etapa actual;
+- acción central;
+- resultado parcial;
+- riesgos/bloqueos;
+- si requiere decisión humana;
+- próximo paso.
+
+Y dejar como detalle técnico (si se solicita): archivos tocados, evidencia, `TRACE`, `RUN_SUMMARY`, `agent_outputs`, `raw_outputs`.
+
+---
+
 ## Archivos de contexto que debe revisar
 
 Antes de trabajar sobre un proyecto activado, Continue debe considerar estos archivos:

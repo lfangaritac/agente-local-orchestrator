@@ -464,6 +464,142 @@ La automatización se considerará exitosa cuando:
 
 La automatización debe reducir carga operativa del usuario sin reducir transparencia, trazabilidad, control humano ni calidad técnica.
 
+---
+
+## 25. PLAN_BUILD_APPROVAL_AND_BACKGROUND_ORCHESTRATION_POLICY
+
+### 25.1 Principio central
+
+- La orquestación es una regla operativa base, no un mecanismo de escalamiento.
+- OpenCode no es “escalamiento”: es el agente técnico natural para codificación, modificación técnica, validación y pruebas.
+- Zen, modelos premium y Replit sí son mecanismos de escalamiento o ampliación de capacidad.
+
+Aclaraciones obligatorias (anti-inferencias):
+
+- **Go** significa *OpenCode Go* (línea/proveedor/modelos de primera línea), no el lenguaje de programación Go.
+- **Zen** significa *OpenCode Zen* (continuidad pay-as-you-go / escalamiento económico o premium), no una arquitectura técnica, red, bus o framework.
+
+### 25.2 Modo Plan
+
+El modo Plan aplica a:
+
+- análisis;
+- diagnóstico;
+- diseño;
+- revisión;
+- propuesta;
+- preparación/refinamiento de handoff.
+
+Reglas:
+
+- no modifica archivos ni código;
+- no ejecuta comandos;
+- si se detecta necesidad de construir, se debe solicitar **modo Build** o **autorización explícita** del usuario.
+
+### 25.3 Modo Build
+
+El modo Build aplica cuando el usuario autoriza **ejecución dentro de un alcance definido**.
+
+Reglas:
+
+- la autorización es por **alcance**, no por micro-acciones ordinarias;
+- el sistema puede coordinar **Continue → MCP → OpenCode** (incluyendo ejecución en segundo plano cuando sea apropiado);
+- se mantiene trazabilidad y reporte;
+- acciones sensibles siguen requiriendo autorización humana (ver 25.5).
+
+### 25.4 Aprobaciones que NO se requieren en Build (si están dentro del alcance autorizado)
+
+- crear/modificar código ordinario relacionado con la tarea;
+- actualizar pruebas asociadas;
+- ejecutar validaciones locales **no destructivas**;
+- actualizar documentación técnica asociada;
+- registrar evidencia ordinaria: `runs`, `TRACE`, `RUN_SUMMARY`, `agent_outputs`, `raw_outputs`.
+
+### 25.5 Aprobaciones que SÍ se requieren siempre
+
+Requieren autorización humana explícita, incluso en modo Build:
+
+- escalar a **modelo premium** (por costo o criticidad);
+- usar **Replit** o cualquier entorno externo;
+- acceder o modificar **secrets** (incluye pedirlos, imprimirlos o incorporarlos a prompts/archivos);
+- **deployment**;
+- **migraciones**;
+- infraestructura productiva o cambios con impacto en producción;
+- **mover, borrar o renombrar archivos maestros** del orquestador;
+- cambios arquitectónicos críticos;
+- acciones destructivas;
+- ampliar el alcance originalmente autorizado;
+- `push/merge` si la política del proyecto lo exige.
+
+### 25.6 Roles
+
+- **Continue**: contexto, gobierno, clasificación, preparación de handoffs, supervisión, consolidación de resultados y comunicación.
+- **OpenCode**: codificación, modificación técnica, validación técnica, pruebas y feedback estructurado.
+- **MCP**: verificación física, despacho, estado, trazabilidad, runs, evidencias y consulta compacta.
+- **Usuario**: define intención, alcance y modo Plan/Build; autoriza acciones sensibles; decide negocio o arquitectura crítica cuando el sistema lo solicite.
+
+### 25.7 Transparencia progresiva en chat
+
+El chat debe mostrar primero (resumen ejecutivo):
+
+- objetivo;
+- etapa actual;
+- acción central;
+- resultado parcial;
+- riesgos o bloqueos;
+- si requiere decisión humana;
+- próximo paso.
+
+Y dejar disponible como detalle técnico (consultable):
+
+- archivos modificados;
+- comandos ejecutados;
+- hashes;
+- logs;
+- `TRACE`;
+- `RUN_SUMMARY`;
+- `raw_outputs`;
+- `agent_outputs`.
+
+### 25.8 Cambio de modelo en OpenCode (routing)
+
+- El routing debe aplicar automáticamente dentro de las **líneas autorizadas** por el usuario y por `MODEL_ROUTING.md`.
+- Si el cambio requiere costo/premium, Replit o entorno externo, debe pedir autorización.
+
+Esta política no reemplaza `MODEL_ROUTING.md`; lo operacionaliza en Plan/Build.
+
+### 25.9 Regla de visibilidad (archivos maestros)
+
+Cuando la existencia de archivos maestros sea relevante, debe prevalecer la verificación física vía MCP (`verify_master_files`) por sobre la visibilidad parcial del IDE.
+
+### 25.10 Reglas anti-desviación
+
+- Continue **no implementa** código operativo del orquestador (scripts, `mcp_server`, automatización ejecutable).
+- OpenCode **no decide** cambios de gobierno sin contexto y supervisión de Continue.
+- MCP **no sustituye** ni a Continue ni a OpenCode: solo ejecuta/verifica/registrar según herramientas expuestas.
+- El usuario **no debe transportar handoffs manualmente** como rutina: la orquestación debe tender a automatizar transferencia y trazabilidad.
+- La orquestación debe operar “de fondo” cuando corresponda, pero el usuario debe ver un avance comprensible (25.7).
+
+### 25.11 Condición de cierre en Build
+
+Toda ejecución en modo Build debe cerrar con:
+
+- resumen funcional;
+- resultado técnico;
+- evidencia de validación;
+- riesgos residuales;
+- acciones pendientes;
+- si requiere aprobación adicional;
+- estado Git (por ejemplo: `git diff` y `git status --short`), si aplica.
+
+---
+
+Referencias:
+
+- `AGENT_ORCHESTRATION.md` (arquitectura y agentes)
+- `MODEL_ROUTING.md` (routing y escalamiento)
+- `CONTINUE_USAGE_PROTOCOL.md` (uso de Continue en VS Code)
+
 <!-- START: DIAGNOSTIC_FLOW_OPERATION_V0_1 -->
 
 ---

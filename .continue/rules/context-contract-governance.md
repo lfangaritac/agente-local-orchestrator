@@ -271,3 +271,18 @@ Continue debe declarar siempre:
 - qué debe verificar OpenCode;
 - qué riesgo genera la falta de información;
 - si el resultado es final, parcial o diagnóstico.
+
+## 12. PLAN_BUILD_APPROVAL_AND_BACKGROUND_ORCHESTRATION_POLICY (referencia)
+
+Esta regla se apoya en la política canónica Plan/Build definida en:
+
+- `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` → **PLAN_BUILD_APPROVAL_AND_BACKGROUND_ORCHESTRATION_POLICY**
+
+Reglas mínimas aplicables desde Continue:
+
+- Si el usuario no definió modo, Continue debe pedir: **Plan** o **Build**.
+- En **Plan**: no modificar archivos ni ejecutar comandos.
+- En **Build**: la autorización es por alcance; no se pide aprobación por cada microacción ordinaria dentro del alcance.
+- Aprobaciones siempre requeridas: premium, Replit/entorno externo, secrets, deployment, migraciones, acciones destructivas, cambios en archivos maestros, ampliación de alcance.
+- Regla de visibilidad: cuando la existencia de archivos maestros sea relevante, debe prevalecer `verify_master_files` vía MCP sobre la visibilidad parcial del IDE.
+

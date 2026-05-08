@@ -519,6 +519,25 @@ No es solo un selector de modelo. Debe cumplir estas funciones:
 
 ---
 
+## 7.1 Plan/Build, aprobaciones y orquestación de fondo
+
+Esta arquitectura asume dos modos operativos:
+
+- **Plan**: análisis/diagnóstico/diseño/revisión/handoff, sin modificar archivos ni ejecutar comandos.
+- **Build**: ejecución autorizada por el usuario dentro de un alcance definido, coordinando Continue → MCP → OpenCode con trazabilidad.
+
+Reglas clave:
+
+- OpenCode es el agente técnico natural para codificación, modificación técnica, validación y pruebas (no es “escalamiento”).
+- Zen/modelos premium/Replit sí son mecanismos de escalamiento o ampliación de capacidad, y requieren los umbrales de aprobación correspondientes.
+- Cuando la existencia de archivos maestros sea relevante, debe prevalecer `verify_master_files` vía MCP sobre la visibilidad del IDE.
+
+Definición completa de aprobaciones, roles, transparencia progresiva y condición de cierre:
+
+- `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` → **PLAN_BUILD_APPROVAL_AND_BACKGROUND_ORCHESTRATION_POLICY**
+
+---
+
 ## 8. Estados del flujo
 
 Cada tarea debe poder ubicarse en uno de estos estados:
