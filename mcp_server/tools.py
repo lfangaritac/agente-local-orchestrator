@@ -39,7 +39,9 @@ ALLOWED_TOOLS = {
 }
 
 
-def _run_python_script(args: list[str], timeout: int = 180) -> dict[str, Any]:
+def _run_python_script(args: list[str], timeout: int = 180, max_output_chars: int = 24576) -> dict[str, Any]:
+    import time as _time
+    start = _time.perf_counter()
     completed = subprocess.run(
         [sys.executable, *args],
         cwd=ROOT,
@@ -49,11 +51,25 @@ def _run_python_script(args: list[str], timeout: int = 180) -> dict[str, Any]:
         errors="replace",
         timeout=timeout,
     )
+    elapsed_ms = int((_time.perf_counter() - start) * 1000)
+
+    def _truncate(text: str, limit: int) -> str:
+        if len(text) <= limit:
+            return text
+        return text[:limit] + f"\n... [truncated: {len(text)} chars total]"
+
+    stdout_raw = completed.stdout or ""
+    stderr_raw = completed.stderr or ""
 
     return {
         "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout": _truncate(stdout_raw, max_output_chars),
+        "stderr": _truncate(stderr_raw, max_output_chars),
+        "stdout_bytes": len(stdout_raw.encode("utf-8", errors="replace")),
+        "stderr_bytes": len(stderr_raw.encode("utf-8", errors="replace")),
+        "stdout_truncated": len(stdout_raw) > max_output_chars,
+        "stderr_truncated": len(stderr_raw) > max_output_chars,
+        "elapsed_ms": elapsed_ms,
         "ok": completed.returncode == 0,
     }
 

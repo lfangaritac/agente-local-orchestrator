@@ -59,15 +59,30 @@ def log(message: str) -> None:
 
 
 def as_tool_content(data: Any) -> dict[str, Any]:
+    is_error = bool(isinstance(data, dict) and data.get("ok") is False)
+    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    limit = 32768
+
+    if len(raw) > limit:
+        data = {
+            "ok": not is_error,
+            "truncated": True,
+            "original_chars": len(raw),
+            "preview_chars": limit,
+            "preview": raw[:limit],
+        }
+        raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+
     return {
         "content": [
             {
                 "type": "text",
-                "text": json.dumps(data, ensure_ascii=False, indent=2),
+                "text": raw,
             }
         ],
-        "isError": bool(isinstance(data, dict) and data.get("ok") is False),
+        "isError": is_error,
     }
+
 
 
 def handle_initialize(params: dict[str, Any] | None = None) -> dict[str, Any]:

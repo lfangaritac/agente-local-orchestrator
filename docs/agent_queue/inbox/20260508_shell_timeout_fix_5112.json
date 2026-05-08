@@ -1,0 +1,12 @@
+﻿{
+    "mode":  "Build",
+    "scenario":  "debugging",
+    "risk_level":  "medium",
+    "source_agent":  "shell/manual-supervised",
+    "handoff_md":  ".\\docs\\agent_queue\\inbox\\20260508_shell_timeout_fix_5112.md",
+    "objective":  "Diagnosticar y corregir timeouts MCP -32001",
+    "target_agent":  "builder",
+    "model":  "opencode-go/kimi-k2.6",
+    "run_id":  "20260508_shell_timeout_fix_5112",
+    "status":  "created"
+}
