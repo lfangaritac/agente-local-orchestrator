@@ -1,0 +1,805 @@
+{
+  "session_id": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+  "text": "",
+  "events_count": 29,
+  "tokens": {
+    "total": 86972,
+    "input": 756,
+    "output": 2606,
+    "reasoning": 154,
+    "cache": {
+      "write": 0,
+      "read": 83456
+    }
+  },
+  "cost": 0.02511116,
+  "events": [
+    {
+      "type": "step_start",
+      "timestamp": 1778271215573,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e09395fd1001YYjBaCtvkfbazB",
+        "messageID": "msg_e093946aa001Z7TyAsqobt72dl",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271219098,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "glob",
+        "callID": "glob:0",
+        "state": {
+          "status": "completed",
+          "input": {
+            "pattern": "mcp_server/**/*"
+          },
+          "output": "C:\\Agente\\mcp_server\\__pycache__\\test_verify_master_files_stdio.cpython-314.pyc\nC:\\Agente\\mcp_server\\__pycache__\\server.cpython-314.pyc\nC:\\Agente\\mcp_server\\__pycache__\\tools.cpython-314.pyc\nC:\\Agente\\mcp_server\\__pycache__\\schemas.cpython-314.pyc\nC:\\Agente\\mcp_server\\test_verify_master_files_stdio.py\nC:\\Agente\\mcp_server\\README.md\nC:\\Agente\\mcp_server\\tools.py\nC:\\Agente\\mcp_server\\schemas.py\nC:\\Agente\\mcp_server\\__pycache__\\test_check_opencode_run_status_stdio.cpython-314.pyc\nC:\\Agente\\mcp_server\\test_check_opencode_run_status_stdio.py\nC:\\Agente\\mcp_server\\__pycache__\\test_get_run_status_stdio.cpython-314.pyc\nC:\\Agente\\mcp_server\\test_get_run_status_stdio.py\nC:\\Agente\\mcp_server\\__pycache__\\test_mcp_stdio.cpython-314.pyc\nC:\\Agente\\mcp_server\\test_mcp_stdio.py\nC:\\Agente\\mcp_server\\server.py",
+          "metadata": {
+            "count": 15,
+            "truncated": false
+          },
+          "title": "",
+          "time": {
+            "start": 1778271219044,
+            "end": 1778271219096
+          }
+        },
+        "id": "prt_e09396d5b001ybMlLNXlNdWiw2",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093946aa001Z7TyAsqobt72dl"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271219343,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "glob",
+        "callID": "glob:1",
+        "state": {
+          "status": "completed",
+          "input": {
+            "pattern": "scripts/*handoff*.py"
+          },
+          "output": "C:\\Agente\\scripts\\start_opencode_from_handoff_async.py\nC:\\Agente\\scripts\\run_opencode_from_handoff.py\nC:\\Agente\\scripts\\build_handoff_package.py",
+          "metadata": {
+            "count": 3,
+            "truncated": false
+          },
+          "title": "",
+          "time": {
+            "start": 1778271219295,
+            "end": 1778271219342
+          }
+        },
+        "id": "prt_e09396d65001bFTouBKK2fzs1S",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093946aa001Z7TyAsqobt72dl"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271219748,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "glob",
+        "callID": "glob:2",
+        "state": {
+          "status": "completed",
+          "input": {
+            "pattern": "docs/agent_queue/**/*"
+          },
+          "output": "C:\\Agente\\docs\\agent_queue\\inbox\\20260508_000001_c0ffee12.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260508_000001_c0ffee12.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260507_230506_7faf7752.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260507_230506_7faf7752.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260507_001907_b03c78b6.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260507_001907_b03c78b6.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_171549_0e258229.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_171549_0e258229.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_170951_077888cd.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_170951_077888cd.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_122350_1c5cc272.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_122350_1c5cc272.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_120851_e8c884cf.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_120851_e8c884cf.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_111238_8e48193b.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_111238_8e48193b.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_104133_ff370852.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_104133_ff370852.json\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_101702_f2d84b1e.md\nC:\\Agente\\docs\\agent_queue\\inbox\\20260506_101702_f2d84b1e.json\nC:\\Agente\\docs\\agent_queue\\README.md",
+          "metadata": {
+            "count": 21,
+            "truncated": false
+          },
+          "title": "",
+          "time": {
+            "start": 1778271219700,
+            "end": 1778271219747
+          }
+        },
+        "id": "prt_e09396e60001h8YDYAhG2M0E55",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093946aa001Z7TyAsqobt72dl"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271220004,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e093971200018bAZDlpSX6hzJm",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e093946aa001Z7TyAsqobt72dl",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 63894,
+          "input": 63602,
+          "output": 22,
+          "reasoning": 270,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "cost": 0.0615899
+      }
+    },
+    {
+      "type": "step_start",
+      "timestamp": 1778271226113,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e093988fe001zmbf8464nNnJhR",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271226537,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:3",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\mcp_server\\schemas.py"
+          },
+          "output": "<path>C:\\Agente\\mcp_server\\schemas.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: schemas.py\n3: \n4: Esquemas de herramientas MCP del orquestador local.\n5: \n6: Fase v0.1:\n7: - Solo diagn\u00f3stico.\n8: - Sin comandos arbitrarios.\n9: - Sin edici\u00f3n de c\u00f3digo.\n10: - Sin secrets.\n11: - Sin deployment.\n12: - Sin migraciones.\n13: \"\"\"\n14: \n15: from __future__ import annotations\n16: \n17: \n18: TOOL_SCHEMAS = [\n19:     {\n20:         \"name\": \"orchestrator_preflight\",\n21:         \"description\": \"Ejecuta el preflight transversal del orquestador y devuelve fuentes, alertas, lecciones y estado del contexto.\",\n22:         \"inputSchema\": {\n23:             \"type\": \"object\",\n24:             \"properties\": {},\n25:             \"additionalProperties\": False,\n26:         },\n27:     },\n28:     {\n29:         \"name\": \"select_agent_model\",\n30:         \"description\": \"Selecciona de forma diagn\u00f3stica agente/modelo seg\u00fan escenario, riesgo y volumen.\",\n31:         \"inputSchema\": {\n32:             \"type\": \"object\",\n33:             \"properties\": {\n34:                 \"scenario\": {\n35:                     \"type\": \"string\",\n36:                     \"description\": \"Escenario de routing. Ejemplo: context-validation, planning, architecture, debugging, security, handoff.\",\n37:                     \"default\": \"context-validation\",\n38:                 },\n39:                 \"risk\": {\n40:                     \"type\": \"string\",\n41:                     \"description\": \"Nivel de riesgo.\",\n42:                     \"enum\": [\"low\", \"medium\", \"high\", \"critical\"],\n43:                     \"default\": \"medium\",\n44:                 },\n45:                 \"volume\": {\n46:                     \"type\": \"string\",\n47:                     \"description\": \"Volumen de informaci\u00f3n.\",\n48:                     \"enum\": [\"low\", \"medium\", \"high\"],\n49:                     \"default\": \"medium\",\n50:                 },\n51:                 \"user_premium\": {\n52:                     \"type\": \"boolean\",\n53:                     \"description\": \"Indica si el usuario pidi\u00f3 expl\u00edcitamente premium.\",\n54:                     \"default\": False,\n55:                 },\n56:             },\n57:             \"additionalProperties\": False,\n58:         },\n59:     },\n60:     {\n61:         \"name\": \"build_handoff_package\",\n62:         \"description\": \"Crea un paquete de handoff con fuentes, alertas y lecciones incorporadas desde el preflight.\",\n63:         \"inputSchema\": {\n64:             \"type\": \"object\",\n65:             \"properties\": {\n66:                 \"project_id\": {\n67:                     \"type\": \"string\",\n68:                     \"default\": \"orchestrator\",\n69:                 },\n70:                 \"source_agent\": {\n71:                     \"type\": \"string\",\n72:                     \"default\": \"continue\",\n73:                 },\n74:                 \"target_agent\": {\n75:                     \"type\": \"string\",\n76:                     \"default\": \"context-validator\",\n77:                 },\n78:                 \"scenario\": {\n79:                     \"type\": \"string\",\n80:                     \"default\": \"context-validation\",\n81:                 },\n82:                 \"risk\": {\n83:                     \"type\": \"string\",\n84:                     \"enum\": [\"low\", \"medium\", \"high\", \"critical\"],\n85:                     \"default\": \"medium\",\n86:                 },\n87:                 \"volume\": {\n88:                     \"type\": \"string\",\n89:                     \"enum\": [\"low\", \"medium\", \"high\"],\n90:                     \"default\": \"high\",\n91:                 },\n92:                 \"objective\": {\n93:                     \"type\": \"string\",\n94:                     \"description\": \"Objetivo del handoff.\",\n95:                 },\n96:             },\n97:             \"required\": [\"objective\"],\n98:             \"additionalProperties\": False,\n99:         },\n100:     },\n101:     {\n102:         \"name\": \"run_diagnostic_flow\",\n103:         \"description\": \"Ejecuta el flujo diagn\u00f3stico semiautom\u00e1tico. Puede invocar OpenCode real si with_opencode=True.\",\n104:         \"inputSchema\": {\n105:             \"type\": \"object\",\n106:             \"properties\": {\n107:                 \"project_id\": {\n108:                     \"type\": \"string\",\n109:                     \"default\": \"orchestrator\",\n110:                 },\n111:                 \"scenario\": {\n112:                     \"type\": \"string\",\n113:                     \"default\": \"context-validation\",\n114:                 },\n115:                 \"risk\": {\n116:                     \"type\": \"string\",\n117:                     \"enum\": [\"low\", \"medium\", \"high\", \"critical\"],\n118:                     \"default\": \"medium\",\n119:                 },\n120:                 \"volume\": {\n121:                     \"type\": \"string\",\n122:                     \"enum\": [\"low\", \"medium\", \"high\"],\n123:                     \"default\": \"high\",\n124:                 },\n125:                 \"objective\": {\n126:                     \"type\": \"string\",\n127:                     \"default\": \"Flujo diagn\u00f3stico MCP v0.1.\",\n128:                 },\n129:                 \"with_opencode\": {\n130:                     \"type\": \"boolean\",\n131:                     \"description\": \"Invoca OpenCode real en modo diagn\u00f3stico controlado.\",\n132:                     \"default\": False,\n133:                 },\n134:             },\n135:             \"additionalProperties\": False,\n136:         },\n137:     },\n138:     {\n139:         \"name\": \"show_latest_run\",\n140:         \"description\": \"Muestra el \u00faltimo flujo o un run espec\u00edfico con RUN_SUMMARY y TRACE.\",\n141:         \"inputSchema\": {\n142:             \"type\": \"object\",\n143:             \"properties\": {\n144:                 \"run_id\": {\n145:                     \"type\": \"string\",\n146:                     \"description\": \"Run ID opcional. Si se omite, muestra el \u00faltimo run.\",\n147:                 },\n148:             },\n149:             \"additionalProperties\": False,\n150:         },\n151:     },\n152:     {\n153:         \"name\": \"run_opencode_from_handoff\",\n154:         \"description\": \"Invoca OpenCode real desde un handoff existente en modo diagn\u00f3stico controlado.\",\n155:         \"inputSchema\": {\n156:             \"type\": \"object\",\n157:             \"properties\": {\n158:                 \"run_id\": {\n159:                     \"type\": \"string\",\n160:                     \"description\": \"Run ID del handoff existente.\",\n161:                 },\n162:                 \"agent\": {\n163:                     \"type\": \"string\",\n164:                     \"default\": \"context-validator\",\n165:                 },\n166:                 \"model\": {\n167:                     \"type\": \"string\",\n168:                     \"default\": \"opencode-go/qwen3.6-plus\",\n169:                 },\n170:                 \"prompt\": {\n171:                     \"type\": \"string\",\n172:                     \"description\": \"Prompt diagn\u00f3stico para OpenCode. No debe pedir edici\u00f3n ni ejecuci\u00f3n de comandos.\",\n173:                 },\n174:             },\n175:             \"required\": [\"run_id\"],\n176:             \"additionalProperties\": False,\n177:         },\n178:     },\n179:     {\n180:         \"name\": \"start_opencode_from_handoff_async\",\n181:         \"description\": \"Lanza OpenCode real desde un handoff existente en segundo plano y devuelve inmediatamente estado started.\",\n182:         \"inputSchema\": {\n183:             \"type\": \"object\",\n184:             \"properties\": {\n185:                 \"run_id\": {\n186:                     \"type\": \"string\",\n187:                     \"description\": \"Run ID del handoff existente.\"\n188:                 },\n189:                 \"agent\": {\n190:                     \"type\": \"string\",\n191:                     \"default\": \"context-validator\"\n192:                 },\n193:                 \"model\": {\n194:                     \"type\": \"string\",\n195:                     \"default\": \"opencode-go/qwen3.6-plus\"\n196:                 },\n197:                 \"prompt\": {\n198:                     \"type\": \"string\",\n199:                     \"description\": \"Prompt diagn\u00f3stico para OpenCode. No debe pedir edici\u00f3n ni ejecuci\u00f3n de comandos.\"\n200:                 }\n201:             },\n202:             \"required\": [\"run_id\"],\n203:             \"additionalProperties\": False\n204:         }\n205:     }\n206: ,\n207:     {\n208:         \"name\": \"get_run_status\",\n209:         \"description\": \"Devuelve un resumen compacto de un run, incluyendo si OpenCode registr\u00f3 salida en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.\",\n210:         \"inputSchema\": {\n211:             \"type\": \"object\",\n212:             \"properties\": {\n213:                 \"run_id\": {\n214:                     \"type\": \"string\",\n215:                     \"description\": \"Run ID opcional. Si se omite, usa el run m\u00e1s reciente.\"\n216:                 }\n217:             },\n218:             \"additionalProperties\": False\n219:         }\n220:     },\n221:     {\n222:         \"name\": \"check_opencode_run_status\",\n223:         \"description\": \"Verifica de forma compacta si un run ya tiene salida de OpenCode registrada en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.\",\n224:         \"inputSchema\": {\n225:             \"type\": \"object\",\n226:             \"properties\": {\n227:                 \"run_id\": {\n228:                     \"type\": \"string\",\n229:                     \"description\": \"Run ID que se desea verificar.\"\n230:                 }\n231:             },\n232:             \"required\": [\"run_id\"],\n233:             \"additionalProperties\": False\n234:         }\n235:     },\n236:     {\n237:         \"name\": \"verify_master_files\",\n238:         \"description\": \"Verifica f\u00edsicamente la existencia e integridad SHA-256 de los archivos maestros cr\u00edticos del orquestador.\",\n239:         \"inputSchema\": {\n240:             \"type\": \"object\",\n241:             \"properties\": {\n242:                 \"paths\": {\n243:                     \"type\": \"array\",\n244:                     \"items\": {\"type\": \"string\"},\n245:                     \"description\": \"Rutas relativas a ROOT para verificar. Si se omite, usa la lista maestra completa.\",\n246:                     \"default\": [],\n247:                 }\n248:             },\n249:             \"additionalProperties\": False,\n250:         },\n251:     }\n252: ]\n253: \n\n(End of file - total 253 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nschemas.py\n\nEsquemas de herramientas MCP del orquestador local.\n\nFase v0.1:\n- Solo diagn\u00f3stico.\n- Sin comandos arbitrarios.\n- Sin edici\u00f3n de c\u00f3digo.\n- Sin secrets.\n- Sin deployment.\n- Sin migraciones.\n\"\"\"\n\nfrom __future__ import annotations\n\n\nTOOL_SCHEMAS = [\n    {\n        \"name\": \"orchestrator_preflight\",",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "mcp_server\\schemas.py",
+          "time": {
+            "start": 1778271226520,
+            "end": 1778271226535
+          }
+        },
+        "id": "prt_e09398907001CiU0k5auIRc5x1",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271226878,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:4",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\mcp_server\\tools.py"
+          },
+          "output": "<path>C:\\Agente\\mcp_server\\tools.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: tools.py\n3: \n4: Herramientas seguras del MCP local para Continue.\n5: \n6: Estas herramientas envuelven scripts ya probados del orquestador.\n7: No permiten comandos arbitrarios.\n8: \"\"\"\n9: \n10: from __future__ import annotations\n11: \n12: from pathlib import Path\n13: import argparse\n14: import json\n15: import os\n16: import subprocess\n17: import sys\n18: from typing import Any\n19: \n20: \n21: ROOT = Path(__file__).resolve().parents[1]\n22: \n23: os.environ.setdefault(\"PYTHONUTF8\", \"1\")\n24: os.environ.setdefault(\"PYTHONIOENCODING\", \"utf-8\")\n25: \n26: \n27: ALLOWED_TOOLS = {\n28:     \"orchestrator_preflight\",\n29:     \"select_agent_model\",\n30:     \"build_handoff_package\",\n31:     \"run_diagnostic_flow\",\n32:     \"show_latest_run\",\n33:     \"run_opencode_from_handoff\",\n34:     \"start_opencode_from_handoff_async\",\n35:     \"get_run_status\",\n36:     \"check_opencode_run_status\",\n37:     \"verify_master_files\",\n38: }\n39: \n40: \n41: def _run_python_script(args: list[str], timeout: int = 180) -> dict[str, Any]:\n42:     completed = subprocess.run(\n43:         [sys.executable, *args],\n44:         cwd=ROOT,\n45:         capture_output=True,\n46:         text=True,\n47:         encoding=\"utf-8\",\n48:         errors=\"replace\",\n49:         timeout=timeout,\n50:     )\n51: \n52:     return {\n53:         \"returncode\": completed.returncode,\n54:         \"stdout\": completed.stdout,\n55:         \"stderr\": completed.stderr,\n56:         \"ok\": completed.returncode == 0,\n57:     }\n58: \n59: \n60: def _json_or_text(output: str) -> Any:\n61:     output = output.strip()\n62:     if not output:\n63:         return \"\"\n64:     try:\n65:         return json.loads(output)\n66:     except Exception:\n67:         return output\n68: \n69: \n70: def orchestrator_preflight(_: dict[str, Any] | None = None) -> dict[str, Any]:\n71:     result = _run_python_script([\"scripts/orchestrator_preflight.py\"])\n72:     return {\n73:         **result,\n74:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n75:     }\n76: \n77: \n78: def select_agent_model(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n79:     arguments = arguments or {}\n80: \n81:     command = [\n82:         \"scripts/select_agent_model.py\",\n83:         \"--scenario\",\n84:         str(arguments.get(\"scenario\", \"context-validation\")),\n85:         \"--risk\",\n86:         str(arguments.get(\"risk\", \"medium\")),\n87:         \"--volume\",\n88:         str(arguments.get(\"volume\", \"medium\")),\n89:     ]\n90: \n91:     if arguments.get(\"user_premium\") is True:\n92:         command.append(\"--user-premium\")\n93: \n94:     result = _run_python_script(command)\n95:     return {\n96:         **result,\n97:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n98:     }\n99: \n100: \n101: def build_handoff_package(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n102:     arguments = arguments or {}\n103: \n104:     objective = arguments.get(\"objective\")\n105:     if not objective:\n106:         return {\n107:             \"ok\": False,\n108:             \"returncode\": 2,\n109:             \"stdout\": \"\",\n110:             \"stderr\": \"objective es obligatorio.\",\n111:         }\n112: \n113:     command = [\n114:         \"scripts/build_handoff_package.py\",\n115:         \"--project-id\",\n116:         str(arguments.get(\"project_id\", \"orchestrator\")),\n117:         \"--source-agent\",\n118:         str(arguments.get(\"source_agent\", \"continue\")),\n119:         \"--target-agent\",\n120:         str(arguments.get(\"target_agent\", \"context-validator\")),\n121:         \"--scenario\",\n122:         str(arguments.get(\"scenario\", \"context-validation\")),\n123:         \"--risk\",\n124:         str(arguments.get(\"risk\", \"medium\")),\n125:         \"--volume\",\n126:         str(arguments.get(\"volume\", \"high\")),\n127:         \"--objective\",\n128:         str(objective),\n129:     ]\n130: \n131:     result = _run_python_script(command)\n132:     return {\n133:         **result,\n134:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n135:     }\n136: \n137: \n138: def run_diagnostic_flow(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n139:     arguments = arguments or {}\n140: \n141:     command = [\n142:         \"scripts/run_diagnostic_flow.py\",\n143:         \"--project-id\",\n144:         str(arguments.get(\"project_id\", \"orchestrator\")),\n145:         \"--scenario\",\n146:         str(arguments.get(\"scenario\", \"context-validation\")),\n147:         \"--risk\",\n148:         str(arguments.get(\"risk\", \"medium\")),\n149:         \"--volume\",\n150:         str(arguments.get(\"volume\", \"high\")),\n151:         \"--objective\",\n152:         str(arguments.get(\"objective\", \"Flujo diagn\u00f3stico MCP v0.1.\")),\n153:     ]\n154: \n155:     if arguments.get(\"with_opencode\") is True:\n156:         command.append(\"--with-opencode\")\n157: \n158:     result = _run_python_script(command, timeout=300)\n159:     return {\n160:         **result,\n161:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n162:     }\n163: \n164: \n165: def show_latest_run(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n166:     arguments = arguments or {}\n167: \n168:     command = [\"scripts/show_latest_run.py\"]\n169:     run_id = arguments.get(\"run_id\")\n170:     if run_id:\n171:         command.extend([\"--run-id\", str(run_id)])\n172: \n173:     return _run_python_script(command)\n174: \n175: \n176: def run_opencode_from_handoff(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n177:     arguments = arguments or {}\n178: \n179:     run_id = arguments.get(\"run_id\")\n180:     if not run_id:\n181:         return {\n182:             \"ok\": False,\n183:             \"returncode\": 2,\n184:             \"stdout\": \"\",\n185:             \"stderr\": \"run_id es obligatorio.\",\n186:         }\n187: \n188:     command = [\n189:         \"scripts/run_opencode_from_handoff.py\",\n190:         \"--run-id\",\n191:         str(run_id),\n192:         \"--agent\",\n193:         str(arguments.get(\"agent\", \"context-validator\")),\n194:         \"--model\",\n195:         str(arguments.get(\"model\", \"opencode-go/qwen3.6-plus\")),\n196:     ]\n197: \n198:     prompt = arguments.get(\"prompt\")\n199:     if prompt:\n200:         command.extend([\"--prompt\", str(prompt)])\n201: \n202:     return _run_python_script(command, timeout=300)\n203: \n204: \n205: def start_opencode_from_handoff_async(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n206:     arguments = arguments or {}\n207: \n208:     run_id = arguments.get(\"run_id\")\n209:     if not run_id:\n210:         return {\n211:             \"ok\": False,\n212:             \"returncode\": 2,\n213:             \"stdout\": \"\",\n214:             \"stderr\": \"run_id es obligatorio.\",\n215:         }\n216: \n217:     command = [\n218:         \"scripts/start_opencode_from_handoff_async.py\",\n219:         \"--run-id\",\n220:         str(run_id),\n221:         \"--agent\",\n222:         str(arguments.get(\"agent\", \"context-validator\")),\n223:         \"--model\",\n224:         str(arguments.get(\"model\", \"opencode-go/qwen3.6-plus\")),\n225:     ]\n226: \n227:     prompt = arguments.get(\"prompt\")\n228:     if prompt:\n229:         command.extend([\"--prompt\", str(prompt)])\n230: \n231:     result = _run_python_script(command, timeout=30)\n232:     return {\n233:         **result,\n234:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n235:     }\n236: \n237: \n238: def get_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n239:     arguments = arguments or {}\n240: \n241:     command = [\"scripts/get_run_status.py\"]\n242: \n243:     run_id = arguments.get(\"run_id\")\n244:     if run_id:\n245:         command.extend([\"--run-id\", str(run_id)])\n246: \n247:     result = _run_python_script(command, timeout=60)\n248:     return {\n249:         **result,\n250:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n251:     }\n252: \n253: \n254: def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n255:     \"\"\"\n256:     Alias sem\u00e1ntico de get_run_status para que Continue seleccione mejor\n257:     la herramienta cuando el usuario pregunta por salidas de OpenCode.\n258:     \"\"\"\n259:     return get_run_status(arguments)\n260: \n261: \n262: def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n263:     arguments = arguments or {}\n264: \n265:     command = [\"scripts/verify_master_files.py\"]\n266:     paths = arguments.get(\"paths\")\n267:     if paths:\n268:         command.append(\"--paths\")\n269:         command.extend([str(p) for p in paths])\n270: \n271:     result = _run_python_script(command, timeout=60)\n272:     return {\n273:         **result,\n274:         \"parsed\": _json_or_text(result.get(\"stdout\", \"\")),\n275:     }\n276: \n277: \n278: TOOL_HANDLERS = {\n279:     \"orchestrator_preflight\": orchestrator_preflight,\n280:     \"select_agent_model\": select_agent_model,\n281:     \"build_handoff_package\": build_handoff_package,\n282:     \"run_diagnostic_flow\": run_diagnostic_flow,\n283:     \"show_latest_run\": show_latest_run,\n284:     \"run_opencode_from_handoff\": run_opencode_from_handoff,\n285:     \"start_opencode_from_handoff_async\": start_opencode_from_handoff_async,\n286:     \"get_run_status\": get_run_status,\n287:     \"check_opencode_run_status\": check_opencode_run_status,\n288:     \"verify_master_files\": verify_master_files,\n289: }\n290: \n291: \n292: def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:\n293:     if name not in ALLOWED_TOOLS:\n294:         return {\n295:             \"ok\": False,\n296:             \"error\": f\"Herramienta no permitida: {name}\",\n297:         }\n298: \n299:     handler = TOOL_HANDLERS[name]\n300:     return handler(arguments or {})\n301: \n302: \n303: def self_test() -> None:\n304:     print(\"Herramientas disponibles:\")\n305:     for name in sorted(ALLOWED_TOOLS):\n306:         print(f\"- {name}\")\n307: \n308:     print(\"\\nPreflight:\")\n309:     result = orchestrator_preflight({})\n310:     print(json.dumps({\n311:         \"ok\": result.get(\"ok\"),\n312:         \"returncode\": result.get(\"returncode\"),\n313:         \"parsed_status\": (result.get(\"parsed\") or {}).get(\"status\") if isinstance(result.get(\"parsed\"), dict) else None,\n314:     }, ensure_ascii=True, indent=2))\n315: \n316: \n317: if __name__ == \"__main__\":\n318:     parser = argparse.ArgumentParser()\n319:     parser.add_argument(\"--self-test\", action=\"store_true\")\n320:     args = parser.parse_args()\n321: \n322:     if args.self_test:\n323:         self_test()\n324: \n325: \n326: \n327: \n\n(End of file - total 327 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\ntools.py\n\nHerramientas seguras del MCP local para Continue.\n\nEstas herramientas envuelven scripts ya probados del orquestador.\nNo permiten comandos arbitrarios.\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nimport argparse\nimport json\nimport os\nimport subprocess\nimport sys\nfrom typing import Any\n\n",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "mcp_server\\tools.py",
+          "time": {
+            "start": 1778271226859,
+            "end": 1778271226876
+          }
+        },
+        "id": "prt_e09398aa9001cm5FsHETbEsCfe",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271227211,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:5",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\mcp_server\\server.py"
+          },
+          "output": "<path>C:\\Agente\\mcp_server\\server.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: server.py\n3: \n4: Servidor MCP local m\u00ednimo por stdio para Continue.\n5: \n6: Fase v0.1:\n7: - Implementaci\u00f3n JSON-RPC 2.0 b\u00e1sica.\n8: - Expone herramientas diagn\u00f3sticas del orquestador.\n9: - No ejecuta comandos arbitrarios.\n10: - No edita c\u00f3digo.\n11: - No accede a secrets.\n12: \"\"\"\n13: \n14: from __future__ import annotations\n15: \n16: import json\n17: import os\n18: import sys\n19: from typing import Any\n20: \n21: from schemas import TOOL_SCHEMAS\n22: from tools import call_tool\n23: \n24: \n25: os.environ.setdefault(\"PYTHONUTF8\", \"1\")\n26: os.environ.setdefault(\"PYTHONIOENCODING\", \"utf-8\")\n27: \n28: try:\n29:     sys.stdout.reconfigure(encoding=\"utf-8\", errors=\"replace\")\n30:     sys.stderr.reconfigure(encoding=\"utf-8\", errors=\"replace\")\n31: except Exception:\n32:     pass\n33: \n34: \n35: SERVER_INFO = {\n36:     \"name\": \"agente-local-orchestrator\",\n37:     \"version\": \"0.1.0\",\n38: }\n39: \n40: \n41: def respond(message_id: Any, result: Any = None, error: Any = None) -> None:\n42:     payload: dict[str, Any] = {\n43:         \"jsonrpc\": \"2.0\",\n44:         \"id\": message_id,\n45:     }\n46: \n47:     if error is not None:\n48:         payload[\"error\"] = error\n49:     else:\n50:         payload[\"result\"] = result\n51: \n52:     sys.stdout.write(json.dumps(payload, ensure_ascii=False) + \"\\n\")\n53:     sys.stdout.flush()\n54: \n55: \n56: def log(message: str) -> None:\n57:     sys.stderr.write(message + \"\\n\")\n58:     sys.stderr.flush()\n59: \n60: \n61: def as_tool_content(data: Any) -> dict[str, Any]:\n62:     return {\n63:         \"content\": [\n64:             {\n65:                 \"type\": \"text\",\n66:                 \"text\": json.dumps(data, ensure_ascii=False, indent=2),\n67:             }\n68:         ],\n69:         \"isError\": bool(isinstance(data, dict) and data.get(\"ok\") is False),\n70:     }\n71: \n72: \n73: def handle_initialize(params: dict[str, Any] | None = None) -> dict[str, Any]:\n74:     return {\n75:         \"protocolVersion\": \"2024-11-05\",\n76:         \"capabilities\": {\n77:             \"tools\": {},\n78:         },\n79:         \"serverInfo\": SERVER_INFO,\n80:     }\n81: \n82: \n83: def handle_tools_list() -> dict[str, Any]:\n84:     return {\n85:         \"tools\": TOOL_SCHEMAS,\n86:     }\n87: \n88: \n89: def handle_tools_call(params: dict[str, Any] | None = None) -> dict[str, Any]:\n90:     params = params or {}\n91:     name = params.get(\"name\")\n92:     arguments = params.get(\"arguments\") or {}\n93: \n94:     if not name:\n95:         return as_tool_content({\n96:             \"ok\": False,\n97:             \"error\": \"Falta params.name.\",\n98:         })\n99: \n100:     result = call_tool(str(name), arguments)\n101:     return as_tool_content(result)\n102: \n103: \n104: def handle_request(message: dict[str, Any]) -> None:\n105:     message_id = message.get(\"id\")\n106:     method = message.get(\"method\")\n107:     params = message.get(\"params\") or {}\n108: \n109:     try:\n110:         if method == \"initialize\":\n111:             respond(message_id, handle_initialize(params))\n112:             return\n113: \n114:         if method == \"tools/list\":\n115:             respond(message_id, handle_tools_list())\n116:             return\n117: \n118:         if method == \"tools/call\":\n119:             respond(message_id, handle_tools_call(params))\n120:             return\n121: \n122:         if method == \"ping\":\n123:             respond(message_id, {})\n124:             return\n125: \n126:         if method and method.startswith(\"notifications/\"):\n127:             return\n128: \n129:         respond(\n130:             message_id,\n131:             error={\n132:                 \"code\": -32601,\n133:                 \"message\": f\"M\u00e9todo no soportado: {method}\",\n134:             },\n135:         )\n136: \n137:     except Exception as exc:\n138:         respond(\n139:             message_id,\n140:             error={\n141:                 \"code\": -32603,\n142:                 \"message\": \"Error interno del servidor MCP.\",\n143:                 \"data\": str(exc),\n144:             },\n145:         )\n146: \n147: \n148: def main() -> None:\n149:     log(\"MCP server agente-local-orchestrator iniciado por stdio.\")\n150: \n151:     for line in sys.stdin:\n152:         line = line.strip()\n153:         if not line:\n154:             continue\n155: \n156:         try:\n157:             message = json.loads(line)\n158:         except json.JSONDecodeError as exc:\n159:             respond(\n160:                 None,\n161:                 error={\n162:                     \"code\": -32700,\n163:                     \"message\": \"JSON inv\u00e1lido.\",\n164:                     \"data\": str(exc),\n165:                 },\n166:             )\n167:             continue\n168: \n169:         handle_request(message)\n170: \n171: \n172: if __name__ == \"__main__\":\n173:     main()\n\n(End of file - total 173 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nserver.py\n\nServidor MCP local m\u00ednimo por stdio para Continue.\n\nFase v0.1:\n- Implementaci\u00f3n JSON-RPC 2.0 b\u00e1sica.\n- Expone herramientas diagn\u00f3sticas del orquestador.\n- No ejecuta comandos arbitrarios.\n- No edita c\u00f3digo.\n- No accede a secrets.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport json\nimport os\nimport sys\nfrom typing import Any\n",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "mcp_server\\server.py",
+          "time": {
+            "start": 1778271227194,
+            "end": 1778271227209
+          }
+        },
+        "id": "prt_e09398bee001V7yuDw0DtgS371",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271227574,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:6",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\mcp_server\\README.md"
+          },
+          "output": "<path>C:\\Agente\\mcp_server\\README.md</path>\n<type>file</type>\n<content>\n1: \ufeff# MCP Server \u2014 Agente Local Orchestrator\n2: \n3: ## Prop\u00f3sito\n4: \n5: Servidor MCP local para exponer herramientas diagn\u00f3sticas del orquestador `C:\\Agente` a Continue.\n6: \n7: ## Estado\n8: \n9: Fase v0.1. Implementaci\u00f3n inicial segura.\n10: \n11: ## Herramientas expuestas\n12: \n13: - `orchestrator_preflight`\n14: - `select_agent_model`\n15: - `build_handoff_package`\n16: - `run_diagnostic_flow`\n17: - `show_latest_run`\n18: - `run_opencode_from_handoff`\n19: - `start_opencode_from_handoff_async`\n20: - `get_run_status`\n21: - `check_opencode_run_status`\n22: - `verify_master_files`\n23: \n24: ## Restricciones\n25: \n26: Esta fase no permite:\n27: \n28: - comandos arbitrarios;\n29: - edici\u00f3n de c\u00f3digo funcional;\n30: - secrets;\n31: - deployment;\n32: - migraciones;\n33: - borrado de archivos;\n34: - escalamiento premium autom\u00e1tico.\n35: \n36: ## Prueba local\n37: \n38: Ejecutar:\n39: \n40:     cd C:\\Agente\n41:     python .\\mcp_server\\tools.py --self-test\n42: \n43: Validar sintaxis:\n44: \n45:     python -m py_compile .\\mcp_server\\server.py\n46:     python -m py_compile .\\mcp_server\\tools.py\n47:     python -m py_compile .\\mcp_server\\schemas.py\n48: \n49: ## Ejecuci\u00f3n del servidor\n50: \n51:     cd C:\\Agente\n52:     python .\\mcp_server\\server.py\n53: \n54: El servidor opera por stdio y est\u00e1 pensado para ser invocado por Continue como MCP server local.\n55: \n56: ## Configuraci\u00f3n futura en Continue\n57: \n58: La configuraci\u00f3n exacta debe validarse contra la versi\u00f3n instalada de Continue.\n59: \n60: La idea objetivo ser\u00e1 registrar un MCP server local que ejecute:\n61: \n62:     python C:\\Agente\\mcp_server\\server.py\n63: \n64: ## Principio\n65: \n66: MCP debe aumentar automatizaci\u00f3n sin reducir control humano, trazabilidad ni seguridad.\n67: \n68: <!-- START: MCP_STDIO_VALIDATION_V0_1 -->\n69: \n70: ---\n71: \n72: ## Validaci\u00f3n local por stdio\n73: \n74: Antes de conectar con Continue, validar el servidor MCP local con:\n75: \n76:     cd C:\\Agente\n77:     python .\\mcp_server\\test_mcp_stdio.py\n78: \n79: ### Resultado esperado\n80: \n81: La prueba debe devolver:\n82: \n83:     initialize_ok: true\n84:     tools_list_ok: true\n85:     preflight_call_ok: true\n86:     select_agent_model_ok: true\n87:     run_diagnostic_flow_ok: true\n88: \n89: ### Resultado validado\n90: \n91: La validaci\u00f3n inicial fue exitosa y confirm\u00f3 que el servidor puede:\n92: \n93: - responder `initialize`;\n94: - listar herramientas con `tools/list`;\n95: - ejecutar `orchestrator_preflight`;\n96: - ejecutar `select_agent_model`;\n97: - ejecutar `run_diagnostic_flow` sin OpenCode;\n98: - devolver resultados estructurados por JSON-RPC.\n99: \n100: ### Run generado en validaci\u00f3n\n101: \n102: La primera prueba gener\u00f3:\n103: \n104:     run_id: 20260506_122350_1c5cc272\n105: \n106: ### Pr\u00f3xima prueba\n107: \n108: Conectar el servidor MCP local en Continue y validar que desde el chat se puedan invocar herramientas diagn\u00f3sticas sin copiar comandos manualmente.\n109: \n110: <!-- END: MCP_STDIO_VALIDATION_V0_1 -->\n111: \n112: \n113: ---\n114: \n115: ## Herramienta async para OpenCode\n116: \n117: Cuando Continue invoca OpenCode directamente desde una herramienta MCP, la llamada puede tardar demasiado o producir salida extensa.\n118: \n119: Para evitar bloqueos se agreg\u00f3:\n120: \n121:     start_opencode_from_handoff_async\n122: \n123: Uso esperado desde Continue:\n124: \n125: 1. Ejecutar `run_diagnostic_flow` con `with_opencode=false`.\n126: 2. Tomar el `run_id`.\n127: 3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.\n128: 4. Esperar unos segundos.\n129: 5. Ejecutar `show_latest_run` para revisar `TRACE.md`, `RUN_SUMMARY.md`, `agent_outputs/` y `raw_outputs/`.\n130: \n131: Esta herramienta devuelve inmediatamente `status: started` y registra logs en:\n132: \n133:     docs/agent_runs/<run-id>/background/\n134: \n135: <!-- START: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->\n136: \n137: ---\n138: \n139: ## Uso recomendado con OpenCode as\u00edncrono desde Continue\n140: \n141: Para usar OpenCode real desde Continue, usar el patr\u00f3n en tres pasos:\n142: \n143: 1. `run_diagnostic_flow` con `with_opencode=false`.\n144: 2. `start_opencode_from_handoff_async` con el `run_id`.\n145: 3. `show_latest_run` con el mismo `run_id`.\n146: \n147: ### Herramienta async\n148: \n149:     start_opencode_from_handoff_async\n150: \n151: ### Por qu\u00e9 existe\n152: \n153: Las llamadas MCP bloqueantes con OpenCode pueden ser largas o producir salida extensa.\n154: \n155: La herramienta async devuelve inmediatamente `status: started` y deja que OpenCode registre resultados en segundo plano.\n156: \n157: ### Logs\n158: \n159: La herramienta escribe logs en:\n160: \n161:     docs/agent_runs/<run-id>/background/\n162: \n163: ### Resultado final\n164: \n165: El resultado se consulta con:\n166: \n167:     show_latest_run\n168: \n169: y debe reflejar:\n170: \n171: - `agent_outputs/`;\n172: - `raw_outputs/`;\n173: - `TRACE.md`;\n174: - `RUN_SUMMARY.md`.\n175: \n176: <!-- END: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->\n177: \n178: \n179: ---\n180: \n181: ## Herramienta compacta de estado de run\n182: \n183: Para evitar que Continue use comandos de terminal o respuestas demasiado extensas, se agreg\u00f3:\n184: \n185:     get_run_status\n186: \n187: Uso recomendado desde Continue:\n188: \n189:     Usa el MCP agente-local-orchestrator para ejecutar get_run_status con run_id=<run-id>. Devu\u00e9lveme solo status, opencode_registered, counts, agents_in_trace y files.\n190: \n191: Esta herramienta devuelve un JSON compacto con:\n192: \n193: - existencia de handoff;\n194: - existencia de RUN_SUMMARY.md;\n195: - existencia de TRACE.md;\n196: - conteo de agent_outputs;\n197: - conteo de raw_outputs;\n198: - conteo de background logs;\n199: - agentes detectados en TRACE;\n200: - si OpenCode qued\u00f3 registrado.\n201: \n202: ---\n203: \n204: ## Alias sem\u00e1ntico para estado de OpenCode\n205: \n206: Para facilitar que Continue seleccione la herramienta correcta, se agreg\u00f3 el alias:\n207: \n208:     check_opencode_run_status\n209: \n210: Esta herramienta usa internamente la misma l\u00f3gica de `get_run_status`, pero su nombre es m\u00e1s expl\u00edcito para validar si OpenCode ya dej\u00f3 resultados registrados.\n211: \n212: Uso recomendado desde Continue:\n213: \n214:     Usa exclusivamente la herramienta MCP check_opencode_run_status del servidor agente-local-orchestrator con run_id=<run-id>. No uses show_latest_run. No uses terminal. Devuelve solo status, opencode_registered, counts y agents_in_trace.\n215: \n216: ---\n217: \n218: ## Herramienta de anclaje de realidad: verify_master_files\n219: \n220: Para reducir el riesgo de alucinaciones o diagn\u00f3sticos falsos por visibilidad parcial del IDE, se agreg\u00f3:\n221: \n222:     verify_master_files\n223: \n224: Esta herramienta verifica f\u00edsicamente la existencia e integridad SHA-256 de los archivos maestros cr\u00edticos del orquestador.\n225: \n226: ### Archivos verificados por defecto\n227: \n228: - `TARGET_PROJECT_CONTEXT_CONTRACT.md`\n229: - `PROJECT_REGISTRY.md`\n230: - `AGENT_RULES.md`\n231: - `MODEL_ROUTING.md`\n232: - `AGENT_ORCHESTRATION.md`\n233: - `docs/AGENT_ORCHESTRATION.md`\n234: - `CONTINUE_USAGE_PROTOCOL.md`\n235: - `REPLIT_HANDOFF.md`\n236: - `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`\n237: - `docs/protocols/CONTEXT_SYNC_PROTOCOL.md`\n238: - `docs/protocols/DOCUMENTATION_CODE_ALIGNMENT_PROTOCOL.md`\n239: - `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md`\n240: - `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md`\n241: - `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`\n242: - `docs/lessons/GLOBAL_LESSONS_LEARNED.md`\n243: \n244: ### Uso desde Continue\n245: \n246:     Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. Devu\u00e9lveme solo summary: total_checked, total_existing, total_missing, all_ok, duplicate_candidates.\n247: \n248: ### Detecci\u00f3n de duplicidad\n249: \n250: Si existen tanto `AGENT_ORCHESTRATION.md` en ra\u00edz como `docs/AGENT_ORCHESTRATION.md`, la herramienta reporta `duplicate_candidates` con los hashes de ambos archivos para decidir cu\u00e1l prevalece seg\u00fan el contrato de contexto.\n251: \n252: ### Restricciones\n253: \n254: - No mueve, elimina ni renombra archivos.\n255: - Bloquea rutas fuera de ROOT.\n256: - Opera \u00fanicamente en modo lectura.\n\n(End of file - total 256 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff# MCP Server \u2014 Agente Local Orchestrator\n\n## Prop\u00f3sito\n\nServidor MCP local para exponer herramientas diagn\u00f3sticas del orquestador `C:\\Agente` a Continue.\n\n## Estado\n\nFase v0.1. Implementaci\u00f3n inicial segura.\n\n## Herramientas expuestas\n\n- `orchestrator_preflight`\n- `select_agent_model`\n- `build_handoff_package`\n- `run_diagnostic_flow`\n- `show_latest_run`\n- `run_opencode_from_handoff`\n- `start_opencode_from_handoff_async`\n- `get_run_status`",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "mcp_server\\README.md",
+          "time": {
+            "start": 1778271227555,
+            "end": 1778271227573
+          }
+        },
+        "id": "prt_e09398d3b001Ltv5EXdVQUdKTR",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271228003,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:7",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\scripts\\start_opencode_from_handoff_async.py"
+          },
+          "output": "<path>C:\\Agente\\scripts\\start_opencode_from_handoff_async.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: start_opencode_from_handoff_async.py\n3: \n4: Lanza OpenCode desde un handoff existente en segundo plano.\n5: \n6: Objetivo:\n7: - Evitar que Continue/MCP espere toda la ejecuci\u00f3n de OpenCode.\n8: - Devolver inmediatamente run_id, status y ruta de logs.\n9: - Permitir que Continue consulte luego show_latest_run.\n10: \n11: Este script no ejecuta comandos arbitrarios. Solo invoca:\n12: python scripts/run_opencode_from_handoff.py --run-id <run_id>\n13: \"\"\"\n14: \n15: from __future__ import annotations\n16: \n17: from pathlib import Path\n18: import argparse\n19: import datetime\n20: import json\n21: import os\n22: import subprocess\n23: import sys\n24: \n25: \n26: ROOT = Path(__file__).resolve().parents[1]\n27: RUNS = ROOT / \"docs\" / \"agent_runs\"\n28: \n29: \n30: def main() -> None:\n31:     parser = argparse.ArgumentParser()\n32:     parser.add_argument(\"--run-id\", required=True)\n33:     parser.add_argument(\"--agent\", default=\"context-validator\")\n34:     parser.add_argument(\"--model\", default=\"opencode-go/qwen3.6-plus\")\n35:     parser.add_argument(\n36:         \"--prompt\",\n37:         default=(\n38:             \"Lee el archivo de handoff adjunto. Act\u00faa en modo diagn\u00f3stico. \"\n39:             \"No modifiques archivos. No ejecutes comandos. \"\n40:             \"Responde con un JSON corto con estas claves: status, agent, model, file_read, summary, next_action.\"\n41:         ),\n42:     )\n43:     args = parser.parse_args()\n44: \n45:     run_dir = RUNS / args.run_id\n46:     if not run_dir.exists():\n47:         print(json.dumps({\n48:             \"ok\": False,\n49:             \"status\": \"error\",\n50:             \"run_id\": args.run_id,\n51:             \"error\": \"run_id no existe en docs/agent_runs.\",\n52:         }, ensure_ascii=True, indent=2))\n53:         sys.exit(1)\n54: \n55:     background_dir = run_dir / \"background\"\n56:     background_dir.mkdir(parents=True, exist_ok=True)\n57: \n58:     timestamp = datetime.datetime.now().isoformat(timespec=\"seconds\").replace(\":\", \"-\")\n59:     stdout_path = background_dir / f\"{timestamp}_opencode_async_stdout.log\"\n60:     stderr_path = background_dir / f\"{timestamp}_opencode_async_stderr.log\"\n61:     meta_path = background_dir / f\"{timestamp}_opencode_async_meta.json\"\n62: \n63:     env = os.environ.copy()\n64:     env.setdefault(\"PYTHONUTF8\", \"1\")\n65:     env.setdefault(\"PYTHONIOENCODING\", \"utf-8\")\n66: \n67:     command = [\n68:         sys.executable,\n69:         str(ROOT / \"scripts\" / \"run_opencode_from_handoff.py\"),\n70:         \"--run-id\",\n71:         args.run_id,\n72:         \"--agent\",\n73:         args.agent,\n74:         \"--model\",\n75:         args.model,\n76:         \"--prompt\",\n77:         args.prompt,\n78:     ]\n79: \n80:     stdout_file = stdout_path.open(\"w\", encoding=\"utf-8\", errors=\"replace\")\n81:     stderr_file = stderr_path.open(\"w\", encoding=\"utf-8\", errors=\"replace\")\n82: \n83:     creationflags = 0\n84:     if os.name == \"nt\":\n85:         creationflags = subprocess.CREATE_NEW_PROCESS_GROUP\n86: \n87:     proc = subprocess.Popen(\n88:         command,\n89:         cwd=ROOT,\n90:         stdout=stdout_file,\n91:         stderr=stderr_file,\n92:         stdin=subprocess.DEVNULL,\n93:         env=env,\n94:         text=True,\n95:         creationflags=creationflags,\n96:     )\n97: \n98:     meta = {\n99:         \"ok\": True,\n100:         \"status\": \"started\",\n101:         \"run_id\": args.run_id,\n102:         \"pid\": proc.pid,\n103:         \"agent\": args.agent,\n104:         \"model\": args.model,\n105:         \"command\": command,\n106:         \"stdout_path\": str(stdout_path),\n107:         \"stderr_path\": str(stderr_path),\n108:         \"meta_path\": str(meta_path),\n109:         \"started_at\": datetime.datetime.now().isoformat(timespec=\"seconds\"),\n110:         \"next_action\": \"Consultar show_latest_run luego de unos segundos para verificar si OpenCode registr\u00f3 resultado.\",\n111:     }\n112: \n113:     meta_path.write_text(json.dumps(meta, ensure_ascii=True, indent=2), encoding=\"utf-8\")\n114: \n115:     print(json.dumps(meta, ensure_ascii=True, indent=2))\n116: \n117: \n118: if __name__ == \"__main__\":\n119:     main()\n\n(End of file - total 119 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nstart_opencode_from_handoff_async.py\n\nLanza OpenCode desde un handoff existente en segundo plano.\n\nObjetivo:\n- Evitar que Continue/MCP espere toda la ejecuci\u00f3n de OpenCode.\n- Devolver inmediatamente run_id, status y ruta de logs.\n- Permitir que Continue consulte luego show_latest_run.\n\nEste script no ejecuta comandos arbitrarios. Solo invoca:\npython scripts/run_opencode_from_handoff.py --run-id <run_id>\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nimport argparse\nimport datetime\nimport json",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "scripts\\start_opencode_from_handoff_async.py",
+          "time": {
+            "start": 1778271227983,
+            "end": 1778271228001
+          }
+        },
+        "id": "prt_e09398ea50018hV9QJn6nKCsf9",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271228033,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:8",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\mcp_server\\test_check_opencode_run_status_stdio.py"
+          },
+          "output": "<path>C:\\Agente\\mcp_server\\test_check_opencode_run_status_stdio.py</path>\n<type>file</type>\n<content>\n1: \ufefffrom __future__ import annotations\n2: \n3: from pathlib import Path\n4: import json\n5: import subprocess\n6: import sys\n7: import threading\n8: import time\n9: \n10: \n11: ROOT = Path(__file__).resolve().parents[1]\n12: SERVER = ROOT / \"mcp_server\" / \"server.py\"\n13: \n14: \n15: def reader_thread(pipe, lines: list[str]) -> None:\n16:     for line in iter(pipe.readline, \"\"):\n17:         if not line:\n18:             break\n19:         lines.append(line.rstrip(\"\\n\"))\n20: \n21: \n22: def send(proc: subprocess.Popen, payload: dict) -> None:\n23:     if proc.poll() is not None:\n24:         raise RuntimeError(f\"Servidor MCP terminado. returncode={proc.returncode}\")\n25: \n26:     proc.stdin.write(json.dumps(payload, ensure_ascii=False) + \"\\n\")\n27:     proc.stdin.flush()\n28: \n29: \n30: def main() -> None:\n31:     proc = subprocess.Popen(\n32:         [sys.executable, str(SERVER)],\n33:         cwd=ROOT,\n34:         stdin=subprocess.PIPE,\n35:         stdout=subprocess.PIPE,\n36:         stderr=subprocess.PIPE,\n37:         text=True,\n38:         encoding=\"utf-8\",\n39:         errors=\"replace\",\n40:     )\n41: \n42:     stdout_lines: list[str] = []\n43:     stderr_lines: list[str] = []\n44: \n45:     threading.Thread(target=reader_thread, args=(proc.stdout, stdout_lines), daemon=True).start()\n46:     threading.Thread(target=reader_thread, args=(proc.stderr, stderr_lines), daemon=True).start()\n47: \n48:     messages = [\n49:         {\n50:             \"jsonrpc\": \"2.0\",\n51:             \"id\": 1,\n52:             \"method\": \"initialize\",\n53:             \"params\": {\n54:                 \"protocolVersion\": \"2024-11-05\",\n55:                 \"capabilities\": {},\n56:                 \"clientInfo\": {\"name\": \"check-opencode-run-status-test\", \"version\": \"0.1.0\"}\n57:             }\n58:         },\n59:         {\n60:             \"jsonrpc\": \"2.0\",\n61:             \"method\": \"notifications/initialized\",\n62:             \"params\": {}\n63:         },\n64:         {\n65:             \"jsonrpc\": \"2.0\",\n66:             \"id\": 2,\n67:             \"method\": \"tools/list\",\n68:             \"params\": {}\n69:         },\n70:         {\n71:             \"jsonrpc\": \"2.0\",\n72:             \"id\": 3,\n73:             \"method\": \"tools/call\",\n74:             \"params\": {\n75:                 \"name\": \"check_opencode_run_status\",\n76:                 \"arguments\": {\n77:                     \"run_id\": \"20260506_171549_0e258229\"\n78:                 }\n79:             }\n80:         }\n81:     ]\n82: \n83:     for msg in messages:\n84:         send(proc, msg)\n85:         time.sleep(0.6)\n86: \n87:     time.sleep(3)\n88: \n89:     if proc.poll() is None:\n90:         proc.terminate()\n91:         try:\n92:             proc.wait(timeout=5)\n93:         except subprocess.TimeoutExpired:\n94:             proc.kill()\n95: \n96:     responses = []\n97:     for line in stdout_lines:\n98:         try:\n99:             responses.append(json.loads(line))\n100:         except Exception:\n101:             responses.append({\"raw\": line})\n102: \n103:     tool_names = []\n104:     alias_result = None\n105: \n106:     for response in responses:\n107:         if response.get(\"id\") == 2:\n108:             tools = response.get(\"result\", {}).get(\"tools\", [])\n109:             tool_names = [tool.get(\"name\") for tool in tools]\n110: \n111:         if response.get(\"id\") == 3:\n112:             alias_result = response.get(\"result\")\n113: \n114:     result = {\n115:         \"initialize_ok\": any(r.get(\"id\") == 1 and \"result\" in r for r in responses),\n116:         \"tools_list_ok\": \"check_opencode_run_status\" in tool_names,\n117:         \"alias_call_ok\": alias_result is not None,\n118:         \"tool_names\": tool_names,\n119:         \"alias_result\": alias_result,\n120:         \"stderr_lines\": stderr_lines,\n121:         \"server_returncode\": proc.returncode,\n122:     }\n123: \n124:     print(json.dumps(result, ensure_ascii=True, indent=2))\n125: \n126:     if not result[\"initialize_ok\"] or not result[\"tools_list_ok\"] or not result[\"alias_call_ok\"]:\n127:         sys.exit(1)\n128: \n129: \n130: if __name__ == \"__main__\":\n131:     main()\n\n(End of file - total 131 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufefffrom __future__ import annotations\n\nfrom pathlib import Path\nimport json\nimport subprocess\nimport sys\nimport threading\nimport time\n\n\nROOT = Path(__file__).resolve().parents[1]\nSERVER = ROOT / \"mcp_server\" / \"server.py\"\n\n\ndef reader_thread(pipe, lines: list[str]) -> None:\n    for line in iter(pipe.readline, \"\"):\n        if not line:\n            break\n        lines.append(line.rstrip(\"\\n\"))\n",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "mcp_server\\test_check_opencode_run_status_stdio.py",
+          "time": {
+            "start": 1778271228018,
+            "end": 1778271228032
+          }
+        },
+        "id": "prt_e09399051001xOwIc7LkMcl3rb",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271228318,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939919a001eCxhBhpr8IlnrM",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e093971ea001tls4b740r1mhs2",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 64949,
+          "input": 1292,
+          "output": 145,
+          "reasoning": 24,
+          "cache": {
+            "write": 0,
+            "read": 63488
+          }
+        },
+        "cost": 0.01206148
+      }
+    },
+    {
+      "type": "step_start",
+      "timestamp": 1778271234248,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939a8c4001V2Vcfvr1KEuGLN",
+        "messageID": "msg_e09399255001jrL10zjBONiLJP",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271235248,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:9",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\scripts\\build_handoff_package.py"
+          },
+          "output": "<path>C:\\Agente\\scripts\\build_handoff_package.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: build_handoff_package.py\n3: \n4: Construye un paquete b\u00e1sico de handoff semiautom\u00e1tico.\n5: \n6: Este script no invoca agentes ni modelos. Solo genera un archivo Markdown/JSON\n7: para ser consumido por Continue, OpenCode o una futura capa MCP.\n8: \n9: Puede incorporar autom\u00e1ticamente fuentes, alertas y lecciones desde el preflight.\n10: \"\"\"\n11: \n12: from __future__ import annotations\n13: \n14: from pathlib import Path\n15: import argparse\n16: import datetime\n17: import json\n18: import subprocess\n19: import sys\n20: import uuid\n21: \n22: \n23: ROOT = Path(__file__).resolve().parents[1]\n24: QUEUE_INBOX = ROOT / \"docs\" / \"agent_queue\" / \"inbox\"\n25: RUNS = ROOT / \"docs\" / \"agent_runs\"\n26: \n27: \n28: def run_preflight() -> dict:\n29:     script = ROOT / \"scripts\" / \"orchestrator_preflight.py\"\n30:     completed = subprocess.run(\n31:         [sys.executable, str(script)],\n32:         check=True,\n33:         capture_output=True,\n34:         text=True,\n35:         encoding=\"utf-8\",\n36:         errors=\"replace\",\n37:     )\n38:     return json.loads(completed.stdout)\n39: \n40: \n41: def main() -> None:\n42:     parser = argparse.ArgumentParser()\n43:     parser.add_argument(\"--project-id\", default=\"orchestrator\")\n44:     parser.add_argument(\"--source-agent\", default=\"user\")\n45:     parser.add_argument(\"--target-agent\", default=\"context-validator\")\n46:     parser.add_argument(\"--scenario\", default=\"context-validation\")\n47:     parser.add_argument(\"--risk\", default=\"medium\")\n48:     parser.add_argument(\"--volume\", default=\"medium\")\n49:     parser.add_argument(\"--objective\", required=True)\n50:     parser.add_argument(\"--skip-preflight\", action=\"store_true\")\n51:     args = parser.parse_args()\n52: \n53:     run_id = datetime.datetime.now().strftime(\"%Y%m%d_%H%M%S\") + \"_\" + uuid.uuid4().hex[:8]\n54:     preflight = {} if args.skip_preflight else run_preflight()\n55: \n56:     package = {\n57:         \"run_id\": run_id,\n58:         \"step_id\": \"01\",\n59:         \"timestamp\": datetime.datetime.now().isoformat(timespec=\"seconds\"),\n60:         \"project_id\": args.project_id,\n61:         \"source_agent\": args.source_agent,\n62:         \"target_agent\": args.target_agent,\n63:         \"scenario\": args.scenario,\n64:         \"risk_level\": args.risk,\n65:         \"information_volume\": args.volume,\n66:         \"objective\": args.objective,\n67:         \"context_sources\": preflight.get(\"context_sources\", []),\n68:         \"alerts_checked\": preflight.get(\"alerts_checked\", []),\n69:         \"lessons_checked\": preflight.get(\"lessons_checked\", []),\n70:         \"preflight_status\": preflight.get(\"status\", \"skipped\"),\n71:         \"missing_files\": preflight.get(\"missing_files\", []),\n72:         \"status\": \"created\",\n73:     }\n74: \n75:     QUEUE_INBOX.mkdir(parents=True, exist_ok=True)\n76:     RUNS.mkdir(parents=True, exist_ok=True)\n77: \n78:     json_path = QUEUE_INBOX / f\"{run_id}.json\"\n79:     md_path = QUEUE_INBOX / f\"{run_id}.md\"\n80: \n81:     json_path.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding=\"utf-8\")\n82: \n83:     md_path.write_text(\n84:         \"# Handoff Package\\n\\n\"\n85:         f\"- run_id: `{run_id}`\\n\"\n86:         f\"- project_id: `{args.project_id}`\\n\"\n87:         f\"- source_agent: `{args.source_agent}`\\n\"\n88:         f\"- target_agent: `{args.target_agent}`\\n\"\n89:         f\"- scenario: `{args.scenario}`\\n\"\n90:         f\"- risk_level: `{args.risk}`\\n\"\n91:         f\"- information_volume: `{args.volume}`\\n\"\n92:         f\"- preflight_status: `{package['preflight_status']}`\\n\\n\"\n93:         \"## Objective\\n\\n\"\n94:         f\"{args.objective}\\n\\n\"\n95:         \"## Context Sources\\n\\n\"\n96:         + \"\\n\".join(f\"- `{item}`\" for item in package[\"context_sources\"])\n97:         + \"\\n\\n## Alerts Checked\\n\\n\"\n98:         + \"\\n\".join(f\"- `{item}`\" for item in package[\"alerts_checked\"])\n99:         + \"\\n\\n## Lessons Checked\\n\\n\"\n100:         + \"\\n\".join(f\"- `{item}`\" for item in package[\"lessons_checked\"])\n101:         + \"\\n\\n## Missing Files\\n\\n\"\n102:         + (\"\\n\".join(f\"- `{item}`\" for item in package[\"missing_files\"]) if package[\"missing_files\"] else \"- Ninguno\")\n103:         + \"\\n\\n## Status\\n\\ncreated\\n\",\n104:         encoding=\"utf-8\",\n105:     )\n106: \n107:     print(json.dumps({\n108:         \"status\": \"created\",\n109:         \"run_id\": run_id,\n110:         \"json_path\": str(json_path),\n111:         \"md_path\": str(md_path),\n112:         \"preflight_status\": package[\"preflight_status\"],\n113:         \"context_sources_count\": len(package[\"context_sources\"]),\n114:         \"alerts_checked_count\": len(package[\"alerts_checked\"]),\n115:         \"lessons_checked_count\": len(package[\"lessons_checked\"]),\n116:     }, ensure_ascii=True, indent=2))\n117: \n118: \n119: if __name__ == \"__main__\":\n120:     main()\n121: \n\n(End of file - total 121 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nbuild_handoff_package.py\n\nConstruye un paquete b\u00e1sico de handoff semiautom\u00e1tico.\n\nEste script no invoca agentes ni modelos. Solo genera un archivo Markdown/JSON\npara ser consumido por Continue, OpenCode o una futura capa MCP.\n\nPuede incorporar autom\u00e1ticamente fuentes, alertas y lecciones desde el preflight.\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nimport argparse\nimport datetime\nimport json\nimport subprocess\nimport sys\nimport uuid",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "scripts\\build_handoff_package.py",
+          "time": {
+            "start": 1778271235233,
+            "end": 1778271235245
+          }
+        },
+        "id": "prt_e0939a9f1001pSlQEtSWdA79fm",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e09399255001jrL10zjBONiLJP"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271235524,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:10",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\docs\\agent_queue\\inbox\\20260508_000001_c0ffee12.json"
+          },
+          "output": "<path>C:\\Agente\\docs\\agent_queue\\inbox\\20260508_000001_c0ffee12.json</path>\n<type>file</type>\n<content>\n1: {\n2:   \"run_id\": \"20260508_000001_c0ffee12\",\n3:   \"step_id\": \"01\",\n4:   \"timestamp\": \"2026-05-08T00:00:01\",\n5:   \"project_id\": \"orchestrator\",\n6:   \"source_agent\": \"continue\",\n7:   \"target_agent\": \"builder\",\n8:   \"scenario\": \"implementation\",\n9:   \"risk_level\": \"medium\",\n10:   \"information_volume\": \"high\",\n11:   \"objective\": \"Implementar la herramienta MCP create_and_dispatch_opencode_handoff y su script soporte para eliminar la manualidad del usuario transportando handoffs.\",\n12:   \"allowed_files\": [\n13:     \"scripts/create_and_dispatch_opencode_handoff.py\",\n14:     \"mcp_server/schemas.py\",\n15:     \"mcp_server/tools.py\",\n16:     \"mcp_server/README.md\",\n17:     \"mcp_server/test_create_and_dispatch_opencode_handoff_stdio.py\"\n18:   ],\n19:   \"validation_commands\": [\n20:     \"python -m py_compile .\\\\scripts\\\\create_and_dispatch_opencode_handoff.py\",\n21:     \"python -m py_compile .\\\\mcp_server\\\\schemas.py\",\n22:     \"python -m py_compile .\\\\mcp_server\\\\tools.py\",\n23:     \"python -m py_compile .\\\\mcp_server\\\\server.py\",\n24:     \"python -m py_compile .\\\\mcp_server\\\\test_create_and_dispatch_opencode_handoff_stdio.py\",\n25:     \"python .\\\\mcp_server\\\\test_create_and_dispatch_opencode_handoff_stdio.py\"\n26:   ],\n27:   \"requires_authorization\": true,\n28:   \"authorization_granted\": true,\n29:   \"context_sources\": [\n30:     \"AGENT_ORCHESTRATION.md\",\n31:     \"MODEL_ROUTING.md\",\n32:     \"docs/protocols/AGENT_AUTOMATION_PROTOCOL.md\",\n33:     \"CONTINUE_USAGE_PROTOCOL.md\",\n34:     \"docs/alerts/GLOBAL_CRITICAL_ALERTS.md\",\n35:     \"docs/lessons/GLOBAL_LESSONS_LEARNED.md\"\n36:   ],\n37:   \"alerts_checked\": [],\n38:   \"lessons_checked\": [],\n39:   \"preflight_status\": \"unavailable_timeout\",\n40:   \"missing_files\": [\n41:     \"(MCP) agente_local_orchestrator_orchestrator_preflight timed out (-32001)\"\n42:   ],\n43:   \"status\": \"created\"\n44: }\n\n(End of file - total 44 lines)\n</content>",
+          "metadata": {
+            "preview": "{\n  \"run_id\": \"20260508_000001_c0ffee12\",\n  \"step_id\": \"01\",\n  \"timestamp\": \"2026-05-08T00:00:01\",\n  \"project_id\": \"orchestrator\",\n  \"source_agent\": \"continue\",\n  \"target_agent\": \"builder\",\n  \"scenario\": \"implementation\",\n  \"risk_level\": \"medium\",\n  \"information_volume\": \"high\",\n  \"objective\": \"Implementar la herramienta MCP create_and_dispatch_opencode_handoff y su script soporte para eliminar la manualidad del usuario transportando handoffs.\",\n  \"allowed_files\": [\n    \"scripts/create_and_dispatch_opencode_handoff.py\",\n    \"mcp_server/schemas.py\",\n    \"mcp_server/tools.py\",\n    \"mcp_server/README.md\",\n    \"mcp_server/test_create_and_dispatch_opencode_handoff_stdio.py\"\n  ],\n  \"validation_commands\": [\n    \"python -m py_compile .\\\\scripts\\\\create_and_dispatch_opencode_handoff.py\",",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "docs\\agent_queue\\inbox\\20260508_000001_c0ffee12.json",
+          "time": {
+            "start": 1778271235509,
+            "end": 1778271235522
+          }
+        },
+        "id": "prt_e0939aca20016I5z4C62tWSyv3",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e09399255001jrL10zjBONiLJP"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271235572,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "glob",
+        "callID": "glob:11",
+        "state": {
+          "status": "completed",
+          "input": {
+            "pattern": "docs/agent_runs/*"
+          },
+          "output": "C:\\Agente\\docs\\agent_runs\\README.md",
+          "metadata": {
+            "count": 1,
+            "truncated": false
+          },
+          "title": "",
+          "time": {
+            "start": 1778271235527,
+            "end": 1778271235571
+          }
+        },
+        "id": "prt_e0939adb6001EUJC7hj3ygvBHF",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e09399255001jrL10zjBONiLJP"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271235800,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939aed60017gn6PMBLkHECxe",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e09399255001jrL10zjBONiLJP",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 76555,
+          "input": 11668,
+          "output": 71,
+          "reasoning": 48,
+          "cache": {
+            "write": 0,
+            "read": 64768
+          }
+        },
+        "cost": 0.02192348
+      }
+    },
+    {
+      "type": "step_start",
+      "timestamp": 1778271241629,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939c59b001Ie4rxczjYg81GZ",
+        "messageID": "msg_e0939af82001eUFmG9QUugF2jx",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271242321,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:12",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\scripts\\run_opencode_from_handoff.py"
+          },
+          "output": "<path>C:\\Agente\\scripts\\run_opencode_from_handoff.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: run_opencode_from_handoff.py\n3: \n4: Invoca OpenCode en modo no interactivo a partir de un paquete de handoff.\n5: \n6: Objetivo:\n7: - Tomar el \u00faltimo handoff Markdown o uno indicado por --run-id.\n8: - Invocar opencode.cmd run con agente/modelo seleccionados.\n9: - Capturar salida JSONL de OpenCode.\n10: - Extraer eventos tipo text.\n11: - Registrar resultado limpio en agent_outputs.\n12: - Guardar salida cruda en raw_outputs para no contaminar RUN_SUMMARY.md.\n13: - Actualizar TRACE.md y RUN_SUMMARY.md.\n14: - Mostrar el flujo actualizado al usuario.\n15: \n16: Este script s\u00ed invoca OpenCode real, pero no solicita edici\u00f3n ni ejecuci\u00f3n de comandos dentro del prompt base.\n17: \"\"\"\n18: \n19: from __future__ import annotations\n20: \n21: from pathlib import Path\n22: import argparse\n23: import datetime\n24: import json\n25: import subprocess\n26: import sys\n27: import os\n28: \n29: os.environ.setdefault(\"PYTHONUTF8\", \"1\")\n30: os.environ.setdefault(\"PYTHONIOENCODING\", \"utf-8\")\n31: \n32: try:\n33:     sys.stdout.reconfigure(encoding=\"utf-8\", errors=\"replace\")\n34:     sys.stderr.reconfigure(encoding=\"utf-8\", errors=\"replace\")\n35: except Exception:\n36:     pass\n37: \n38: \n39: def safe_print(value: object = \"\") -> None:\n40:     text = str(value)\n41:     try:\n42:         print(text)\n43:     except UnicodeEncodeError:\n44:         sys.stdout.buffer.write((text + \"\\n\").encode(\"utf-8\", errors=\"replace\"))\n45: \n46: \n47: ROOT = Path(__file__).resolve().parents[1]\n48: INBOX = ROOT / \"docs\" / \"agent_queue\" / \"inbox\"\n49: RUNS = ROOT / \"docs\" / \"agent_runs\"\n50: \n51: \n52: def run_command(command: list[str]) -> tuple[int, str, str]:\n53:     completed = subprocess.run(\n54:         command,\n55:         cwd=ROOT,\n56:         capture_output=True,\n57:         text=True,\n58:         encoding=\"utf-8\",\n59:         errors=\"replace\",\n60:     )\n61:     return completed.returncode, completed.stdout, completed.stderr\n62: \n63: \n64: def latest_handoff_md() -> Path | None:\n65:     files = sorted(INBOX.glob(\"*.md\"), key=lambda p: p.stat().st_mtime, reverse=True)\n66:     return files[0] if files else None\n67: \n68: \n69: def handoff_for_run(run_id: str) -> Path | None:\n70:     path = INBOX / f\"{run_id}.md\"\n71:     return path if path.exists() else None\n72: \n73: \n74: def load_package_for_handoff(handoff_path: Path) -> dict:\n75:     json_path = handoff_path.with_suffix(\".json\")\n76:     if not json_path.exists():\n77:         return {}\n78:     return json.loads(json_path.read_text(encoding=\"utf-8\"))\n79: \n80: \n81: def parse_opencode_jsonl(stdout: str) -> dict:\n82:     events = []\n83:     text_parts = []\n84:     session_id = None\n85:     tokens = None\n86:     cost = None\n87: \n88:     for line in stdout.splitlines():\n89:         line = line.strip()\n90:         if not line:\n91:             continue\n92: \n93:         try:\n94:             event = json.loads(line)\n95:         except json.JSONDecodeError:\n96:             events.append({\n97:                 \"type\": \"raw\",\n98:                 \"raw\": line,\n99:             })\n100:             continue\n101: \n102:         events.append(event)\n103: \n104:         if event.get(\"sessionID\"):\n105:             session_id = event.get(\"sessionID\")\n106: \n107:         if event.get(\"type\") == \"text\":\n108:             part = event.get(\"part\", {})\n109:             text = part.get(\"text\")\n110:             if text:\n111:                 text_parts.append(text)\n112: \n113:         if event.get(\"type\") == \"step_finish\":\n114:             part = event.get(\"part\", {})\n115:             tokens = part.get(\"tokens\")\n116:             cost = part.get(\"cost\")\n117: \n118:     return {\n119:         \"session_id\": session_id,\n120:         \"text\": \"\\n\".join(text_parts).strip(),\n121:         \"events_count\": len(events),\n122:         \"tokens\": tokens,\n123:         \"cost\": cost,\n124:         \"events\": events,\n125:     }\n126: \n127: \n128: def write_json(path: Path, data: dict) -> None:\n129:     path.parent.mkdir(parents=True, exist_ok=True)\n130:     path.write_text(json.dumps(data, ensure_ascii=True, indent=2), encoding=\"utf-8\")\n131: \n132: \n133: def append_trace(run_id: str, agent: str, status: str, summary: str, model: str, handoff_path: Path) -> None:\n134:     run_dir = RUNS / run_id\n135:     run_dir.mkdir(parents=True, exist_ok=True)\n136: \n137:     trace_path = run_dir / \"TRACE.md\"\n138:     timestamp = datetime.datetime.now().isoformat(timespec=\"seconds\")\n139: \n140:     with trace_path.open(\"a\", encoding=\"utf-8\") as f:\n141:         f.write(f\"\\n## {timestamp} \u2014 {agent}\\n\\n\")\n142:         f.write(f\"- status: `{status}`\\n\")\n143:         f.write(f\"- model: `{model}`\\n\")\n144:         f.write(f\"- handoff: `{handoff_path.relative_to(ROOT)}`\\n\")\n145:         f.write(f\"- summary: {summary}\\n\")\n146: \n147: \n148: def load_agent_result_files(outputs_dir: Path) -> list[dict]:\n149:     results = []\n150:     if not outputs_dir.exists():\n151:         return results\n152: \n153:     for path in sorted(outputs_dir.glob(\"*.json\")):\n154:         if path.name.endswith(\"_raw.json\"):\n155:             continue\n156: \n157:         try:\n158:             data = json.loads(path.read_text(encoding=\"utf-8\"))\n159:         except Exception:\n160:             data = {\n161:                 \"agent\": path.stem,\n162:                 \"status\": \"unreadable\",\n163:                 \"summary\": f\"No se pudo leer {path.name}\",\n164:                 \"timestamp\": \"\",\n165:             }\n166: \n167:         if not isinstance(data, dict):\n168:             continue\n169: \n170:         if not data.get(\"agent\") and not data.get(\"summary\") and not data.get(\"status\"):\n171:             continue\n172: \n173:         results.append(data)\n174: \n175:     return results\n176: \n177: \n178: def write_run_summary(run_id: str) -> None:\n179:     run_dir = RUNS / run_id\n180:     outputs_dir = run_dir / \"agent_outputs\"\n181:     results = load_agent_result_files(outputs_dir)\n182: \n183:     summary_path = run_dir / \"RUN_SUMMARY.md\"\n184: \n185:     lines = [\n186:         \"# RUN_SUMMARY\",\n187:         \"\",\n188:         f\"- run_id: `{run_id}`\",\n189:         f\"- updated_at: `{datetime.datetime.now().isoformat(timespec='seconds')}`\",\n190:         f\"- total_agent_outputs: `{len(results)}`\",\n191:         \"\",\n192:         \"## Estado general\",\n193:         \"\",\n194:     ]\n195: \n196:     if not results:\n197:         lines.append(\"Sin resultados de agentes registrados todav\u00eda.\")\n198:     else:\n199:         last_status = results[-1].get(\"status\", \"unknown\")\n200:         lines.append(f\"\u00daltimo estado registrado: `{last_status}`\")\n201: \n202:     lines.extend([\n203:         \"\",\n204:         \"## Resultados por agente\",\n205:         \"\",\n206:     ])\n207: \n208:     for idx, item in enumerate(results, start=1):\n209:         lines.extend([\n210:             f\"### {idx}. {item.get('agent', 'unknown')}\",\n211:             \"\",\n212:             f\"- timestamp: `{item.get('timestamp', '')}`\",\n213:             f\"- status: `{item.get('status', 'unknown')}`\",\n214:             f\"- model: `{item.get('model', '')}`\",\n215:             f\"- summary: {item.get('summary', '')}\",\n216:             \"\",\n217:         ])\n218: \n219:     lines.extend([\n220:         \"## Transparencia del proceso\",\n221:         \"\",\n222:         \"Este resumen permite revisar qu\u00e9 agente intervino, qu\u00e9 modelo se us\u00f3, qu\u00e9 estado report\u00f3 y cu\u00e1l fue el aporte registrado.\",\n223:         \"\",\n224:         \"Para mayor detalle, revisar `TRACE.md` y los archivos en `agent_outputs/`.\",\n225:         \"\",\n226:     ])\n227: \n228:     summary_path.write_text(\"\\n\".join(lines), encoding=\"utf-8\")\n229: \n230: \n231: def main() -> None:\n232:     parser = argparse.ArgumentParser()\n233:     parser.add_argument(\"--run-id\", default=None)\n234:     parser.add_argument(\"--agent\", default=None)\n235:     parser.add_argument(\"--model\", default=None)\n236:     parser.add_argument(\"--format\", default=\"json\")\n237:     parser.add_argument(\n238:         \"--prompt\",\n239:         default=(\n240:             \"Lee el archivo de handoff adjunto. Act\u00faa en modo diagn\u00f3stico. \"\n241:             \"No modifiques archivos. No ejecutes comandos. \"\n242:             \"Responde con un JSON corto con estas claves: status, agent, model, file_read, summary, next_action.\"\n243:         ),\n244:     )\n245:     args = parser.parse_args()\n246: \n247:     if args.run_id:\n248:         handoff_path = handoff_for_run(args.run_id)\n249:     else:\n250:         handoff_path = latest_handoff_md()\n251: \n252:     if not handoff_path:\n253:         safe_print(\"ERROR: No se encontr\u00f3 handoff Markdown en docs/agent_queue/inbox.\")\n254:         sys.exit(1)\n255: \n256:     package = load_package_for_handoff(handoff_path)\n257:     run_id = package.get(\"run_id\", handoff_path.stem)\n258: \n259:     agent = args.agent or package.get(\"target_agent\") or \"context-validator\"\n260:     model = args.model or \"opencode-go/qwen3.6-plus\"\n261: \n262:     command = [\n263:         \"opencode.cmd\",\n264:         \"run\",\n265:         \"--agent\",\n266:         agent,\n267:         \"--model\",\n268:         model,\n269:         \"--file\",\n270:         str(handoff_path),\n271:         \"--format\",\n272:         args.format,\n273:         args.prompt,\n274:     ]\n275: \n276:     safe_print(\"=== Invocando OpenCode ===\")\n277:     safe_print(\" \".join(command[:-1]) + \" <prompt>\")\n278: \n279:     code, stdout, stderr = run_command(command)\n280: \n281:     if stderr:\n282:         safe_print(\"=== STDERR ===\")\n283:         safe_print(stderr)\n284: \n285:     if stdout:\n286:         safe_print(\"=== STDOUT ===\")\n287:         safe_print(stdout)\n288: \n289:     if code != 0:\n290:         safe_print(f\"ERROR: opencode.cmd run fall\u00f3 con c\u00f3digo {code}\")\n291:         sys.exit(code)\n292: \n293:     parsed = parse_opencode_jsonl(stdout)\n294:     text = parsed.get(\"text\", \"\")\n295: \n296:     status = \"diagnostic\"\n297:     summary = text[:700].replace(\"\\n\", \" \").strip() if text else \"OpenCode respondi\u00f3 sin texto extra\u00edble.\"\n298: \n299:     run_dir = RUNS / run_id\n300:     outputs_dir = run_dir / \"agent_outputs\"\n301:     raw_outputs_dir = run_dir / \"raw_outputs\"\n302:     outputs_dir.mkdir(parents=True, exist_ok=True)\n303:     raw_outputs_dir.mkdir(parents=True, exist_ok=True)\n304: \n305:     timestamp = datetime.datetime.now().isoformat(timespec=\"seconds\")\n306:     safe_timestamp = timestamp.replace(\":\", \"-\")\n307: \n308:     result = {\n309:         \"run_id\": run_id,\n310:         \"timestamp\": timestamp,\n311:         \"agent\": agent,\n312:         \"model\": model,\n313:         \"status\": status,\n314:         \"handoff_path\": str(handoff_path.relative_to(ROOT)),\n315:         \"summary\": summary,\n316:         \"opencode_session_id\": parsed.get(\"session_id\"),\n317:         \"events_count\": parsed.get(\"events_count\"),\n318:         \"tokens\": parsed.get(\"tokens\"),\n319:         \"cost\": parsed.get(\"cost\"),\n320:         \"text\": text,\n321:     }\n322: \n323:     result_path = outputs_dir / f\"{safe_timestamp}_{agent}_opencode.json\"\n324:     write_json(result_path, result)\n325: \n326:     raw_path = raw_outputs_dir / f\"{safe_timestamp}_{agent}_opencode_raw.json\"\n327:     write_json(raw_path, parsed)\n328: \n329:     append_trace(run_id, agent, status, summary, model, handoff_path)\n330:     write_run_summary(run_id)\n331: \n332:     safe_print(\"=== Resultado registrado ===\")\n333:     safe_print(json.dumps({\n334:         \"status\": \"recorded\",\n335:         \"run_id\": run_id,\n336:         \"agent\": agent,\n337:         \"model\": model,\n338:         \"result_path\": str(result_path),\n339:         \"raw_path\": str(raw_path),\n340:         \"summary\": summary,\n341:     }, ensure_ascii=True, indent=2))\n342: \n343:     safe_print(\"=== Visualizaci\u00f3n actualizada ===\")\n344:     show_code, show_out, show_err = run_command([\n345:         sys.executable,\n346:         \"scripts/show_latest_run.py\",\n347:         \"--run-id\",\n348:         run_id,\n349:     ])\n350: \n351:     if show_out:\n352:         safe_print(show_out)\n353:     if show_err:\n354:         safe_print(show_err)\n355: \n356:     if show_code != 0:\n357:         print(f\"ADVERTENCIA: show_latest_run.py termin\u00f3 con c\u00f3digo {show_code}\")\n358: \n359: \n360: if __name__ == \"__main__\":\n361:     main()\n362: \n\n(End of file - total 362 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nrun_opencode_from_handoff.py\n\nInvoca OpenCode en modo no interactivo a partir de un paquete de handoff.\n\nObjetivo:\n- Tomar el \u00faltimo handoff Markdown o uno indicado por --run-id.\n- Invocar opencode.cmd run con agente/modelo seleccionados.\n- Capturar salida JSONL de OpenCode.\n- Extraer eventos tipo text.\n- Registrar resultado limpio en agent_outputs.\n- Guardar salida cruda en raw_outputs para no contaminar RUN_SUMMARY.md.\n- Actualizar TRACE.md y RUN_SUMMARY.md.\n- Mostrar el flujo actualizado al usuario.\n\nEste script s\u00ed invoca OpenCode real, pero no solicita edici\u00f3n ni ejecuci\u00f3n de comandos dentro del prompt base.\n\"\"\"\n\nfrom __future__ import annotations\n",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "scripts\\run_opencode_from_handoff.py",
+          "time": {
+            "start": 1778271242306,
+            "end": 1778271242320
+          }
+        },
+        "id": "prt_e0939c65c001sUXSpUQ2TNezTQ",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e0939af82001eUFmG9QUugF2jx"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271242835,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "read",
+        "callID": "read:13",
+        "state": {
+          "status": "completed",
+          "input": {
+            "filePath": "C:\\Agente\\scripts\\get_run_status.py"
+          },
+          "output": "<path>C:\\Agente\\scripts\\get_run_status.py</path>\n<type>file</type>\n<content>\n1: \ufeff\"\"\"\n2: get_run_status.py\n3: \n4: Devuelve un resumen compacto y JSON-friendly de un run del orquestador.\n5: \n6: Objetivo:\n7: - Evitar que Continue use terminal para leer archivos manualmente.\n8: - Evitar respuestas extensas de show_latest_run.\n9: - Confirmar si existe salida de OpenCode en agent_outputs/raw_outputs/TRACE/RUN_SUMMARY.\n10: \"\"\"\n11: \n12: from __future__ import annotations\n13: \n14: from pathlib import Path\n15: import argparse\n16: import json\n17: import re\n18: \n19: \n20: ROOT = Path(__file__).resolve().parents[1]\n21: RUNS = ROOT / \"docs\" / \"agent_runs\"\n22: INBOX = ROOT / \"docs\" / \"agent_queue\" / \"inbox\"\n23: \n24: \n25: def latest_run_id() -> str | None:\n26:     runs = sorted([p for p in RUNS.iterdir() if p.is_dir()], key=lambda p: p.stat().st_mtime, reverse=True) if RUNS.exists() else []\n27:     return runs[0].name if runs else None\n28: \n29: \n30: def read_text(path: Path) -> str:\n31:     if not path.exists():\n32:         return \"\"\n33:     return path.read_text(encoding=\"utf-8\", errors=\"replace\")\n34: \n35: \n36: def json_files(path: Path) -> list[str]:\n37:     if not path.exists():\n38:         return []\n39:     return sorted([p.name for p in path.glob(\"*.json\")])\n40: \n41: \n42: def extract_agents_from_trace(trace: str) -> list[str]:\n43:     agents = []\n44:     for match in re.finditer(r\"^##\\s+.+?\u2014\\s+(.+?)\\s*$\", trace, flags=re.MULTILINE):\n45:         agents.append(match.group(1).strip())\n46:     return agents\n47: \n48: \n49: def main() -> None:\n50:     parser = argparse.ArgumentParser()\n51:     parser.add_argument(\"--run-id\", default=None)\n52:     args = parser.parse_args()\n53: \n54:     run_id = args.run_id or latest_run_id()\n55: \n56:     if not run_id:\n57:         print(json.dumps({\n58:             \"ok\": False,\n59:             \"status\": \"not_found\",\n60:             \"error\": \"No hay runs disponibles.\",\n61:         }, ensure_ascii=True, indent=2))\n62:         return\n63: \n64:     run_dir = RUNS / run_id\n65:     inbox_json = INBOX / f\"{run_id}.json\"\n66:     inbox_md = INBOX / f\"{run_id}.md\"\n67:     summary_path = run_dir / \"RUN_SUMMARY.md\"\n68:     trace_path = run_dir / \"TRACE.md\"\n69:     agent_outputs_dir = run_dir / \"agent_outputs\"\n70:     raw_outputs_dir = run_dir / \"raw_outputs\"\n71:     background_dir = run_dir / \"background\"\n72: \n73:     trace = read_text(trace_path)\n74:     summary = read_text(summary_path)\n75: \n76:     agent_outputs = json_files(agent_outputs_dir)\n77:     raw_outputs = json_files(raw_outputs_dir)\n78:     background_meta = sorted([p.name for p in background_dir.glob(\"*_meta.json\")]) if background_dir.exists() else []\n79:     background_stdout = sorted([p.name for p in background_dir.glob(\"*_stdout.log\")]) if background_dir.exists() else []\n80:     background_stderr = sorted([p.name for p in background_dir.glob(\"*_stderr.log\")]) if background_dir.exists() else []\n81: \n82:     agents = extract_agents_from_trace(trace)\n83: \n84:     opencode_outputs = [name for name in agent_outputs if \"_opencode\" in name]\n85:     opencode_raw_outputs = [name for name in raw_outputs if \"_opencode_raw\" in name]\n86: \n87:     result = {\n88:         \"ok\": run_dir.exists(),\n89:         \"status\": \"ok\" if run_dir.exists() else \"not_found\",\n90:         \"run_id\": run_id,\n91:         \"paths\": {\n92:             \"run_dir\": str(run_dir),\n93:             \"handoff_json_exists\": inbox_json.exists(),\n94:             \"handoff_md_exists\": inbox_md.exists(),\n95:             \"run_summary_exists\": summary_path.exists(),\n96:             \"trace_exists\": trace_path.exists(),\n97:             \"agent_outputs_dir_exists\": agent_outputs_dir.exists(),\n98:             \"raw_outputs_dir_exists\": raw_outputs_dir.exists(),\n99:             \"background_dir_exists\": background_dir.exists(),\n100:         },\n101:         \"counts\": {\n102:             \"agent_outputs\": len(agent_outputs),\n103:             \"raw_outputs\": len(raw_outputs),\n104:             \"opencode_outputs\": len(opencode_outputs),\n105:             \"opencode_raw_outputs\": len(opencode_raw_outputs),\n106:             \"background_meta\": len(background_meta),\n107:             \"background_stdout\": len(background_stdout),\n108:             \"background_stderr\": len(background_stderr),\n109:         },\n110:         \"agents_in_trace\": agents,\n111:         \"has_orchestrator_diagnostic\": \"orchestrator-diagnostic-flow\" in agents,\n112:         \"has_opencode_context_validator\": \"context-validator\" in agents and len(opencode_outputs) > 0,\n113:         \"opencode_registered\": len(opencode_outputs) > 0 and len(opencode_raw_outputs) > 0,\n114:         \"files\": {\n115:             \"agent_outputs\": agent_outputs,\n116:             \"raw_outputs\": raw_outputs,\n117:             \"background_meta\": background_meta,\n118:             \"background_stdout\": background_stdout,\n119:             \"background_stderr\": background_stderr,\n120:         },\n121:         \"summary_preview\": summary[:800].replace(\"\\n\", \" \"),\n122:         \"trace_preview\": trace[:800].replace(\"\\n\", \" \"),\n123:     }\n124: \n125:     print(json.dumps(result, ensure_ascii=True, indent=2))\n126: \n127: \n128: if __name__ == \"__main__\":\n129:     main()\n\n(End of file - total 129 lines)\n</content>",
+          "metadata": {
+            "preview": "\ufeff\"\"\"\nget_run_status.py\n\nDevuelve un resumen compacto y JSON-friendly de un run del orquestador.\n\nObjetivo:\n- Evitar que Continue use terminal para leer archivos manualmente.\n- Evitar respuestas extensas de show_latest_run.\n- Confirmar si existe salida de OpenCode en agent_outputs/raw_outputs/TRACE/RUN_SUMMARY.\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nimport argparse\nimport json\nimport re\n\n\nROOT = Path(__file__).resolve().parents[1]",
+            "truncated": false,
+            "loaded": []
+          },
+          "title": "scripts\\get_run_status.py",
+          "time": {
+            "start": 1778271242822,
+            "end": 1778271242833
+          }
+        },
+        "id": "prt_e0939c843001NdoZuv239TZj92",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e0939af82001eUFmG9QUugF2jx"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271242903,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "glob",
+        "callID": "glob:14",
+        "state": {
+          "status": "completed",
+          "input": {
+            "pattern": "docs/agent_runs/20260508_000001_c0ffee12/*"
+          },
+          "output": "No files found",
+          "metadata": {
+            "count": 0,
+            "truncated": false
+          },
+          "title": "",
+          "time": {
+            "start": 1778271242857,
+            "end": 1778271242902
+          }
+        },
+        "id": "prt_e0939ca47001yIeFk74eDWsikZ",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e0939af82001eUFmG9QUugF2jx"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271243116,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939cb6a001pScf3NRlAAACIu",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e0939af82001eUFmG9QUugF2jx",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 78705,
+          "input": 2302,
+          "output": 78,
+          "reasoning": 37,
+          "cache": {
+            "write": 0,
+            "read": 76288
+          }
+        },
+        "cost": 0.01485298
+      }
+    },
+    {
+      "type": "step_start",
+      "timestamp": 1778271249113,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939e2d7001IWB07ZtMGhMWqN",
+        "messageID": "msg_e0939cc150012lgEHY9TlxplEq",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271254732,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "todowrite",
+        "callID": "todowrite:15",
+        "state": {
+          "status": "completed",
+          "input": {
+            "todos": [
+              {
+                "content": "Crear scripts/create_and_dispatch_opencode_handoff.py",
+                "status": "in_progress",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/schemas.py con nueva herramienta",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/tools.py con handler",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/README.md",
+                "status": "pending",
+                "priority": "medium"
+              },
+              {
+                "content": "Crear mcp_server/test_create_and_dispatch_opencode_handoff_stdio.py",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Ejecutar validaciones obligatorias y pruebas",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Entregar reporte final",
+                "status": "pending",
+                "priority": "medium"
+              }
+            ]
+          },
+          "output": "[\n  {\n    \"content\": \"Crear scripts/create_and_dispatch_opencode_handoff.py\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Actualizar mcp_server/schemas.py con nueva herramienta\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Actualizar mcp_server/tools.py con handler\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Actualizar mcp_server/README.md\",\n    \"status\": \"pending\",\n    \"priority\": \"medium\"\n  },\n  {\n    \"content\": \"Crear mcp_server/test_create_and_dispatch_opencode_handoff_stdio.py\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Ejecutar validaciones obligatorias y pruebas\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Entregar reporte final\",\n    \"status\": \"pending\",\n    \"priority\": \"medium\"\n  }\n]",
+          "metadata": {
+            "todos": [
+              {
+                "content": "Crear scripts/create_and_dispatch_opencode_handoff.py",
+                "status": "in_progress",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/schemas.py con nueva herramienta",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/tools.py con handler",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Actualizar mcp_server/README.md",
+                "status": "pending",
+                "priority": "medium"
+              },
+              {
+                "content": "Crear mcp_server/test_create_and_dispatch_opencode_handoff_stdio.py",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Ejecutar validaciones obligatorias y pruebas",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Entregar reporte final",
+                "status": "pending",
+                "priority": "medium"
+              }
+            ],
+            "truncated": false
+          },
+          "title": "7 todos",
+          "time": {
+            "start": 1778271254729,
+            "end": 1778271254731
+          }
+        },
+        "id": "prt_e0939eff3001VlFuNeXYmTtVLS",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e0939cc150012lgEHY9TlxplEq"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271254997,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e0939f9d3001aLsxGqrz7XSrd9",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e0939cc150012lgEHY9TlxplEq",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 83951,
+          "input": 5192,
+          "output": 142,
+          "reasoning": 281,
+          "cache": {
+            "write": 0,
+            "read": 78336
+          }
+        },
+        "cost": 0.01915816
+      }
+    },
+    {
+      "type": "step_start",
+      "timestamp": 1778271260865,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e093a10bf001adALHYuo4ZTjiD",
+        "messageID": "msg_e0939fa8b001l9QvW6RvbjAIRM",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "type": "step-start"
+      }
+    },
+    {
+      "type": "tool_use",
+      "timestamp": 1778271305485,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "type": "tool",
+        "tool": "write",
+        "callID": "write:16",
+        "state": {
+          "status": "error",
+          "input": {
+            "content": "\"\"\"\ncreate_and_dispatch_opencode_handoff.py\n\nCrea un handoff completo (JSON + MD), inicializa TRACE.md y RUN_SUMMARY.md,\ny despacha OpenCode en segundo plano cuando la autorizaci\u00f3n lo permite.\n\nEste script no ejecuta comandos arbitrarios. Solo invoca:\n- python scripts/start_opencode_from_handoff_async.py --run-id <run_id> ...\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\nimport argparse\nimport datetime\nimport json\nimport subprocess\nimport sys\nimport uuid\n\n\nROOT = Path(__file__).resolve().parents[1]\nQUEUE_INBOX = ROOT / \"docs\" / \"agent_queue\" / \"inbox\"\nRUNS = ROOT / \"docs\" / \"agent_runs\"\n\n\ndef safe_print(value: object = \"\") -> None:\n    text = str(value)\n    try:\n        print(text)\n    except UnicodeEncodeError:\n        sys.stdout.buffer.write((text + \"\\n\").encode(\"utf-8\", errors=\"replace\"))\n\n\ndef generate_run_id() -> str:\n    return datetime.datetime.now().strftime(\"%Y%m%d_%H%M%S\") + \"_\" + uuid.uuid4().hex[:8]\n\n\ndef create_handoff(\n    run_id: str,\n    project_id: str,\n    objective: str,\n    handoff_body: str,\n    target_agent: str,\n    model: str,\n    risk_level: str,\n    scenario: str,\n    allowed_files: list[str],\n    validation_commands: list[str],\n    requires_authorization: bool,\n    authorization_granted: bool,\n) -> tuple[Path, Path]:\n    QUEUE_INBOX.mkdir(parents=True, exist_ok=True)\n    RUNS.mkdir(parents=True, exist_ok=True)\n\n    package = {\n        \"run_id\": run_id,\n        \"step_id\": \"01\",\n        \"timestamp\": datetime.datetime.now().isoformat(timespec=\"seconds\"),\n        \"project_id\": project_id,\n        \"source_agent\": \"continue\",\n        \"target_agent\": target_agent,\n        \"scenario\": scenario,\n        \"risk_level\": risk_level,\n        \"information_volume\": \"high\",\n        \"objective\": objective,\n        \"handoff_body\": handoff_body,\n        \"allowed_files\": allowed_files,\n        \"validation_commands\": validation_commands,\n        \"requires_authorization\": requires_authorization,\n        \"authorization_granted\": authorization_granted,\n        \"status\": \"created\",\n    }\n\n    json_path = QUEUE_INBOX / f\"{run_id}.json\"\n    md_path = QUEUE_INBOX / f\"{run_id}.md\"\n\n    json_path.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding=\"utf-8\")\n\n    md_lines = [\n        \"# Handoff Package\",\n        \"\",\n        f\"- run_id: `{run_id}`\",\n        f\"- project_id: `{project_id}`\",\n        f\"- source_agent: `continue`\",\n        f\"- target_agent: `{target_agent}`\",\n        f\"- scenario: `{scenario}`\",\n        f\"- risk_level: `{risk_level}`\",\n        f\"- information_volume: `high`\",\n        \"\",\n        \"## Objective\",\n        \"\",\n        objective,\n        \"\",\n        \"## Implementation Contract (prompt for OpenCode)\",\n        \"\",\n        handoff_body,\n        \"\",\n        \"## Allowed Files (scope)\",\n        \"\",\n    ]\n    for f in allowed_files:\n        md_lines.append(f\"- `{f}`\")\n\n    md_lines.extend([\n        \"\",\n        \"## Validation Commands\",\n        \"\",\n    ])\n    for cmd in validation_commands:\n        md_lines.append(f\"- `{cmd}`\")\n\n    md_lines.extend([\n        \"\",\n        \"## Authorization\",\n        \"\",\n        f\"- requires_authorization: `{requires_authorization}`\",\n        f\"- authorization_granted: `{authorization_granted}`\",\n        \"\",\n        \"## Status\",\n        \"\",\n        \"created\",\n    ])\n\n    md_path.write_text(\"\\n\".join(md_lines), encoding=\"utf-8\")\n\n    return json_path, md_path\n\n\ndef create_run_artifacts(run_id: str, target_agent: str, model: str) -> tuple[Path, Path]:\n    run_dir = RUNS / run_id\n    run_dir.mkdir(parents=True, exist_ok=True)\n\n    trace_path = run_dir / \"TRACE.md\"\n    summary_path = run_dir / \"RUN_SUMMARY.md\"\n\n    timestamp = datetime.datetime.now().isoformat(timespec=\"seconds\")\n\n    trace_path.write_text(\n        f\"# TRACE\\n\\n\"\n        f\"- run_id: `{run_id}`\\n\"\n        f\"- created_at: `{timestamp}`\\n\"\n        f\"- target_agent: `{target_agent}`\\n\"\n        f\"- model: `{model}`\\n\"\n        f\"- source: `create_and_dispatch_opencode_handoff`\\n\"\n        f\"\\n## {timestamp} \u2014 create_and_dispatch_opencode_handoff\\n\\n\"\n        f\"- status: `handoff_created`\\n\"\n        f\"- action: `TRACE.md and RUN_SUMMARY.md initialized`\\n\",\n        encoding=\"utf-8\",\n    )\n\n    summary_path.write_text(\n        f\"# RUN_SUMMARY\\n\\n\"\n        f\"- run_id: `{run_id}`\\n\"\n        f\"- updated_at: `{timestamp}`\\n\"\n        f\"- total_agent_outputs: `0`\\n\\n\"\n        f\"## Estado general\\n\\n\"\n        f\"Handoff creado. Esperando ejecuci\u00f3n de agentes.\\n\\n\"\n        f\"## Transparencia del proceso\\n\\n\"\n        f\"Este resumen permite revisar qu\u00e9 agente intervino, qu\u00e9 modelo se us\u00f3, qu\u00e9 estado report\u00f3 y cu\u00e1l fue el aporte registrado.\\n\\n\"\n        f\"Para mayor detalle, revisar `TRACE.md` y los archivos en `agent_outputs/`.\\n\",\n        encoding=\"utf-8\",\n    )\n\n    return trace_path, summary_path\n\n\ndef dispatch_opencode(run_id: str, target_agent: str, model: str) -> dict:\n    command = [\n        sys.executable,\n        str(ROOT / \"scripts\" / \"start_opencode_from_handoff_async.py\"),\n        \"--run-id\",\n        run_id,\n        \"--agent\",\n        target_agent,\n        \"--model\",\n        model,\n        \"--prompt\",\n        (\n            \"Lee el archivo de handoff adjunto. Modo: BUILD AUTORIZADO dentro del alcance. \"\n            \"Implementa seg\u00fan el contrato del handoff. \"\n            \"Responde con un JSON corto con estas claves: status, agent, model, file_read, summary, next_action.\"\n        ),\n    ]\n\n    completed = subprocess.run(\n        command,\n        cwd=ROOT,\n        capture_output=True,\n        text=True,\n        encoding=\"utf-8\",\n        errors=\"replace\",\n        timeout=30,\n    )\n\n    try:\n        parsed = json.loads(completed.stdout.strip()) if completed.stdout.strip() else {}\n    except Exception:\n        parsed = {\"raw_stdout\": completed.stdout, \"raw_stderr\": completed.stderr}\n\n    return {\n        \"ok\": completed.returncode == 0,\n        \"returncode\": completed.returncode,\n        \"parsed\": parsed,\n        \"stdout\": completed.stdout,\n        \"stderr\": completed.stderr,\n    }\n\n\ndef main() -> None:\n    parser = argparse.ArgumentParser()\n    parser.add_argument(\"--run-id\", default=None)\n    parser.add_argument(\"--project-id\", default=\"orchestrator\")\n    parser.add_argument(\"--objective\", required=True)\n    parser.add_argument(\"--handoff-body\", required=True)\n    parser.add_argument(\"--target-agent\", default=\"builder\")\n    parser.add_argument(\"--model\", default=\"opencode-go/kimi-k2.6\")\n    parser.add_argument(\"--risk-level\", default=\"medium\")\n    parser.add_argument(\"--scenario\", default=\"implementation\")\n    parser.add_argument(\"--allowed-files\", default=\"\")\n    parser.add_argument(\"--validation-commands\", default=\"\")\n    parser.add_argument(\"--requires-authorization\", type=lambda x: x.lower() == \"true\", default=True)\n    parser.add_argument(\"--authorization-granted\", type=lambda x: x.lower() == \"true\", default=False)\n    args = parser.parse_args()\n\n    run_id = args.run_id or generate_run_id()\n\n    allowed_files = [f.strip() for f in args.allowed_files.split(\",\") if f.strip()]\n    validation_commands = [c.strip() for c in args.validation_commands.split(\",\") if c.strip()]\n\n    json_path, md_path = create_handoff(\n        run_id=run_id,\n        project_id=args.project_id,\n        objective=args.objective,\n        handoff_body=args.handoff_body,\n        target_agent=args.target_agent,\n        model=args.model,\n        risk_level=args.risk_level,\n        scenario=args.scenario,\n        allowed_files=allowed_files,\n        validation_commands=validation_commands,\n        requires_authorization=args.requires_authorization,\n        authorization_granted=args.authorization_granted,\n    )\n\n    trace_path, summary_path = create_run_artifacts(run_id, args.target_agent, args.model)\n\n    if args.requires_authorization and not args.authorization_granted:\n        status = \"waiting_authorization\"\n        dispatch_result = None\n        user_message = (\n            f\"Handoff creado para run `{run_id}`. \"\n            f\"Requiere autorizaci\u00f3n humana antes de despachar OpenCode. \"\n            f\"Cuando est\u00e9s listo, invoca la herramienta nuevamente con authorization_granted=true.\"\n        )\n    else:\n        status = \"dispatched\"\n        dispatch_result = dispatch_opencode(run_id, args.target_agent, args.model)\n        user_message = (\n            f\"Handoff creado y OpenCode despachado para run `{run_id}`. \"\n            f\"Puedes consultar el estado con la herramienta `check_opencode_run_status`.\"\n        )\n\n    result = {\n        \"ok\": True,\n        \"status\": status,\n        \"run_id\": run_id,\n        \"handoff_json_path\": str(json_path),\n        \"handoff_md_path\": str(md_path),\n        \"run_dir\": str(RUNS / run_id),\n        \"trace_path\": str(trace_path),\n        \"summary_path\": str(summary_path),\n        \"target_agent\": args.target_agent,\n        \"model\": args.model,\n        \"next_tool\": \"check_opencode_run_status\",\n        \"user_message\": user_message,\n    }\n\n    if dispatch_result is not None:\n        result[\"dispatch\"] = dispatch_result\n\n    safe_print(json.dumps(result, ensure_ascii=True, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+            "filePath": "C:\\Agente\\scripts\\create_and_dispatch_opencode_handoff.py"
+          },
+          "error": "The user rejected permission to use this specific tool call.",
+          "time": {
+            "start": 1778271305472,
+            "end": 1778271305484
+          }
+        },
+        "id": "prt_e093a19fb001ALvWabUFn1mFN6",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "messageID": "msg_e0939fa8b001l9QvW6RvbjAIRM"
+      }
+    },
+    {
+      "type": "step_finish",
+      "timestamp": 1778271305754,
+      "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+      "part": {
+        "id": "prt_e093ac019001MbGDvuIkK8IsJV",
+        "reason": "tool-calls",
+        "snapshot": "6e2df6d3ee69c3b7a3201c67fdda689ca23ffa16",
+        "messageID": "msg_e0939fa8b001l9QvW6RvbjAIRM",
+        "sessionID": "ses_1f6c6ba04ffebSGLtCJv4BwJez",
+        "type": "step-finish",
+        "tokens": {
+          "total": 86972,
+          "input": 756,
+          "output": 2606,
+          "reasoning": 154,
+          "cache": {
+            "write": 0,
+            "read": 83456
+          }
+        },
+        "cost": 0.02511116
+      }
+    }
+  ]
+}

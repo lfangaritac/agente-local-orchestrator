@@ -20,6 +20,7 @@ Fase v0.1. Implementación inicial segura.
 - `get_run_status`
 - `check_opencode_run_status`
 - `verify_master_files`
+- `create_and_dispatch_opencode_handoff`
 
 ## Restricciones
 
@@ -254,3 +255,57 @@ Si existen tanto `AGENT_ORCHESTRATION.md` en raíz como `docs/AGENT_ORCHESTRATIO
 - No mueve, elimina ni renombra archivos.
 - Bloquea rutas fuera de ROOT.
 - Opera únicamente en modo lectura.
+
+---
+
+## Herramienta de despacho de handoffs a OpenCode
+
+Para eliminar la manualidad de transportar handoffs entre Continue y OpenCode, se agregó:
+
+    create_and_dispatch_opencode_handoff
+
+Esta herramienta:
+
+1. Crea un paquete de handoff en `docs/agent_queue/inbox` (JSON + MD).
+2. Inicializa `TRACE.md` y `RUN_SUMMARY.md` en `docs/agent_runs/<run_id>/`.
+3. Si requiere autorización y no fue concedida, devuelve `waiting_authorization` sin despachar.
+4. Si está autorizada, despacha OpenCode en segundo plano y devuelve `dispatched`.
+
+### Input mínimo
+
+- `project_id`
+- `objective`
+- `target_agent`
+- `model`
+- `risk_level`
+- `scenario`
+
+### Opcional
+
+- `handoff_body`
+- `allowed_files`
+- `validation_commands`
+- `requires_authorization`
+- `authorization_granted`
+
+### Output
+
+- `ok`
+- `status` (`waiting_authorization` o `dispatched`)
+- `run_id`
+- `handoff_json_path`
+- `handoff_md_path`
+- `run_dir`
+- `trace_path`
+- `summary_path`
+- `background_meta_path`
+- `target_agent`
+- `model`
+- `next_tool` (`check_opencode_run_status`)
+- `user_message`
+
+### Uso desde Continue
+
+    Usa la herramienta MCP create_and_dispatch_opencode_handoff con project_id=orchestrator, objective="Revisar diff de seguridad", target_agent=security-reviewer, model=opencode-go/qwen3.6-plus, risk_level=high, scenario=security, requires_authorization=true, authorization_granted=false.
+
+Si está en espera de autorización, Continue debe pedir confirmación al usuario y reintentar con `authorization_granted=true`.

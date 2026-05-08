@@ -35,6 +35,7 @@ ALLOWED_TOOLS = {
     "get_run_status",
     "check_opencode_run_status",
     "verify_master_files",
+    "create_and_dispatch_opencode_handoff",
 }
 
 
@@ -259,6 +260,75 @@ def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[s
     return get_run_status(arguments)
 
 
+def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    objective = arguments.get("objective")
+    if not objective:
+        return {
+            "ok": False,
+            "returncode": 2,
+            "stdout": "",
+            "stderr": "objective es obligatorio.",
+        }
+
+    target_agent = arguments.get("target_agent")
+    if not target_agent:
+        return {
+            "ok": False,
+            "returncode": 2,
+            "stdout": "",
+            "stderr": "target_agent es obligatorio.",
+        }
+
+    model = arguments.get("model")
+    if not model:
+        return {
+            "ok": False,
+            "returncode": 2,
+            "stdout": "",
+            "stderr": "model es obligatorio.",
+        }
+
+    command = [
+        "scripts/create_and_dispatch_opencode_handoff.py",
+        "--project-id",
+        str(arguments.get("project_id", "orchestrator")),
+        "--objective",
+        str(objective),
+        "--target-agent",
+        str(target_agent),
+        "--model",
+        str(model),
+        "--risk-level",
+        str(arguments.get("risk_level", "medium")),
+        "--scenario",
+        str(arguments.get("scenario", "implementation")),
+    ]
+
+    handoff_body = arguments.get("handoff_body")
+    if handoff_body:
+        command.extend(["--handoff-body", str(handoff_body)])
+
+    for f in arguments.get("allowed_files", []):
+        command.extend(["--allowed-files", str(f)])
+
+    for c in arguments.get("validation_commands", []):
+        command.extend(["--validation-commands", str(c)])
+
+    if arguments.get("requires_authorization") is True:
+        command.extend(["--requires-authorization", "true"])
+
+    if arguments.get("authorization_granted") is True:
+        command.extend(["--authorization-granted", "true"])
+
+    result = _run_python_script(command, timeout=60)
+    return {
+        **result,
+        "parsed": _json_or_text(result.get("stdout", "")),
+    }
+
+
 def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     arguments = arguments or {}
 
@@ -286,6 +356,7 @@ TOOL_HANDLERS = {
     "get_run_status": get_run_status,
     "check_opencode_run_status": check_opencode_run_status,
     "verify_master_files": verify_master_files,
+    "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
 }
 
 

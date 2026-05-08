@@ -204,6 +204,69 @@ TOOL_SCHEMAS = [
         }
     },
     {
+        "name": "create_and_dispatch_opencode_handoff",
+        "description": "Crea un paquete de handoff, lo persiste en docs/agent_queue/inbox, inicializa TRACE.md y RUN_SUMMARY.md, y despacha OpenCode en segundo plano si está autorizado.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "default": "orchestrator",
+                },
+                "objective": {
+                    "type": "string",
+                    "description": "Objetivo del handoff.",
+                },
+                "handoff_body": {
+                    "type": "string",
+                    "description": "Cuerpo del handoff con detalles.",
+                    "default": "",
+                },
+                "target_agent": {
+                    "type": "string",
+                    "description": "Agente destino, ej: builder, debugger, context-validator.",
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Modelo sugerido, ej: opencode-go/kimi-k2.6",
+                },
+                "risk_level": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high", "critical"],
+                    "default": "medium",
+                },
+                "scenario": {
+                    "type": "string",
+                    "default": "implementation",
+                },
+                "allowed_files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Archivos permitidos para el alcance.",
+                    "default": [],
+                },
+                "validation_commands": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Comandos de validación sugeridos.",
+                    "default": [],
+                },
+                "requires_authorization": {
+                    "type": "boolean",
+                    "description": "Si requiere autorización humana antes de despachar.",
+                    "default": False,
+                },
+                "authorization_granted": {
+                    "type": "boolean",
+                    "description": "Si la autorización humana ya fue concedida.",
+                    "default": False,
+                },
+            },
+            "required": ["project_id", "objective", "target_agent", "model", "risk_level", "scenario"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "get_run_status",
         "description": "Devuelve un resumen compacto de un run, incluyendo si OpenCode registró salida en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.",
         "inputSchema": {
