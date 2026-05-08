@@ -1,0 +1,23 @@
+{
+  "run_id": "20260508_160833_9b543486",
+  "timestamp": "2026-05-08T16:09:15",
+  "agent": "builder",
+  "model": "opencode-go/kimi-k2.6",
+  "status": "diagnostic",
+  "handoff_path": "docs\\agent_queue\\inbox\\20260508_160833_9b543486.md",
+  "summary": "Procedo a ejecutar la tarea de debugging de timeouts MCP -32001. Primero leo los archivos relevantes para entender el estado actual. Ahora ejecuto scripts directos y tests stdio para medir tiempos y reproducir timeouts.",
+  "opencode_session_id": "ses_1f69442e4ffekofdCA917V2jtY",
+  "events_count": 25,
+  "tokens": {
+    "total": 82558,
+    "input": 6460,
+    "output": 492,
+    "reasoning": 86,
+    "cache": {
+      "write": 0,
+      "read": 75520
+    }
+  },
+  "cost": 0.0205322,
+  "text": "Procedo a ejecutar la tarea de debugging de timeouts MCP -32001. Primero leo los archivos relevantes para entender el estado actual.\nAhora ejecuto scripts directos y tests stdio para medir tiempos y reproducir timeouts."
+}
