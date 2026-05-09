@@ -321,6 +321,43 @@ Ejemplo de estructura:
 
 Esto permite que el usuario vea la interacción real entre agentes sin tener que operar manualmente la transferencia.
 
+### 15.1 Versionado y retención de evidencia (runs/handoffs/logs)
+
+Esta sección define una política **canónica** de retención/versionado de evidencia sin inflar contexto ni repo.
+No duplica niveles de contexto: ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md` (niveles 0–4, *context packs* y exclusiones).
+
+**Qué se considera evidencia (por run):** `RUN_SUMMARY.md`, `TRACE.md`, `agent_outputs/`, handoff `docs/agent_queue/inbox/<run_id>.{md,json}`, `raw_outputs/`, logs de background/shell y `validation_output.log`.
+
+**Qué se versiona por defecto:**
+- Índices livianos: `docs/context/RUN_INDEX.md`, `docs/context/ACTION_INDEX.md`, `docs/context/DECISION_INDEX.md`, `docs/context/REFERENCE_MAP.md`.
+- Runs **curados/baseline**: `RUN_SUMMARY.md`, `TRACE.md`, `agent_outputs/`.
+- Handoffs que soportan runs curados o escalamiento formal.
+
+**Qué NO se versiona por defecto:**
+- `raw_outputs/**`.
+- logs extensos (background stdout/stderr, shell logs, `validation_output.log`).
+- runs exploratorios/repetitivos/locales no curados.
+- handoffs transitorios sin valor de baseline/decisión/incidente.
+
+**Criterio de curación (run versionable):** un run puede pasar a evidencia versionable si:
+- soporta un baseline reproducible o una integración relevante;
+- soporta un cambio de herramienta/política/protocolo;
+- evidencia un incidente, bloqueo o decisión;
+- está referenciado en `RUN_INDEX` y/o relacionado con una entrada en `ACTION_INDEX`/`DECISION_INDEX`.
+
+**Relación con índices (regla práctica):** si un run no está en `docs/context/RUN_INDEX.md` (o no soporta baseline/incidente/decisión), no merece retención larga ni versionado.
+- `RUN_INDEX`: solo runs curados.
+- `ACTION_INDEX`: solo hitos/cambios relevantes (política/herramienta/protocolo).
+- `DECISION_INDEX`: solo decisiones estables de gobierno.
+- Los índices no deben copiar `TRACE`, `RUN_SUMMARY`, `raw_outputs` ni logs completos (solo referencias).
+
+**Consulta compact-first:**
+- Estado: usar primero `get_run_status` / `check_opencode_run_status` (conteos/flags + rutas).
+- `show_latest_run`: solo bajo solicitud explícita y como detalle (evitar uso por defecto).
+- `raw_outputs` y logs: consultar solo en Nivel 3/4 con autorización explícita.
+
+**Relación con `.continueignore`:** es mitigación *best-effort*; esta política prevalece aunque la instalación de Continue no soporte ignores.
+
 ## 16. Control humano
 
 La automatización debe detenerse y pedir autorización humana cuando exista:
