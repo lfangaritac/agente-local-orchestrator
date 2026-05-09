@@ -121,13 +121,9 @@ Para evitar bloqueos se agregó:
 
     start_opencode_from_handoff_async
 
-Uso esperado desde Continue (compact-first):
+Flujo operativo Continue → MCP (patrón async, mensajes sugeridos y regla de fallback): ver `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md` (sección 9 + anexo async).
 
-1. Ejecutar `run_diagnostic_flow` con `with_opencode=false`.
-2. Tomar el `run_id`.
-3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.
-4. Esperar unos segundos.
-5. Ejecutar `get_run_status` o `check_opencode_run_status` para confirmar (con **conteos y flags**) si ya existe salida en `agent_outputs/` y `raw_outputs/`.
+Resumen técnico: este tool inicia OpenCode en segundo plano; luego se consulta estado con `get_run_status`/`check_opencode_run_status` (compact-first).
 
 Nota: `show_latest_run` imprime `RUN_SUMMARY.md` y `TRACE.md` completos y puede ser demasiado verboso para el chat de Continue. Usarlo solo si el usuario pide detalle y en modo **preview-only** (resumen/pedazos cortos).
 
@@ -139,49 +135,13 @@ Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
 
 ---
 
-## Uso recomendado con OpenCode asíncrono desde Continue
+## OpenCode asíncrono (resumen técnico)
 
-Para usar OpenCode real desde Continue, usar el patrón (compact-first):
+- `start_opencode_from_handoff_async` inicia OpenCode en segundo plano y registra logs en `docs/agent_runs/<run-id>/background/`.
+- Consulta de estado **default compact-first**: `check_opencode_run_status` (o `get_run_status`).
+- `show_latest_run` queda como **fallback** (*preview-only* y bajo solicitud explícita), porque puede imprimir `TRACE.md`/`RUN_SUMMARY.md` completos.
 
-1. `run_diagnostic_flow` con `with_opencode=false`.
-2. `start_opencode_from_handoff_async` con el `run_id`.
-3. `check_opencode_run_status` (o `get_run_status`) con el mismo `run_id`.
-4. (Opcional) `show_latest_run` solo si se necesita detalle y el usuario lo solicita.
-
-### Herramienta async
-
-    start_opencode_from_handoff_async
-
-### Por qué existe
-
-Las llamadas MCP bloqueantes con OpenCode pueden ser largas o producir salida extensa.
-
-La herramienta async devuelve inmediatamente `status: started` y deja que OpenCode registre resultados en segundo plano.
-
-### Logs
-
-La herramienta escribe logs en:
-
-    docs/agent_runs/<run-id>/background/
-
-### Resultado final
-
-El resultado se consulta preferentemente con:
-
-    check_opencode_run_status
-
-(Respuesta compacta con existencia/conteos.)
-
-Si el usuario requiere detalle, usar:
-
-    show_latest_run
-
-y debe reflejar:
-
-- `agent_outputs/`;
-- `raw_outputs/`;
-- `TRACE.md`;
-- `RUN_SUMMARY.md`.
+Flujo operativo Continue → MCP (pasos y mensajes sugeridos): `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md`.
 
 <!-- END: MCP_ASYNC_OPENCODE_USAGE_V0_1 -->
 
@@ -194,9 +154,7 @@ Para evitar que Continue use comandos de terminal o respuestas demasiado extensa
 
     get_run_status
 
-Uso recomendado desde Continue:
-
-    Usa el MCP agente-local-orchestrator para ejecutar get_run_status con run_id=<run-id>. Devuélveme solo status, opencode_registered, counts, agents_in_trace y files.
+Uso: llamar `get_run_status` con `run_id` y usar la respuesta compacta (existencia + conteos + flags) para decidir si hace falta detalle.
 
 Esta herramienta devuelve un JSON compacto con:
 
@@ -219,9 +177,7 @@ Para facilitar que Continue seleccione la herramienta correcta, se agregó el al
 
 Esta herramienta usa internamente la misma lógica de `get_run_status`, pero su nombre es más explícito para validar si OpenCode ya dejó resultados registrados.
 
-Uso recomendado desde Continue:
-
-    Usa exclusivamente la herramienta MCP check_opencode_run_status del servidor agente-local-orchestrator con run_id=<run-id>. No uses show_latest_run. No uses terminal. Devuelve solo status, opencode_registered, counts y agents_in_trace.
+Uso: llamar `check_opencode_run_status` con `run_id` para validar rápidamente si OpenCode ya registró salida (compact-first).
 
 ---
 
