@@ -328,6 +328,7 @@ No duplica niveles de contexto: ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOC
 
 Nota (retención no destructiva): la evidencia operacional puede conservarse **localmente** y archivarse en modo *archive-only* (zip) con `scripts/audit_agent_artifacts.py --archive <dir>`, sin borrar ni mover originales.
 Destino recomendado (fuera del repo): `C:\Agente_Archives`.
+Los archives incluyen `sha256` + `*.manifest.json` con solo rutas/metadatos (sin contenido).
 Esto no reemplaza `RUN_INDEX` y la evidencia archivada no es contexto base; se recupera solo por referencia (`run_id` + rutas) cuando haga falta.
 
 **Qué se considera evidencia (por run):** `RUN_SUMMARY.md`, `TRACE.md`, `agent_outputs/`, handoff `docs/agent_queue/inbox/<run_id>.{md,json}`, `raw_outputs/`, logs de background/shell y `validation_output.log`.

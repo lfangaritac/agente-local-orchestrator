@@ -20,12 +20,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import argparse
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import time
 import zipfile
+from datetime import datetime, timezone
 from typing import Iterable
 
 
@@ -144,6 +146,14 @@ def _iter_files_recursive(base_dir: Path) -> list[Path]:
         return []
 
 
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     """Crea un zip no destructivo con evidencia local del run.
 
@@ -249,10 +259,65 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     except Exception:
         size_bytes = 0
 
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    # sha256 del zip (integridad)
+    try:
+        archive_sha256 = sha256_file(zip_path)
+    except Exception as exc:
+        archive_sha256 = f"error: {exc}"
+
+    # Paths incluidos (solo rutas, no contenido)
+    included_paths = sorted(list({arcname for _, arcname in files_to_add}))
+    included_paths_truncated = False
+    max_paths = 5000
+    if len(included_paths) > max_paths:
+        included_paths_truncated = True
+        included_paths = included_paths[:max_paths]
+
+    manifest = {
+        "schema": "run-archive-manifest-v0.1",
+        "created_at": created_at,
+        "run_id": run_id,
+        "archive": {
+            "bytes": size_bytes,
+            "sha256": archive_sha256,
+            "included_files_count": len(files_to_add),
+            "included_paths_truncated": included_paths_truncated,
+            "included_paths": included_paths,
+        },
+        "sources": {
+            "run_dir": str(run_dir),
+            "handoff_md": str(inbox_md),
+            "handoff_json": str(inbox_json),
+        },
+        "notes": [
+            "Manifest contiene solo metadatos y rutas; no incluye contenido.",
+            "Archive-only: no se borraron ni movieron originales.",
+        ],
+    }
+
+    # Sidecar manifest junto al zip
+    manifest_path = Path(str(zip_path) + ".manifest.json")
+    manifest_bytes = 0
+    manifest_error: str | None = None
+
+    try:
+        if manifest_path.parent.resolve() != archive_dir.resolve():
+            raise ValueError("manifest_path fuera del directorio de archivo (bloqueado).")
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        manifest_bytes = int(manifest_path.stat().st_size)
+    except Exception as exc:
+        manifest_error = str(exc)
+        manifest_path = None
+
     archive_path = str(zip_path)
+    manifest_path_out: str | None = str(manifest_path) if manifest_path else None
+
     if _is_within_root(zip_path):
-        # Si el usuario archivó dentro del repo, dar ruta relativa para facilitar audit.
         archive_path = str(zip_path.relative_to(ROOT)).replace("\\", "/")
+    if manifest_path and _is_within_root(manifest_path):
+        manifest_path_out = str(manifest_path.relative_to(ROOT)).replace("\\", "/")
 
     return {
         "ok": True,
@@ -260,6 +325,10 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
         "run_id": run_id,
         "archive_path": archive_path,
         "archive_bytes": size_bytes,
+        "archive_sha256": archive_sha256,
+        "manifest_path": manifest_path_out,
+        "manifest_bytes": manifest_bytes,
+        "manifest_error": manifest_error,
         "included_files": len(files_to_add),
         "elapsed_ms": int((time.perf_counter() - start) * 1000),
         "archive_dir_within_repo": _is_within_root(archive_dir),
