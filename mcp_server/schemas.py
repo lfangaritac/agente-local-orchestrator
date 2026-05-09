@@ -296,6 +296,26 @@ TOOL_SCHEMAS = [
             "additionalProperties": False
         }
     },
+    {
+        "name": "run_health_check",
+        "description": "Health check compacto de un run (missing/partial/healthy/failed/stale) sin abrir raw_outputs ni TRACE/RUN_SUMMARY completos.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "run_id": {
+                    "type": "string",
+                    "description": "Run ID a chequear (requerido)."
+                },
+                "stale_minutes": {
+                    "type": "integer",
+                    "description": "Umbral en minutos para marcar stale cuando hay background meta sin outputs (default 15).",
+                    "default": 15
+                }
+            },
+            "required": ["run_id"],
+            "additionalProperties": False
+        }
+    },
         {
         "name": "verify_master_files",
         "description": "Verifica físicamente la existencia e integridad SHA-256 de los archivos maestros críticos del orquestador.",

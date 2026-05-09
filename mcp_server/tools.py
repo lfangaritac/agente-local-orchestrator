@@ -36,6 +36,7 @@ ALLOWED_TOOLS = {
     "start_opencode_from_handoff_async",
     "get_run_status",
     "check_opencode_run_status",
+    "run_health_check",
     "verify_master_files",
     "create_and_dispatch_opencode_handoff",
 }
@@ -371,6 +372,100 @@ def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[s
     }
 
 
+def run_health_check(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Health check compacto de un run vía scripts/audit_agent_artifacts.py.
+
+    Restricciones:
+    - No abre raw_outputs completos.
+    - No lee TRACE/RUN_SUMMARY completos (solo prefijos cortos, si existen).
+    - No modifica evidencia ni genera archivos.
+
+    Output: compacto-first (sin stdout/stderr completos del script).
+    """
+
+    arguments = arguments or {}
+
+    run_id = arguments.get("run_id")
+    if not run_id:
+        return {
+            "ok": False,
+            "error": "run_id es obligatorio.",
+        }
+
+    stale_minutes = arguments.get("stale_minutes", 15)
+    try:
+        stale_minutes_int = int(stale_minutes)
+    except Exception:
+        stale_minutes_int = 15
+
+    # Evitar valores no razonables que puedan degradar performance o semántica.
+    stale_minutes_int = max(1, stale_minutes_int)
+
+    result = _run_python_script(
+        [
+            "scripts/audit_agent_artifacts.py",
+            "--health",
+            "--run-id",
+            str(run_id),
+            "--stale-minutes",
+            str(stale_minutes_int),
+        ],
+        timeout=60,
+        max_output_chars=65536,
+    )
+
+    if not result.get("ok"):
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": str(run_id),
+            "error": (result.get("stderr") or "Error ejecutando audit_agent_artifacts.py --health."),
+            "elapsed_ms": result.get("elapsed_ms"),
+        }
+
+    parsed = _json_or_text(result.get("stdout", ""))
+    if not isinstance(parsed, dict):
+        preview = str(parsed)
+        if len(preview) > 2000:
+            preview = preview[:2000] + "\n... [truncated]"
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": str(run_id),
+            "error": "Salida no JSON del health check.",
+            "preview": preview,
+            "elapsed_ms": result.get("elapsed_ms"),
+        }
+
+    health = parsed.get("health")
+    if not isinstance(health, dict):
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": str(run_id),
+            "error": "Salida JSON inesperada: falta key 'health'.",
+            "elapsed_ms": result.get("elapsed_ms"),
+        }
+
+    # Normalizar output a un payload compacto y estable para Continue.
+    return {
+        "ok": True,
+        "run_id": str(health.get("run_id") or run_id),
+        "exists": bool(health.get("exists")),
+        "health_status": str(health.get("health_status") or "unknown"),
+        "latest_status": health.get("latest_status"),
+        "opencode_registered": bool(health.get("opencode_registered")),
+        "agent_outputs_count": int(health.get("agent_outputs_count") or 0),
+        "raw_outputs_count": int(health.get("raw_outputs_count") or 0),
+        "background_files_count": int(health.get("background_files_count") or 0),
+        "indexed_in_RUN_INDEX": bool(health.get("indexed_in_RUN_INDEX")),
+        "archive_recommended": bool(health.get("archive_recommended")),
+        "issues": list(health.get("issues") or [])[:10],
+        "recommendations": list(health.get("recommendations") or [])[:10],
+        "elapsed_ms": int(health.get("elapsed_ms") or result.get("elapsed_ms") or 0),
+    }
+
+
 def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     arguments = arguments or {}
 
@@ -509,6 +604,7 @@ TOOL_HANDLERS = {
     "start_opencode_from_handoff_async": start_opencode_from_handoff_async,
     "get_run_status": get_run_status,
     "check_opencode_run_status": check_opencode_run_status,
+    "run_health_check": run_health_check,
     "verify_master_files": verify_master_files,
     "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
 }

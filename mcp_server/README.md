@@ -19,6 +19,7 @@ Fase v0.1. Implementación inicial segura.
 - `start_opencode_from_handoff_async`
 - `get_run_status`
 - `check_opencode_run_status`
+- `run_health_check`
 - `verify_master_files`
 - `create_and_dispatch_opencode_handoff`
 
