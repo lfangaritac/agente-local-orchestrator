@@ -25,3 +25,4 @@ Sirve para:
 | ACT-0006 | 2026-05 | policy | `.continueignore` best-effort para exclusiones | done | Continue | Build | `.continueignore` | Soporte no confirmado; política es fallback |
 | ACT-0007 | 2026-05 | policy | Reducir Always Applied a mínimo v0.5 | done | Continue | Build | `.continue/rules/context-contract-governance.md` | Reglas permanentes deben ser cortas |
 | ACT-0008 | 2026-05 | policy | Protocolo de contexto referencial + índices livianos | done | Continue | Build | `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md` | Contexto persistente ≠ contexto cargado |
+| ACT-0009 | 2026-05-09 | ops | Baseline E2E orquestación automática validado + control de artefactos | done | orchestrator | Build | run_id `20260509_103815_2841ce6d`; `.gitignore`; `.continueignore`; `docs/context/RUN_INDEX.md` | No versionar runs/handoffs/raw_outputs/logs; trazabilidad liviana por índices |

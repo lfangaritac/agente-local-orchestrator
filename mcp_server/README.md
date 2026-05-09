@@ -66,6 +66,8 @@ La idea objetivo será registrar un MCP server local que ejecute:
 
 MCP debe aumentar automatización sin reducir control humano, trazabilidad ni seguridad.
 
+Nota operativa (eficiencia): `docs/agent_runs/**` y `docs/agent_queue/inbox/**` son artefactos **operacionales** (evidencia local/temporal). La trazabilidad versionada debe mantenerse liviana en `docs/context/*` (p. ej. `RUN_INDEX.md`).
+
 <!-- START: MCP_STDIO_VALIDATION_V0_1 -->
 
 ---

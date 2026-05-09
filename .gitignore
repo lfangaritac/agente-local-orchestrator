@@ -8,5 +8,18 @@
 .venv/
 __pycache__/
 
+# Orchestrator artifacts (generated at runtime)
+# Policy: do not version operational evidence (runs/handoffs/raw outputs/logs).
+# Keep traceability via docs/context/* indexes.
+# Keep docs/agent_runs/*.md docs (README, notes) versionable, but ignore per-run folders.
+docs/agent_runs/*
+!docs/agent_runs/README.md
+!docs/agent_runs/DIFF_REVIEW_TIMEOUT_FIX.md
+
+# Handoff inbox is operational/ephemeral.
+docs/agent_queue/inbox/
+
+
 # Generated activation reports
 docs/test_reports/activation_report_*.md
+

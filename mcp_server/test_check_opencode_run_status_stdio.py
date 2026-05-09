@@ -11,6 +11,44 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 SERVER = ROOT / "mcp_server" / "server.py"
 
+FIXTURE_RUN_ID = "TEST_CHECK_OPENCODE_RUN_FIXTURE"
+
+
+def ensure_fixture_run(run_id: str = FIXTURE_RUN_ID) -> str:
+    """Crea un run mínimo en disco para que el test no dependa de evidencia versionada."""
+
+    runs_dir = ROOT / "docs" / "agent_runs" / run_id
+    inbox_dir = ROOT / "docs" / "agent_queue" / "inbox"
+
+    (runs_dir / "agent_outputs").mkdir(parents=True, exist_ok=True)
+    (runs_dir / "raw_outputs").mkdir(parents=True, exist_ok=True)
+    (runs_dir / "background").mkdir(parents=True, exist_ok=True)
+    inbox_dir.mkdir(parents=True, exist_ok=True)
+
+    (inbox_dir / f"{run_id}.json").write_text("{}\n", encoding="utf-8")
+    (inbox_dir / f"{run_id}.md").write_text(f"# HANDOFF {run_id}\n", encoding="utf-8")
+
+    (runs_dir / "RUN_SUMMARY.md").write_text(
+        "# RUN_SUMMARY\n\n## Estado general\nÚltimo estado registrado: `diagnostic`\n",
+        encoding="utf-8",
+    )
+
+    (runs_dir / "TRACE.md").write_text(
+        f"# TRACE — {run_id}\n\n## 2026-05-09T00:00:00 — context-validator\n- status: `diagnostic`\n",
+        encoding="utf-8",
+    )
+
+    (runs_dir / "agent_outputs" / "2026-05-09T00-00-00_context-validator_opencode.json").write_text(
+        '{"status":"diagnostic"}\n',
+        encoding="utf-8",
+    )
+    (runs_dir / "raw_outputs" / "2026-05-09T00-00-00_context-validator_opencode_raw.json").write_text(
+        '{"status":"diagnostic"}\n',
+        encoding="utf-8",
+    )
+
+    return run_id
+
 
 def reader_thread(pipe, lines: list[str]) -> None:
     for line in iter(pipe.readline, ""):
@@ -42,6 +80,8 @@ def extract_tool_payload(response: dict | None) -> dict | None:
 
 
 def main() -> None:
+    run_id = ensure_fixture_run()
+
     proc = subprocess.Popen(
         [sys.executable, str(SERVER)],
         cwd=ROOT,
@@ -88,7 +128,7 @@ def main() -> None:
             "params": {
                 "name": "check_opencode_run_status",
                 "arguments": {
-                    "run_id": "20260506_171549_0e258229"
+                    "run_id": run_id
                 }
             }
         }
@@ -138,6 +178,9 @@ def main() -> None:
     }
 
     payload_ok = bool(tool_payload and required_keys.issubset(set(tool_payload.keys())))
+
+    # Chequeos mínimos de contenido (compact-first)
+    payload_ok = payload_ok and tool_payload.get("run_id") == run_id and tool_payload.get("exists") is True
 
     result = {
         "initialize_ok": any(r.get("id") == 1 and "result" in r for r in responses),

@@ -1,7 +1,0 @@
-{
-  "run_id": "20260506_122350_1c5cc272",
-  "timestamp": "2026-05-06T12:23:50",
-  "agent": "orchestrator-diagnostic-flow",
-  "status": "diagnostic",
-  "summary": "Flujo diagn\u00f3stico semiautom\u00e1tico ejecutado: preflight ok, 13 fuentes, 10 alertas, 12 lecciones; agente recomendado context-validator con modelo opencode-go/qwen3.6-plus."
-}
