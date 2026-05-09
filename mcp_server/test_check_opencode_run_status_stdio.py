@@ -27,6 +27,20 @@ def send(proc: subprocess.Popen, payload: dict) -> None:
     proc.stdin.flush()
 
 
+def extract_tool_payload(response: dict | None) -> dict | None:
+    if not response:
+        return None
+    result = response.get("result", {})
+    content = result.get("content", [])
+    if not content:
+        return None
+    text = content[0].get("text", "")
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
 def main() -> None:
     proc = subprocess.Popen(
         [sys.executable, str(SERVER)],
@@ -101,7 +115,7 @@ def main() -> None:
             responses.append({"raw": line})
 
     tool_names = []
-    alias_result = None
+    tool_payload = None
 
     for response in responses:
         if response.get("id") == 2:
@@ -109,21 +123,36 @@ def main() -> None:
             tool_names = [tool.get("name") for tool in tools]
 
         if response.get("id") == 3:
-            alias_result = response.get("result")
+            tool_payload = extract_tool_payload(response)
+
+    required_keys = {
+        "ok",
+        "status",
+        "run_id",
+        "exists",
+        "opencode_registered",
+        "agent_outputs_count",
+        "raw_outputs_count",
+        "latest_status",
+        "elapsed_ms",
+    }
+
+    payload_ok = bool(tool_payload and required_keys.issubset(set(tool_payload.keys())))
 
     result = {
         "initialize_ok": any(r.get("id") == 1 and "result" in r for r in responses),
         "tools_list_ok": "check_opencode_run_status" in tool_names,
-        "alias_call_ok": alias_result is not None,
+        "tool_call_ok": tool_payload is not None,
+        "payload_shape_ok": payload_ok,
         "tool_names": tool_names,
-        "alias_result": alias_result,
+        "tool_payload": tool_payload,
         "stderr_lines": stderr_lines,
         "server_returncode": proc.returncode,
     }
 
     print(json.dumps(result, ensure_ascii=True, indent=2))
 
-    if not result["initialize_ok"] or not result["tools_list_ok"] or not result["alias_call_ok"]:
+    if not result["initialize_ok"] or not result["tools_list_ok"] or not result["tool_call_ok"] or not result["payload_shape_ok"]:
         sys.exit(1)
 
 

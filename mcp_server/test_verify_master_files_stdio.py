@@ -126,7 +126,9 @@ def main() -> None:
             "method": "tools/call",
             "params": {
                 "name": "verify_master_files",
-                "arguments": {},
+                "arguments": {
+                    "mode": "full"
+                },
             },
         },
     ]
@@ -156,9 +158,9 @@ def main() -> None:
         tools = tools_list_resp.get("result", {}).get("tools", [])
     verify_in_list = any(t.get("name") == "verify_master_files" for t in tools)
 
-    # Validar resultado de verify_master_files
-    summary = verify_result.get("parsed", {}).get("summary", {}) if verify_result else {}
-    files = verify_result.get("parsed", {}).get("files", []) if verify_result else []
+    # Validar resultado de verify_master_files (full mode)
+    summary = verify_result.get("summary", {}) if verify_result else {}
+    files = verify_result.get("files", []) if verify_result else []
 
     total_checked = summary.get("total_checked", 0)
     duplicate_candidates = summary.get("duplicate_candidates", [])

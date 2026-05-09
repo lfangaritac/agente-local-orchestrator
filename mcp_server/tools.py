@@ -13,8 +13,10 @@ from pathlib import Path
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+import time
 from typing import Any
 
 
@@ -268,12 +270,105 @@ def get_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
+def _read_text_prefix(path: Path, max_chars: int = 8192) -> str:
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            return f.read(max_chars)
+    except Exception:
+        return ""
+
+
+def _find_first_status(obj: Any, max_depth: int = 4) -> str | None:
+    if max_depth < 0:
+        return None
+
+    if isinstance(obj, dict):
+        status = obj.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+        for v in obj.values():
+            found = _find_first_status(v, max_depth=max_depth - 1)
+            if found:
+                return found
+        return None
+
+    if isinstance(obj, list):
+        for v in obj:
+            found = _find_first_status(v, max_depth=max_depth - 1)
+            if found:
+                return found
+        return None
+
+    return None
+
+
 def check_opencode_run_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Devuelve un estado compact-first de un run sin leer raw_outputs completos.
+
+    Diseñada para evitar timeouts en Continue:
+    - cuenta archivos, no los carga;
+    - no lee TRACE/RUN_SUMMARY completos (solo prefijos cortos para status).
     """
-    Alias semántico de get_run_status para que Continue seleccione mejor
-    la herramienta cuando el usuario pregunta por salidas de OpenCode.
-    """
-    return get_run_status(arguments)
+
+    arguments = arguments or {}
+    run_id = arguments.get("run_id")
+    if not run_id:
+        return {
+            "ok": False,
+            "status": "error",
+            "error": "run_id es obligatorio.",
+        }
+
+    start = time.perf_counter()
+
+    run_dir = ROOT / "docs" / "agent_runs" / str(run_id)
+    agent_outputs_dir = run_dir / "agent_outputs"
+    raw_outputs_dir = run_dir / "raw_outputs"
+
+    exists = bool(run_dir.exists() and run_dir.is_dir())
+
+    agent_outputs = sorted(agent_outputs_dir.glob("*.json")) if agent_outputs_dir.exists() else []
+    raw_outputs = sorted(raw_outputs_dir.glob("*.json")) if raw_outputs_dir.exists() else []
+
+    opencode_outputs = [p for p in agent_outputs if "_opencode" in p.name]
+    opencode_raw_outputs = [p for p in raw_outputs if "_opencode_raw" in p.name]
+    opencode_registered = bool(opencode_outputs and opencode_raw_outputs)
+
+    latest_status: str | None = None
+
+    # 1) Preferir RUN_SUMMARY (prefijo corto) para no leer archivos enormes.
+    summary_prefix = _read_text_prefix(run_dir / "RUN_SUMMARY.md", max_chars=12000)
+    if summary_prefix:
+        m = re.search(r"[ÚU]ltimo\s+estado\s+registrado:\s*`([^`]+)`", summary_prefix)
+        if m:
+            latest_status = m.group(1).strip()
+
+    # 2) Fallback: leer el último agent_output (JSON) por mtime, con límite de tamaño.
+    if latest_status is None and agent_outputs:
+        try:
+            latest_file = max(agent_outputs, key=lambda p: p.stat().st_mtime)
+            if latest_file.stat().st_size <= 1_000_000:
+                data = json.loads(latest_file.read_text(encoding="utf-8", errors="replace"))
+                latest_status = _find_first_status(data)
+        except Exception:
+            latest_status = None
+
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    return {
+        "ok": True,
+        "status": "ok" if exists else "not_found",
+        "run_id": str(run_id),
+        "exists": exists,
+        "opencode_registered": opencode_registered,
+        "agent_outputs_count": len(agent_outputs),
+        "raw_outputs_count": len(raw_outputs),
+        "latest_status": latest_status,
+        "elapsed_ms": elapsed_ms,
+        "error": None,
+    }
 
 
 def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -346,18 +441,61 @@ def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None
 
 
 def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Verifica archivos maestros con output compact-first para MCP.
+
+    Nota: El script soporta full output por shell, pero MCP usa compact por defecto
+    para minimizar payload y evitar timeouts.
+    """
+
     arguments = arguments or {}
 
+    mode = str(arguments.get("mode") or "compact").lower().strip()
+    if mode not in {"compact", "full"}:
+        mode = "compact"
+
     command = ["scripts/verify_master_files.py"]
+
     paths = arguments.get("paths")
     if paths:
         command.append("--paths")
         command.extend([str(p) for p in paths])
 
+    if mode == "compact":
+        command.append("--compact")
+    else:
+        command.append("--full")
+
     result = _run_python_script(command, timeout=60)
+
+    if not result.get("ok"):
+        return {
+            "ok": False,
+            "status": "error",
+            "error": (result.get("stderr") or "Error ejecutando verify_master_files."),
+            "elapsed_ms": result.get("elapsed_ms"),
+        }
+
+    parsed = _json_or_text(result.get("stdout", ""))
+
+    # Compact-first: devolver el JSON del script (ya compacto) y evitar duplicar stdout.
+    if isinstance(parsed, dict):
+        parsed.setdefault("elapsed_ms", result.get("elapsed_ms"))
+        parsed.setdefault("status", "ok")
+        parsed.setdefault("mode", mode)
+        return parsed
+
+    # Fallback si stdout no es JSON (idealmente no debería pasar)
+    preview = str(parsed)
+    if len(preview) > 1200:
+        preview = preview[:1200] + "\n... [truncated]"
+
     return {
-        **result,
-        "parsed": _json_or_text(result.get("stdout", "")),
+        "ok": True,
+        "status": "ok",
+        "mode": mode,
+        "elapsed_ms": result.get("elapsed_ms"),
+        "truncated": True,
+        "preview": preview,
     }
 
 

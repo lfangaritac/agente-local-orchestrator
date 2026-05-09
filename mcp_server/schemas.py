@@ -202,7 +202,8 @@ TOOL_SCHEMAS = [
             "required": ["run_id"],
             "additionalProperties": False
         }
-    },
+    }
+,
     {
         "name": "create_and_dispatch_opencode_handoff",
         "description": "Crea un paquete de handoff, lo persiste en docs/agent_queue/inbox, inicializa TRACE.md y RUN_SUMMARY.md, y despacha OpenCode en segundo plano si está autorizado.",
@@ -295,21 +296,27 @@ TOOL_SCHEMAS = [
             "additionalProperties": False
         }
     },
-    {
+        {
         "name": "verify_master_files",
         "description": "Verifica físicamente la existencia e integridad SHA-256 de los archivos maestros críticos del orquestador.",
         "inputSchema": {
             "type": "object",
             "properties": {
+                "mode": {
+                    "type": "string",
+                    "description": "Modo de salida. En MCP el default es compact-first.",
+                    "enum": ["compact", "full"],
+                    "default": "compact"
+                },
                 "paths": {
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Rutas relativas a ROOT para verificar. Si se omite, usa la lista maestra completa.",
-                    "default": [],
+                    "default": []
                 }
             },
-            "additionalProperties": False,
-        },
+            "additionalProperties": False
+        }
     }
 ]
 

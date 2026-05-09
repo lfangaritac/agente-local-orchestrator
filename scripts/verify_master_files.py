@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -221,6 +222,61 @@ def verify(paths: list[str] | None = None) -> dict[str, object]:
     }
 
 
+def _summarize_accepted_reference_pairs(pairs: list[dict[str, object]], max_items: int = 20) -> tuple[list[dict[str, object]], bool]:
+    """Devuelve una versión compacta de accepted_reference_pairs.
+
+    Quita hashes largos por defecto, dejando solo campos útiles para diagnóstico.
+    """
+
+    truncated = len(pairs) > max_items
+    trimmed = pairs[:max_items]
+
+    slim: list[dict[str, object]] = []
+    for p in trimmed:
+        slim.append({
+            "canonical": p.get("canonical"),
+            "reference": p.get("reference"),
+            "same_hash": p.get("same_hash"),
+            "reason": p.get("reason"),
+        })
+
+    return slim, truncated
+
+
+def to_compact(full_result: dict[str, object], elapsed_ms: int) -> dict[str, object]:
+    summary = (full_result.get("summary") or {}) if isinstance(full_result, dict) else {}
+    missing_files = summary.get("missing_files") or []
+    accepted_pairs = summary.get("accepted_reference_pairs") or []
+
+    accepted_slim, accepted_truncated = _summarize_accepted_reference_pairs(
+        accepted_pairs if isinstance(accepted_pairs, list) else [],
+        max_items=20,
+    )
+
+    missing_truncated = False
+    if isinstance(missing_files, list) and len(missing_files) > 50:
+        missing_truncated = True
+        missing_files = missing_files[:50]
+
+    truncated = bool(accepted_truncated or missing_truncated)
+
+    return {
+        "ok": bool(full_result.get("ok", True)) if isinstance(full_result, dict) else True,
+        "status": "ok",
+        "elapsed_ms": elapsed_ms,
+        "truncated": truncated,
+        "total_checked": summary.get("total_checked"),
+        "total_existing": summary.get("total_existing"),
+        "total_missing": summary.get("total_missing"),
+        "total_errors": summary.get("total_errors"),
+        "all_ok": summary.get("all_ok"),
+        "duplicate_candidates_count": summary.get("duplicate_candidates_count"),
+        "accepted_reference_pairs_count": summary.get("accepted_reference_pairs_count"),
+        "missing_files": missing_files,
+        "accepted_reference_pairs": accepted_slim,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verifica archivos maestros del orquestador.")
     parser.add_argument(
@@ -228,9 +284,33 @@ def main() -> None:
         nargs="+",
         help="Rutas relativas a ROOT para verificar (por defecto usa la lista maestra).",
     )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Imprime solo un resumen compacto (sin lista completa de archivos).",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Imprime el resultado completo (default).",
+    )
     args = parser.parse_args()
 
+    # Compatibilidad: si el usuario no pide --compact, mantener el output full.
+    compact = bool(args.compact) and not bool(args.full)
+
+    start = time.perf_counter()
     result = verify(args.paths)
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    if compact:
+        out = to_compact(result, elapsed_ms)
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return
+
+    # Full mode
+    if isinstance(result, dict):
+        result["elapsed_ms"] = elapsed_ms
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

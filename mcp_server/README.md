@@ -169,15 +169,15 @@ Esta herramienta devuelve un JSON compacto con:
 
 ---
 
-## Alias semántico para estado de OpenCode
+## Herramienta compacta para estado de OpenCode
 
-Para facilitar que Continue seleccione la herramienta correcta, se agregó el alias:
+Para facilitar que Continue consulte rápido (y sin payloads grandes) si OpenCode ya dejó resultados registrados, se agregó:
 
     check_opencode_run_status
 
-Esta herramienta usa internamente la misma lógica de `get_run_status`, pero su nombre es más explícito para validar si OpenCode ya dejó resultados registrados.
+Esta herramienta es **compact-first** por defecto y evita lecturas completas de `raw_outputs/**`, `TRACE.md` o `RUN_SUMMARY.md` (solo usa prefijos cortos para inferir `latest_status`).
 
-Uso: llamar `check_opencode_run_status` con `run_id` para validar rápidamente si OpenCode ya registró salida (compact-first).
+Uso: llamar `check_opencode_run_status` con `run_id` para validar rápidamente si OpenCode ya registró salida.
 
 ---
 
@@ -209,7 +209,14 @@ Esta herramienta verifica físicamente la existencia e integridad SHA-256 de los
 
 ### Uso desde Continue
 
-    Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. Devuélveme solo summary: total_checked, total_existing, total_missing, all_ok, accepted_reference_pairs, duplicate_candidates.
+Por defecto, `verify_master_files` devuelve un **output compacto** (compact-first) para minimizar payload y evitar timeouts.
+
+- Modo compacto (default): `mode="compact"`
+- Modo completo (solo si hace falta detalle): `mode="full"`
+
+Ejemplo (compact):
+
+    Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. mode="compact". Devuélveme: total_checked, total_existing, total_missing, all_ok, accepted_reference_pairs_count.
 
 ### Detección de duplicidad
 
