@@ -305,6 +305,9 @@ Reducir consumo de tokens/contexto en Continue priorizando **cobertura por capas
 
 ### Reglas operativas
 
+Protocolo complementario (context packs mínimos, acciones relevantes referenciales e índices livianos):
+`docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+
 1) **Usar `run_id` + rutas + conteos, no contenido completo**
 - Para runs/handoffs: reportar `run_id`, rutas, existencia, conteos y previews cortos.
 - No pegar `TRACE.md`, `RUN_SUMMARY.md` o handoffs completos en el chat salvo solicitud explícita.
