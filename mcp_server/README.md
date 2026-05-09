@@ -257,7 +257,9 @@ Esta herramienta verifica físicamente la existencia e integridad SHA-256 de los
 
 ### Detección de duplicidad
 
-Si existen tanto `AGENT_ORCHESTRATION.md` en raíz como `docs/AGENT_ORCHESTRATION.md`, la herramienta reporta `duplicate_candidates` con los hashes de ambos archivos para decidir cuál prevalece según el contrato de contexto.
+Si existen tanto `AGENT_ORCHESTRATION.md` en raíz como `docs/AGENT_ORCHESTRATION.md`, la herramienta reporta `duplicate_candidates` con los hashes de ambos archivos.
+
+Nota de canonicidad: el documento canónico es `AGENT_ORCHESTRATION.md` (raíz). `docs/AGENT_ORCHESTRATION.md` es un **stub/referencia** para navegación desde `docs/`. La semántica de “duplicados conocidos/stubs aceptados” queda como pendiente técnico para una iteración futura.
 
 ### Restricciones
 
