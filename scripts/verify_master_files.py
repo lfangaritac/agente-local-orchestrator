@@ -43,6 +43,17 @@ DUPLICATE_CANDIDATE_PAIRS = [
     ("AGENT_ORCHESTRATION.md", "docs/AGENT_ORCHESTRATION.md"),
 ]
 
+# Pairs que se consideran referencias/stubs aceptados (no duplicidad problemática).
+# Regla: si ambos archivos existen, se reportan en `accepted_reference_pairs` y
+# se excluyen de `duplicate_candidates`.
+ACCEPTED_REFERENCE_PAIRS: list[dict[str, str]] = [
+    {
+        "canonical": "AGENT_ORCHESTRATION.md",
+        "reference": "docs/AGENT_ORCHESTRATION.md",
+        "reason": "docs/AGENT_ORCHESTRATION.md is an accepted stub/reference to the canonical root document.",
+    }
+]
+
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -106,11 +117,59 @@ def verify_file(root: Path, rel_path: str) -> dict[str, object]:
     return result
 
 
+def _accepted_pair_index() -> set[tuple[str, str]]:
+    """Índice para excluir pares aceptados de duplicidad.
+
+    Se indexa en ambas direcciones para que (a,b) y (b,a) sean equivalentes.
+    """
+
+    idx: set[tuple[str, str]] = set()
+    for p in ACCEPTED_REFERENCE_PAIRS:
+        a = p.get("canonical")
+        b = p.get("reference")
+        if a and b:
+            idx.add((a, b))
+            idx.add((b, a))
+    return idx
+
+
+def find_accepted_reference_pairs(files: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Reporta pares canónico→referencia aceptados cuando ambos existen."""
+
+    accepted = []
+    path_map = {f["path"]: f for f in files}
+
+    for p in ACCEPTED_REFERENCE_PAIRS:
+        canonical = p["canonical"]
+        reference = p["reference"]
+        reason = p.get("reason")
+
+        fc = path_map.get(canonical)
+        fr = path_map.get(reference)
+
+        if fc and fr and fc.get("exists") and fr.get("exists"):
+            accepted.append({
+                "canonical": canonical,
+                "reference": reference,
+                "reason": reason,
+                "sha256_canonical": fc.get("sha256"),
+                "sha256_reference": fr.get("sha256"),
+                "same_hash": fc.get("sha256") == fr.get("sha256"),
+            })
+
+    return accepted
+
+
 def find_duplicate_candidates(root: Path, files: list[dict[str, object]]) -> list[dict[str, object]]:
     candidates = []
     path_map = {f["path"]: f for f in files}
+    accepted_idx = _accepted_pair_index()
 
     for a, b in DUPLICATE_CANDIDATE_PAIRS:
+        if (a, b) in accepted_idx:
+            # Es un stub/referencia aceptado; no reportar como duplicidad problemática.
+            continue
+
         fa = path_map.get(a)
         fb = path_map.get(b)
         if fa and fb and fa.get("exists") and fb.get("exists"):
@@ -136,6 +195,7 @@ def verify(paths: list[str] | None = None) -> dict[str, object]:
     missing = [f for f in files if not f.get("exists")]
     errors = [f for f in files if f.get("status") == "error"]
 
+    accepted_reference_pairs = find_accepted_reference_pairs(files)
     duplicate_candidates = find_duplicate_candidates(root, files)
 
     summary = {
@@ -144,7 +204,11 @@ def verify(paths: list[str] | None = None) -> dict[str, object]:
         "total_missing": len(missing),
         "total_errors": len(errors),
         "missing_files": [f["path"] for f in missing],
+        # Compatibilidad: mantener siempre la clave como lista.
         "duplicate_candidates": duplicate_candidates,
+        "accepted_reference_pairs": accepted_reference_pairs,
+        "duplicate_candidates_count": len(duplicate_candidates),
+        "accepted_reference_pairs_count": len(accepted_reference_pairs),
         "all_ok": len(missing) == 0 and len(errors) == 0,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "root": str(root),

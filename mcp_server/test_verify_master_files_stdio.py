@@ -14,6 +14,7 @@ Valida:
 - reporte de docs/AGENT_ORCHESTRATION.md
 - reporte de MODEL_ROUTING.md
 - duplicate_candidates si aplica
+- accepted_reference_pairs si aplica
 """
 
 from __future__ import annotations
@@ -161,6 +162,7 @@ def main() -> None:
 
     total_checked = summary.get("total_checked", 0)
     duplicate_candidates = summary.get("duplicate_candidates", [])
+    accepted_reference_pairs = summary.get("accepted_reference_pairs", [])
 
     # Buscar archivos especÃ­ficos
     file_map = {f.get("path"): f for f in files}
@@ -185,6 +187,7 @@ def main() -> None:
         "reports_agent_orchestration_docs": orchestration_docs is not None,
         "reports_model_routing": model_routing is not None,
         "duplicate_candidates_reported": isinstance(duplicate_candidates, list),
+        "accepted_reference_pairs_reported": isinstance(accepted_reference_pairs, list) and len(accepted_reference_pairs) >= 1,
     }
 
     result = {
@@ -197,6 +200,7 @@ def main() -> None:
             "total_missing": summary.get("total_missing"),
             "all_ok": summary.get("all_ok"),
             "duplicate_candidates_count": len(duplicate_candidates),
+            "accepted_reference_pairs_count": summary.get("accepted_reference_pairs_count", len(accepted_reference_pairs)),
         },
         "file_reports": {
             "AGENT_ORCHESTRATION.md": {

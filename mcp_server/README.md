@@ -209,13 +209,12 @@ Esta herramienta verifica físicamente la existencia e integridad SHA-256 de los
 
 ### Uso desde Continue
 
-    Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. Devuélveme solo summary: total_checked, total_existing, total_missing, all_ok, duplicate_candidates.
+    Usa la herramienta MCP verify_master_files del servidor agente-local-orchestrator. Devuélveme solo summary: total_checked, total_existing, total_missing, all_ok, accepted_reference_pairs, duplicate_candidates.
 
 ### Detección de duplicidad
 
-Si existen tanto `AGENT_ORCHESTRATION.md` en raíz como `docs/AGENT_ORCHESTRATION.md`, la herramienta reporta `duplicate_candidates` con los hashes de ambos archivos.
-
-Nota de canonicidad: el documento canónico es `AGENT_ORCHESTRATION.md` (raíz). `docs/AGENT_ORCHESTRATION.md` es un **stub/referencia** para navegación desde `docs/`. La semántica de “duplicados conocidos/stubs aceptados” queda como pendiente técnico para una iteración futura.
+- `accepted_reference_pairs`: pares canónico→referencia/stub **aceptados** (p. ej. `AGENT_ORCHESTRATION.md` → `docs/AGENT_ORCHESTRATION.md`).
+- `duplicate_candidates`: duplicidades **potencialmente problemáticas** (no aceptadas) con hashes para evaluación.
 
 ### Restricciones
 
