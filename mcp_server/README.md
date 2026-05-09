@@ -126,7 +126,13 @@ Para evitar bloqueos se agregó:
 
 Flujo operativo Continue → MCP (patrón async, mensajes sugeridos y regla de fallback): ver `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md` (sección 9 + anexo async).
 
-Resumen técnico: este tool inicia OpenCode en segundo plano; luego se consulta estado con `get_run_status`/`check_opencode_run_status` (compact-first).
+Resumen técnico: este tool inicia OpenCode en segundo plano; luego se consulta estado de forma **compact-first** con:
+
+1) `run_health_check` (salud rápida del run)
+2) `check_opencode_run_status` (seguimiento específico de OpenCode)
+3) `get_run_status` (diagnóstico ampliado)
+
+`show_latest_run` queda como fallback (*preview-only*).
 
 Nota: `show_latest_run` imprime `RUN_SUMMARY.md` y `TRACE.md` completos y puede ser demasiado verboso para el chat de Continue. Usarlo solo si el usuario pide detalle y en modo **preview-only** (resumen/pedazos cortos).
 
@@ -141,7 +147,9 @@ Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
 ## OpenCode asíncrono (resumen técnico)
 
 - `start_opencode_from_handoff_async` inicia OpenCode en segundo plano y registra logs en `docs/agent_runs/<run-id>/background/`.
-- Consulta de estado **default compact-first**: `check_opencode_run_status` (o `get_run_status`).
+- Diagnóstico inicial (default compact-first): `run_health_check`.
+- Seguimiento específico de OpenCode: `check_opencode_run_status`.
+- Diagnóstico ampliado: `get_run_status`.
 - `show_latest_run` queda como **fallback** (*preview-only* y bajo solicitud explícita), porque puede imprimir `TRACE.md`/`RUN_SUMMARY.md` completos.
 
 Flujo operativo Continue → MCP (pasos y mensajes sugeridos): `docs/protocols/MCP_CONTINUE_INTEGRATION_PROTOCOL.md`.
@@ -151,13 +159,23 @@ Flujo operativo Continue → MCP (pasos y mensajes sugeridos): `docs/protocols/M
 
 ---
 
-## Herramienta compacta de estado de run
+## Herramienta compacta de salud de run (default)
 
-Para evitar que Continue use comandos de terminal o respuestas demasiado extensas, se agregó:
+Para diagnóstico rápido de salud (missing/partial/healthy/stale/failed) sin abrir artefactos completos, se agregó:
+
+    run_health_check
+
+Uso: llamar `run_health_check` con `run_id` como **primera consulta**.
+
+---
+
+## Herramienta compacta de estado de run (diagnóstico ampliado)
+
+Para un diagnóstico más amplio (flags/rutas/conteos adicionales), usar:
 
     get_run_status
 
-Uso: llamar `get_run_status` con `run_id` y usar la respuesta compacta (existencia + conteos + flags) para decidir si hace falta detalle.
+Uso: llamar `get_run_status` con `run_id` cuando `run_health_check` no sea suficiente.
 
 Esta herramienta devuelve un JSON compacto con:
 
@@ -172,15 +190,15 @@ Esta herramienta devuelve un JSON compacto con:
 
 ---
 
-## Herramienta compacta para estado de OpenCode
+## Herramienta compacta para estado de OpenCode (seguimiento específico)
 
-Para facilitar que Continue consulte rápido (y sin payloads grandes) si OpenCode ya dejó resultados registrados, se agregó:
+Para consultar rápido (y sin payloads grandes) si OpenCode ya dejó resultados registrados, usar:
 
     check_opencode_run_status
 
 Esta herramienta es **compact-first** por defecto y evita lecturas completas de `raw_outputs/**`, `TRACE.md` o `RUN_SUMMARY.md` (solo usa prefijos cortos para inferir `latest_status`).
 
-Uso: llamar `check_opencode_run_status` con `run_id` para validar rápidamente si OpenCode ya registró salida.
+Uso: llamar `check_opencode_run_status` con `run_id` como **seguimiento** cuando se espera salida de OpenCode.
 
 ---
 

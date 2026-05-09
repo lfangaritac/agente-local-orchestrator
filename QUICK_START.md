@@ -8,12 +8,13 @@ Este repositorio contiene el nucleo base para activar el sistema operativo de ag
 
 ### Activar o validar sistema de agentes
 
-`powershell
+```powershell
 .\activate-agents.bat
 python .\scripts\check_env.py
 git status
-`",
-",
+```
+
+
 
 
 Cuando el orquestador se aplica a un proyecto externo, scripts/check_env.py se copia como plantilla inicial.
@@ -67,9 +68,16 @@ Un resultado correcto debe mostrar valores equivalentes a:
     alerts_checked_count: 10
     lessons_checked_count: 11
 
-### Ver último flujo registrado
+### Diagnóstico rápido del run (compact-first)
 
-Para revisar el último flujo sin abrir manualmente archivos JSON o Markdown:
+Para diagnóstico rápido **sin dumps** y sin abrir artefactos completos, usar desde Continue (vía MCP) este orden:
+
+1) `run_health_check` (salud del run)
+2) `check_opencode_run_status` (seguimiento específico de OpenCode)
+3) `get_run_status` (diagnóstico ampliado)
+4) `show_latest_run` solo como **fallback / preview-only** bajo solicitud explícita o necesidad justificada
+
+Fallback (terminal, detalle excepcional):
 
     cd C:\Agente
     python .\scripts\show_latest_run.py
@@ -182,9 +190,15 @@ Esta integración todavía debe operar bajo restricciones de seguridad:
 - no escalar a modelos premium sin autorización;
 - no asumir que la validación de OpenCode equivale a ejecución aprobada.
 
-### Ver el resultado del último flujo
+### Seguimiento del run (compact-first) + fallback
 
-Después de ejecutar OpenCode desde handoff:
+Recomendado desde Continue (vía MCP), en este orden:
+
+1) `run_health_check` (salud del run)
+2) `check_opencode_run_status` (si se espera evidencia de OpenCode)
+3) `get_run_status` (si hace falta diagnóstico ampliado)
+
+Solo si hace falta detalle (y como **preview-only**), usar en terminal:
 
     cd C:\Agente
     python .\scripts\show_latest_run.py
@@ -291,9 +305,15 @@ No debe:
 - aplicar cambios destructivos;
 - escalar a premium sin autorización.
 
-### Ver el último flujo
+### Seguimiento del run (compact-first) + fallback
 
-Después de ejecutar el comando unificado:
+Recomendado desde Continue (vía MCP), en este orden:
+
+1) `run_health_check`
+2) `check_opencode_run_status`
+3) `get_run_status`
+
+Solo si hace falta detalle (y como **preview-only**), usar en terminal:
 
     cd C:\Agente
     python .\scripts\show_latest_run.py
@@ -338,7 +358,9 @@ Desde Continue:
 2. Tomar el `run_id` generado.
 3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.
 4. Esperar unos segundos.
-5. Ejecutar `show_latest_run` con ese `run_id`.
+5. Ejecutar `run_health_check` con ese `run_id` para diagnóstico rápido de salud.
+6. Si hace falta seguimiento específico de OpenCode: `check_opencode_run_status`.
+7. Solo si se necesita detalle excepcional: `show_latest_run` (*preview-only*).
 
 ### Mensaje sugerido para Continue — Paso 1
 
@@ -350,9 +372,17 @@ Reemplazar `<run-id>` por el valor devuelto en el paso anterior.
 
     Usa el MCP agente-local-orchestrator para ejecutar start_opencode_from_handoff_async con run_id=<run-id>, agent=context-validator, model=opencode-go/qwen3.6-plus. Devuélveme status, run_id, pid y next_action.
 
-### Mensaje sugerido para Continue — Paso 3
+### Mensaje sugerido para Continue — Paso 3 (diagnóstico rápido)
 
-    Usa el MCP agente-local-orchestrator para ejecutar show_latest_run con run_id=<run-id>. Resume el resultado indicando si OpenCode registró salida en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.
+    Usa el MCP agente-local-orchestrator para ejecutar run_health_check con run_id=<run-id>. Devuélveme: health_status, latest_status, exists, opencode_registered, agent_outputs_count, raw_outputs_count, issues (máx 3), recommendations (máx 3).
+
+### Mensaje sugerido para Continue — Paso 4 (seguimiento OpenCode)
+
+    Usa el MCP agente-local-orchestrator para ejecutar check_opencode_run_status con run_id=<run-id>. Devuélveme: exists, opencode_registered, agent_outputs_count, raw_outputs_count, latest_status.
+
+### Mensaje sugerido para Continue — Paso 5 (fallback / preview-only)
+
+    Solo si necesito detalle, usa el MCP agente-local-orchestrator para ejecutar show_latest_run con run_id=<run-id>. Devuélveme un resumen corto (sin pegar TRACE/RUN_SUMMARY completos).
 
 ### Resultado validado
 
@@ -373,7 +403,15 @@ Para Continue, usar por defecto:
 
     run_diagnostic_flow with_opencode=false
     -> start_opencode_from_handoff_async
-    -> show_latest_run
+    -> run_health_check
+
+Si se espera OpenCode:
+
+    -> check_opencode_run_status
+
+Y solo si hace falta detalle:
+
+    -> show_latest_run  (fallback / preview-only)
 
 Evitar por ahora:
 

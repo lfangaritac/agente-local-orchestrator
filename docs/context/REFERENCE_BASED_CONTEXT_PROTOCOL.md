@@ -127,7 +127,7 @@ Autorización requerida:
 | Documentación/gobierno | 0–2 | secciones canónicas + refs | duplicar políticas |
 | Cambio de código | 0–2 (3 si complejo) | archivos en scope + refs + plan | pegar diffs completos |
 | Prueba MCP | 0–1 | tool + args + elapsed_ms + trunc flags | stdout masivo |
-| Revisión de run | 1–2 | get_run_status + rutas + previews | raw_outputs completos |
+| Revisión de run | 1–2 | `run_health_check` (salud) + rutas + conteos + previews (y `get_run_status` si hace falta ampliación) | raw_outputs completos |
 | Decisión de gobierno | 0–1 | decisión + motivo + refs | reimprimir todo |
 | Escalamiento a OpenCode | 0–1 | handoff compacto + refs | handoff completo |
 | Premium/Replit | 0–1 (+3 si crítico) | triggers + autorización + pregunta concreta | dumps |
@@ -139,7 +139,11 @@ Autorización requerida:
 
 - Runs/handoffs son **evidencia**, no contexto base.
 - Consultar por `run_id`.
-- Por defecto usar herramientas compactas (p. ej. `get_run_status` / `check_opencode_run_status`).
+- Por defecto (compact-first) usar:
+  1) `run_health_check` (salud rápida del run: missing/partial/healthy/stale/failed)
+  2) `check_opencode_run_status` (seguimiento específico de OpenCode)
+  3) `get_run_status` (diagnóstico ampliado)
+  4) `show_latest_run` solo como **fallback / preview-only** bajo solicitud explícita o necesidad justificada
 - Solo cargar previews o fragmentos (Nivel 2) cuando exista una pregunta concreta.
 - `raw_outputs/**` queda excluido por defecto.
 - `TRACE.md` / `RUN_SUMMARY.md` se consultan por fragmentos y solo cuando aplique.

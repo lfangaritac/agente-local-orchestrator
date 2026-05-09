@@ -357,8 +357,10 @@ Esto no reemplaza `RUN_INDEX` y la evidencia archivada no es contexto base; se r
 - Los índices no deben copiar `TRACE`, `RUN_SUMMARY`, `raw_outputs` ni logs completos (solo referencias).
 
 **Consulta compact-first:**
-- Estado: usar primero `get_run_status` / `check_opencode_run_status` (conteos/flags + rutas).
-- `show_latest_run`: solo bajo solicitud explícita y como detalle (evitar uso por defecto).
+- Salud rápida (primera consulta): `run_health_check`.
+- Seguimiento específico de OpenCode: `check_opencode_run_status`.
+- Diagnóstico ampliado: `get_run_status`.
+- `show_latest_run`: solo bajo solicitud explícita y como detalle (*preview-only*; evitar uso por defecto).
 - `raw_outputs` y logs: consultar solo en Nivel 3/4 con autorización explícita.
 
 **Relación con `.continueignore`:** es mitigación *best-effort*; esta política prevalece aunque la instalación de Continue no soporte ignores.
@@ -807,7 +809,13 @@ La primera ejecución validada produjo:
 
 El flujo debe permitir que el usuario revise el proceso sin abrir manualmente cada JSON o Markdown.
 
-Para ello debe usarse (desde `C:\Agente`):
+Consulta compact-first (recomendado desde Continue vía MCP):
+
+- `run_health_check` (salud rápida)
+- `check_opencode_run_status` (seguimiento OpenCode)
+- `get_run_status` (diagnóstico ampliado)
+
+Fallback (terminal, detalle excepcional / *preview-only*):
 
     python .\scripts\show_latest_run.py
 
@@ -1000,7 +1008,13 @@ Debe seguir operando bajo estas restricciones:
 
 ### Transparencia
 
-El resultado de OpenCode debe ser visible para el usuario a través de (desde `C:\Agente`):
+El resultado de OpenCode debe ser visible para el usuario con consulta compact-first (recomendado desde Continue vía MCP):
+
+- `run_health_check`
+- `check_opencode_run_status`
+- `get_run_status`
+
+Fallback (terminal, detalle excepcional / *preview-only*):
 
     python .\scripts\show_latest_run.py
 

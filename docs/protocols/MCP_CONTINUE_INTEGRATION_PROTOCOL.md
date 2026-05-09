@@ -70,11 +70,13 @@ Herramientas mínimas típicas para la integración (ver sección 9):
 - `orchestrator_preflight`
 - `run_diagnostic_flow` (**recomendado** con `with_opencode=false` para crear el run/handoff)
 - `start_opencode_from_handoff_async` (**recomendado** para ejecución OpenCode sin bloquear Continue)
-- `get_run_status` / `check_opencode_run_status` (**default compact-first**)
+- `run_health_check` (**default compact-first** para diagnóstico rápido de salud de runs)
+- `check_opencode_run_status` (seguimiento específico de OpenCode)
+- `get_run_status` (diagnóstico ampliado)
 - `show_latest_run` (**fallback** / *preview-only* bajo solicitud explícita; no default)
 - `verify_master_files` (anclaje físico de existencia/integridad de fuentes)
 
-Regla compact-first: consultar primero estado y conteos con `get_run_status`/`check_opencode_run_status`; solo después (y bajo solicitud) usar `show_latest_run`.
+Regla compact-first: consultar primero salud/estado compacto con `run_health_check`; luego (si aplica) seguimiento OpenCode con `check_opencode_run_status` y/o diagnóstico ampliado con `get_run_status`; solo después (y bajo solicitud) usar `show_latest_run`.
 
 ## 6. Reglas de seguridad MCP
 
@@ -140,8 +142,10 @@ El flujo deseado será:
 5. MCP crea handoff.
 6. MCP invoca OpenCode en segundo plano si se autoriza o si es modo diagnóstico permitido.
 7. MCP registra resultados.
-8. Continue consulta estado con `get_run_status` o `check_opencode_run_status` (**default compact-first**).
-9. Solo si hace falta detalle (y bajo solicitud), Continue usa `show_latest_run` como fallback.
+8. Continue consulta salud/estado con `run_health_check` (**default compact-first**).
+9. Si se requiere seguimiento específico de OpenCode: `check_opencode_run_status`.
+10. Si se requiere diagnóstico ampliado: `get_run_status`.
+11. Solo si hace falta detalle (y bajo solicitud), Continue usa `show_latest_run` como fallback (*preview-only*).
 
 ## 10. Implementación sugerida
 
@@ -162,7 +166,9 @@ La integración MCP v0.1 será exitosa cuando Continue pueda invocar al menos:
 - `orchestrator_preflight`
 - `run_diagnostic_flow` sin OpenCode;
 - `start_opencode_from_handoff_async` (patrón recomendado) **o** `run_diagnostic_flow` con OpenCode diagnóstico;
-- `get_run_status` / `check_opencode_run_status` (consulta compact-first)
+- `run_health_check` (diagnóstico rápido de salud; compact-first)
+- `check_opencode_run_status` (seguimiento OpenCode)
+- `get_run_status` (diagnóstico ampliado)
 
 y recibir respuestas resumidas sin que el usuario copie comandos manualmente en PowerShell.
 

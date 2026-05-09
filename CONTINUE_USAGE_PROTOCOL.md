@@ -123,7 +123,7 @@ Checklist operativo:
 1) **No usar Active File** para documentos largos/artefactos (handoffs, TRACE, RUN_SUMMARY, logs) salvo necesidad puntual.
 2) **No pegar completos**: `raw_outputs/**`, `TRACE.md`, `RUN_SUMMARY.md`, `docs/agent_runs/**`, `docs/agent_queue/**`, handoffs `.md`, logs.
 3) Usar primero **`run_id` + rutas + conteos + previews** (fragmentos mínimos).
-4) **Compact-first (MCP):** preferir `get_run_status` / `check_opencode_run_status`; evitar `show_latest_run` salvo solicitud explícita o *preview-only*.
+4) **Compact-first (MCP):** preferir `run_health_check` (salud rápida); luego `check_opencode_run_status` (seguimiento OpenCode) y/o `get_run_status` (diagnóstico ampliado). Evitar `show_latest_run` salvo solicitud explícita o *preview-only*.
 5) **Pedir autorización** antes de subir el nivel de contexto (lectura profunda / múltiples secciones / pegado de documentos o logs).
 6) Mantener la regla Always Applied mínima vigente: `.continue/rules/context-contract-governance.md`.
 
