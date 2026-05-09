@@ -61,6 +61,10 @@ No debe permitir todavía:
 
 ## 5. Herramientas MCP mínimas
 
+**Catálogo técnico canónico de herramientas MCP:** `mcp_server/README.md`.
+
+Esta sección mantiene un **resumen orientado a integración** (Continue → MCP) para evitar duplicar el catálogo completo y reducir deriva entre documentos.
+
 ### 5.1 orchestrator_preflight
 
 Ejecuta:
@@ -123,7 +127,7 @@ Debe devolver:
 - conteo de alertas;
 - conteo de lecciones.
 
-### 5.4 show_latest_run
+### 5.4 show_latest_run (opcional / verboso)
 
 Ejecuta:
 
@@ -133,7 +137,9 @@ Parámetros opcionales:
 
 - `run_id`
 
-Debe devolver un resumen visible del flujo.
+Uso recomendado:
+- **No** es compact-first (puede ser verboso).
+- Usar solo como **fallback** o cuando el usuario pida **detalle** (*preview-only*), después de consultar estado con `get_run_status` / `check_opencode_run_status`.
 
 ### 5.5 run_diagnostic_flow
 
@@ -181,6 +187,14 @@ Debe devolver:
 - ruta del resultado crudo;
 - resumen de OpenCode;
 - costos/tokens si están disponibles.
+
+### 5.7 get_run_status (compact-first)
+
+Herramienta recomendada para consultar estado de un run de forma **compacta** (existencia de artefactos + conteos), sin volcar `TRACE.md`/`RUN_SUMMARY.md` completos.
+
+### 5.8 check_opencode_run_status (compact-first)
+
+Alias recomendado para validar rápidamente si OpenCode ya dejó salida registrada (misma filosofía compact-first que `get_run_status`).
 
 ## 6. Reglas de seguridad MCP
 
@@ -244,10 +258,10 @@ El flujo deseado será:
 3. MCP ejecuta preflight.
 4. MCP selecciona agente/modelo.
 5. MCP crea handoff.
-6. MCP invoca OpenCode si se autoriza o si es modo diagnóstico permitido.
+6. MCP invoca OpenCode en segundo plano si se autoriza o si es modo diagnóstico permitido.
 7. MCP registra resultados.
-8. MCP devuelve resumen visible a Continue.
-9. Continue comunica al usuario el resultado sin que el usuario copie handoffs manualmente.
+8. Continue consulta estado con `get_run_status` o `check_opencode_run_status` (**default compact-first**).
+9. Solo si hace falta detalle (y bajo solicitud), Continue usa `show_latest_run` como fallback.
 
 ## 10. Implementación sugerida
 
@@ -267,10 +281,12 @@ La integración MCP v0.1 será exitosa cuando Continue pueda invocar al menos:
 
 - `orchestrator_preflight`
 - `run_diagnostic_flow` sin OpenCode;
-- `run_diagnostic_flow` con OpenCode diagnóstico;
-- `show_latest_run`
+- `start_opencode_from_handoff_async` (patrón recomendado) **o** `run_diagnostic_flow` con OpenCode diagnóstico;
+- `get_run_status` / `check_opencode_run_status` (consulta compact-first)
 
 y recibir respuestas resumidas sin que el usuario copie comandos manualmente en PowerShell.
+
+`show_latest_run` debe existir, pero no es requisito de uso por defecto (puede ser verboso).
 
 ## 12. Regla superior
 
@@ -433,9 +449,11 @@ Validado por patrón asíncrono:
 
     Usa el MCP agente-local-orchestrator para ejecutar start_opencode_from_handoff_async con run_id=<run-id>, agent=context-validator, model=opencode-go/qwen3.6-plus. Devuélveme status, run_id, pid y next_action.
 
-#### Paso 3 — Consultar resultado
+#### Paso 3 — Consultar resultado (compact-first)
 
-    Usa el MCP agente-local-orchestrator para ejecutar show_latest_run con run_id=<run-id>. Resume si ya existe salida de OpenCode en agent_outputs, raw_outputs, TRACE.md y RUN_SUMMARY.md.
+    Usa el MCP agente-local-orchestrator para ejecutar check_opencode_run_status con run_id=<run-id>. Devuélveme solo status, opencode_registered, counts y agents_in_trace.
+
+    (Opcional) Si el usuario pide detalle, usa show_latest_run con run_id=<run-id> en modo preview-only.
 
 ### Por qué usar async
 
@@ -476,11 +494,13 @@ Resultado:
 
 ### Próximo paso
 
-Realizar una prueba final desde Continue con el patrón de tres pasos:
+Realizar una prueba final desde Continue con el patrón de tres pasos (default compact-first):
 
     run_diagnostic_flow with_opencode=false
     -> start_opencode_from_handoff_async
-    -> show_latest_run
+    -> check_opencode_run_status
+
+(Usar `show_latest_run` solo como fallback si se requiere detalle.)
 
 Si la prueba funciona desde Continue sin intervención de PowerShell, MCP v0.1 puede considerarse funcional para diagnóstico con OpenCode asíncrono.
 
