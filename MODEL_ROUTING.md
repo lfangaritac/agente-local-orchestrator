@@ -8,6 +8,10 @@ Esta sección alinea `MODEL_ROUTING.md` con el schema canónico definido en `AGE
 
 A partir de esta versión, todo escalamiento desde Go hacia Zen continuidad, Zen económico, Zen premium o Replit debe usar el paquete canónico anidado.
 
+**Schema canónico (fuente de verdad):** `AGENT_ORCHESTRATION.md` → `ESCALATION_PACKAGE_CANONICAL_SCHEMA_V0_3`.
+
+Este documento (`MODEL_ROUTING.md`) define **reglas y matrices de routing**; evita duplicar el schema completo para reducir deriva. El formato vigente usa `first_line_output.*`.
+
 ### 1. Regla de routing con paquete canónico
 
 El routing no debe enviar directamente una respuesta suelta de Go al modelo escalado.
@@ -330,30 +334,21 @@ Cuando un modelo de primera línea escala a Zen o premium, su resultado no debe 
 
 Debe convertirse en insumo estructurado para el siguiente modelo.
 
-Paquete mínimo de escalamiento:
+Paquete **canónico** de escalamiento (schema):
 
-    {
-      "original_user_request": "",
-      "scenario": "",
-      "risk_level": "",
-      "information_volume": "",
-      "first_line_agent": "",
-      "first_line_model": "",
-      "first_line_summary": "",
-      "first_line_findings": [],
-      "first_line_plan": [],
-      "files_reviewed": [],
-      "files_modified": [],
-      "commands_suggested": [],
-      "risks_detected": [],
-      "open_questions": [],
-      "confidence": "low | medium | high",
-      "reason_for_escalation": "",
-      "specific_question_for_escalated_model": "",
-      "expected_output": "",
-      "constraints": [],
-      "do_not_do": []
-    }
+- Fuente de verdad: `AGENT_ORCHESTRATION.md` → `ESCALATION_PACKAGE_CANONICAL_SCHEMA_V0_3`.
+- Formato vigente: **anidado** con `first_line_output.*` (no plano).
+
+Campos mínimos (resumen; no schema completo):
+- `escalation_type`, `trigger`, `original_user_request`, `scenario`, `risk_level`, `information_volume`
+- `first_line_agent`, `first_line_model`
+- `first_line_output`: `summary`, `findings`, `plan`, `files_reviewed`, `files_modified`, `commands_suggested`, `commands_executed`, `risks_detected`, `open_questions`, `confidence`
+- `reason_for_escalation`, `specific_question_for_escalated_model`, `expected_output`, `constraints`, `do_not_do`
+
+Compatibilidad legacy (no preferido):
+- `first_line_summary` → `first_line_output.summary`
+- `first_line_findings` → `first_line_output.findings`
+- `first_line_plan` → `first_line_output.plan`
 
 Regla:
 
