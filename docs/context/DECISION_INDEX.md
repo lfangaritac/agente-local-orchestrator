@@ -1,0 +1,17 @@
+# DECISION_INDEX.md
+
+## Propósito
+Decisiones de gobierno/contexto en formato liviano para evitar re-derivar criterios.
+
+Regla: no duplicar políticas largas; referenciar el documento canónico.
+
+## Decisiones vigentes (resumen)
+
+| decision_id | date | decision | status | canonical_ref | notes |
+|---|---|---|---|---|---|
+| DEC-0001 | 2026-05 | OpenCode no es escalamiento; es agente técnico natural | active | `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25` | Zen/premium/Replit sí son escalamiento |
+| DEC-0002 | 2026-05 | Build autoriza por alcance, no micro-aprobaciones | active | `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25` | Se mantienen umbrales de aprobación humana |
+| DEC-0003 | 2026-05 | Usuario no debe transportar handoffs manualmente como rutina | active | `mcp_server/README.md` | Usar run_id + rutas + herramientas MCP |
+| DEC-0004 | 2026-05 | Compact-first para runs (estado compacto > traza completa) | active | `mcp_server/README.md` | Preferir `get_run_status`/`check_opencode_run_status` |
+| DEC-0005 | 2026-05 | Excluir runs/handoffs/raw_outputs del contexto normal | active | `CONTINUE_USAGE_PROTOCOL.md` | Son evidencia; se recuperan bajo demanda |
+| DEC-0006 | 2026-05 | Contexto persistente no equivale a contexto cargado | active | `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md` | Índices livianos + recuperación selectiva |
