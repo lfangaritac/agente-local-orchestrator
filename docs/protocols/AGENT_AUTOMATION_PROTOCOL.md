@@ -8,6 +8,21 @@ Este protocolo establece cómo evolucionar desde la mini-orquestación manual va
 
 La automatización debe mantener transparencia, trazabilidad, control humano en acciones sensibles y visibilidad de los aportes de cada agente.
 
+## 1.1 Alcance y referencias canónicas
+
+Este documento es **canónico** para:
+- arquitectura de automatización progresiva y sus fases;
+- flujo automatizado (preflight → routing → handoff → validación → registro);
+- estructura de runs, trazabilidad y evidencia (campos mínimos, rutas, bitácoras);
+- mini-orquestación desde la perspectiva de automatización;
+- **Plan/Build y aprobaciones por umbral** (sección 25).
+
+Este documento **referencia (no duplica)**:
+- contexto mínimo, niveles de contexto y *context packs*: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`;
+- guía técnica *compact-first* y uso de herramientas MCP: `mcp_server/README.md`;
+- roles/arquitectura completa de Continue/OpenCode/MCP: `AGENT_ORCHESTRATION.md`;
+- formato detallado de handoff Continue → OpenCode: `.continue/rules/continue-opencode-handoff.md`.
+
 ## 2. Principio central
 
 Las reglas documentales no automatizan por sí solas la interacción entre agentes.
@@ -27,6 +42,8 @@ Las reglas definen el comportamiento esperado. La automatización real requiere 
 - registro de resultados;
 - actualización de índices;
 - trazabilidad visible para el usuario.
+
+Nota: la política canónica de **contexto por referencias**, niveles y *context packs* vive en `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
 
 ## 3. Objetivo de experiencia de usuario
 
@@ -155,13 +172,12 @@ Actualización de contexto, alertas, lecciones o índices
 
 ## 8. Punto de entrada preferido
 
-El punto de entrada preferido será Continue dentro de VS Code, siempre que pueda operar con herramientas del orquestador mediante una capa ejecutable.
+El punto de entrada preferido es **Continue dentro de VS Code** como interfaz conversacional, apoyado por una capa ejecutable del orquestador.
 
-Continue debe actuar como interfaz conversacional y copiloto contextual.
+- Roles operativos resumidos para Plan/Build: ver **25.6 Roles**.
+- Fuente canónica de roles y arquitectura de agentes: `AGENT_ORCHESTRATION.md`.
 
-OpenCode debe actuar como agente técnico validador, planificador, ejecutor o debugger según corresponda.
-
-El usuario debe poder permanecer en Continue, salvo que una tarea requiera explícitamente interacción directa con OpenCode, Replit u otra herramienta.
+El usuario debe poder permanecer en Continue salvo que una tarea requiera explícitamente interacción directa con OpenCode, Replit u otra herramienta.
 
 ## 9. Capa ejecutable requerida
 
@@ -226,6 +242,10 @@ Herramientas sugeridas:
 - `orchestrator.record_alert_candidate`
 - `orchestrator.render_user_trace`
 
+Referencias:
+- Guía técnica *compact-first* para consulta/operación MCP: `mcp_server/README.md`.
+- Política de evidencia por referencias (evitar dumps): `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+
 ## 12. Fase avanzada — Integración con OpenCode
 
 La integración con OpenCode debe validarse técnicamente.
@@ -271,25 +291,20 @@ El flujo automatizado ideal será:
 19. Se actualizan índices, alertas, lecciones o sincronización si aplica.
 20. Se muestra al usuario un resumen transparente del flujo.
 
+Notas canónicas relacionadas:
+- Contexto mínimo / *context packs* / niveles: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+- Formato de handoff Continue → OpenCode: `.continue/rules/continue-opencode-handoff.md`.
+
 ## 14. Visibilidad para el usuario
 
-El usuario debe poder ver un resumen del flujo como:
+El usuario debe poder consultar:
+- un **resumen ejecutivo** del flujo (qué se pidió, qué se consultó, qué se decidió, qué falta, qué requiere autorización);
+- y, si lo solicita, el **detalle técnico**.
 
-- solicitud recibida;
-- proyecto objetivo identificado;
-- fuentes consultadas;
-- alertas aplicables;
-- lecciones aplicables;
-- agente Continue: aportes y límites;
-- agente OpenCode: validación y decisión;
-- modelo seleccionado;
-- decisión de no escalar o escalar;
-- acciones realizadas;
-- autorizaciones solicitadas;
-- archivos modificados, si los hubo;
-- resultados;
-- pendientes;
-- lecciones o alertas propuestas.
+La trazabilidad debe ser consultable por referencias (por ejemplo: `run_id` + rutas + conteos + previews), evitando pegar artefactos completos salvo necesidad.
+
+Fuente canónica de campos mínimos de trazabilidad: sección 4.
+Regla de transparencia progresiva en Plan/Build: sección 25.7.
 
 ## 15. Bitácora de agentes
 
@@ -600,6 +615,8 @@ Referencias:
 - `MODEL_ROUTING.md` (routing y escalamiento)
 - `CONTINUE_USAGE_PROTOCOL.md` (uso de Continue en VS Code)
 
+Nota (runbook): los comandos de los anexos asumen ejecución desde `C:\Agente`. Para operación compact-first y consulta por estado/rutas, ver `mcp_server/README.md`.
+
 <!-- START: DIAGNOSTIC_FLOW_OPERATION_V0_1 -->
 
 ---
@@ -612,9 +629,8 @@ Su función es validar que el orquestador puede ejecutar una secuencia mínima d
 
 ### Comando oficial
 
-Ejecutar en PowerShell:
+Ejecutar en PowerShell (desde `C:\Agente`):
 
-    cd C:\Agente
     python .\scripts\run_diagnostic_flow.py
 
 ### Secuencia ejecutada
@@ -723,9 +739,8 @@ La primera ejecución validada produjo:
 
 El flujo debe permitir que el usuario revise el proceso sin abrir manualmente cada JSON o Markdown.
 
-Para ello debe usarse:
+Para ello debe usarse (desde `C:\Agente`):
 
-    cd C:\Agente
     python .\scripts\show_latest_run.py
 
 ### Estado de automatización
@@ -774,14 +789,12 @@ Esta fase confirma que OpenCode puede participar en la orquestación real sin qu
 
 ### Comando oficial
 
-Ejecutar en PowerShell:
+Ejecutar en PowerShell (desde `C:\Agente`):
 
-    cd C:\Agente
     python .\scripts\run_opencode_from_handoff.py --run-id <run-id>
 
 Ejemplo validado:
 
-    cd C:\Agente
     python .\scripts\run_opencode_from_handoff.py --run-id 20260506_111238_8e48193b
 
 ### Dependencia operativa en Windows
@@ -919,7 +932,7 @@ Debe seguir operando bajo estas restricciones:
 
 ### Transparencia
 
-El resultado de OpenCode debe ser visible para el usuario a través de:
+El resultado de OpenCode debe ser visible para el usuario a través de (desde `C:\Agente`):
 
     python .\scripts\show_latest_run.py
 
@@ -971,7 +984,8 @@ El comando unificado con OpenCode integrado permite ejecutar una mini-orquestaci
 
 ### Comando oficial
 
-    cd C:\Agente
+Ejecutar en PowerShell (desde `C:\Agente`):
+
     python .\scripts\run_diagnostic_flow.py --with-opencode
 
 ### Script principal
