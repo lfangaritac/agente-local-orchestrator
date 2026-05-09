@@ -18,6 +18,11 @@ docs/agent_queue/**
 **/TRACE.md
 **/RUN_SUMMARY.md
 
-# Logs de background
-**/*_stdout.log
-**/*_stderr.log
+# Logs y artefactos temporales (evitar carga accidental en contexto)
+# Nota: se mantienen patrones amplios (stdout/stderr) para cubrir variantes como:
+# - opencode_shell_stdout_json.log
+# - *_opencode_async_stdout.log
+**/*stdout*.log
+**/*stderr*.log
+**/validation_output.log
+**/RESULTADO_PARA_CHAT.md
