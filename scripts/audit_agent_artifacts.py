@@ -34,6 +34,10 @@ RUNS_DIR = ROOT / "docs" / "agent_runs"
 INBOX_DIR = ROOT / "docs" / "agent_queue" / "inbox"
 RUN_INDEX = ROOT / "docs" / "context" / "RUN_INDEX.md"
 
+# Destino recomendado para archivos de archive-only (fuera del repo).
+# Motivo: no ensuciar Git con zips de evidencia operacional.
+RECOMMENDED_ARCHIVE_DIR = Path(r"C:\Agente_Archives")
+
 
 @dataclass(frozen=True)
 class RunArtifactSummary:
@@ -116,15 +120,21 @@ def summarize_run(run_id: str) -> RunArtifactSummary:
     )
 
 
-def _resolve_within_root(path: Path) -> Path:
-    """Resuelve y bloquea rutas fuera del repo ROOT."""
-
-    resolved = path.resolve()
+def _is_within_root(path: Path) -> bool:
     try:
-        resolved.relative_to(ROOT)
-    except ValueError as exc:
-        raise ValueError("Ruta fuera de ROOT (bloqueada).") from exc
-    return resolved
+        path.resolve().relative_to(ROOT)
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_safe(path: Path) -> Path:
+    """Resuelve una ruta sin restringirla a ROOT.
+
+    Se usa para destinos de archivado fuera del repo.
+    """
+
+    return path.resolve()
 
 
 def _iter_files_recursive(base_dir: Path) -> list[Path]:
@@ -142,17 +152,21 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     - docs/agent_queue/inbox/<run_id>.{md,json}
 
     No borra ni mueve originales.
+
+    Seguridad:
+    - El destino recomendado es fuera del repo (para no ensuciar Git).
+    - El archivo zip se crea *únicamente* dentro del directorio indicado.
     """
 
     start = time.perf_counter()
 
-    # Resolver destino dentro de ROOT
     archive_dir = Path(archive_dir_arg)
     if not archive_dir.is_absolute():
+        # Si es relativo, se interpreta relativo a ROOT (puede ensuciar git si queda dentro del repo).
         archive_dir = ROOT / archive_dir
 
     try:
-        archive_dir = _resolve_within_root(archive_dir)
+        archive_dir = _resolve_safe(archive_dir)
     except Exception as exc:
         return {
             "ok": False,
@@ -194,22 +208,24 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
             "status": "not_found",
             "run_id": run_id,
             "error": "No se encontraron archivos del run ni handoffs asociados para archivar.",
-            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+            "archive_dir": str(archive_dir),
             "elapsed_ms": int((time.perf_counter() - start) * 1000),
         }
 
     ts = time.strftime("%Y%m%d_%H%M%S")
-    zip_path = archive_dir / f"{run_id}_{ts}.zip"
+    zip_path = _resolve_safe(archive_dir / f"{run_id}_{ts}.zip")
 
+    # Garantía: el zip debe quedar dentro del directorio solicitado.
     try:
-        zip_path = _resolve_within_root(zip_path)
+        if zip_path.parent.resolve() != archive_dir.resolve():
+            raise ValueError("zip_path fuera del directorio de archivo (bloqueado).")
     except Exception as exc:
         return {
             "ok": False,
             "status": "error",
             "run_id": run_id,
             "error": f"zip_path inválido: {exc}",
-            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+            "archive_dir": str(archive_dir),
         }
 
     try:
@@ -225,7 +241,7 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
             "status": "error",
             "run_id": run_id,
             "error": f"No se pudo crear zip: {exc}",
-            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+            "archive_dir": str(archive_dir),
         }
 
     try:
@@ -233,14 +249,20 @@ def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     except Exception:
         size_bytes = 0
 
+    archive_path = str(zip_path)
+    if _is_within_root(zip_path):
+        # Si el usuario archivó dentro del repo, dar ruta relativa para facilitar audit.
+        archive_path = str(zip_path.relative_to(ROOT)).replace("\\", "/")
+
     return {
         "ok": True,
         "status": "archived",
         "run_id": run_id,
-        "archive_path": str(zip_path.relative_to(ROOT)).replace("\\", "/"),
+        "archive_path": archive_path,
         "archive_bytes": size_bytes,
         "included_files": len(files_to_add),
         "elapsed_ms": int((time.perf_counter() - start) * 1000),
+        "archive_dir_within_repo": _is_within_root(archive_dir),
         "note": "Archive-only: no se borraron ni movieron originales.",
     }
 
@@ -290,7 +312,8 @@ def main() -> None:
         default=None,
         help=(
             "Modo archive-only (no destructivo): crea un .zip del run y handoffs asociados en el directorio indicado. "
-            "Por seguridad requiere --run-id (o --all explícito)."
+            "Por seguridad requiere --run-id (o --all explícito). "
+            f"Destino recomendado (fuera del repo): {RECOMMENDED_ARCHIVE_DIR}"
         ),
     )
     parser.add_argument(
@@ -384,6 +407,7 @@ def main() -> None:
         "archive": {
             "requested": bool(args.archive),
             "mode": "archive-only" if args.archive else "audit-only",
+            "recommended_dir": str(RECOMMENDED_ARCHIVE_DIR),
             "results": archive_results,
         },
         "policy": {
