@@ -23,12 +23,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 import zipfile
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Any, Iterable
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -152,6 +153,196 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _read_text_prefix(path: Path, max_chars: int = 12000) -> str:
+    """Lee un prefijo corto de un archivo (sin cargarlo completo)."""
+
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            return f.read(max_chars)
+    except Exception:
+        return ""
+
+
+def _find_first_status(obj: Any, max_depth: int = 4) -> str | None:
+    """Busca un campo `status` en JSON de forma best-effort con profundidad limitada."""
+
+    if max_depth < 0:
+        return None
+
+    if isinstance(obj, dict):
+        status = obj.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+        for v in obj.values():
+            found = _find_first_status(v, max_depth=max_depth - 1)
+            if found:
+                return found
+        return None
+
+    if isinstance(obj, list):
+        for v in obj:
+            found = _find_first_status(v, max_depth=max_depth - 1)
+            if found:
+                return found
+        return None
+
+    return None
+
+
+def infer_latest_status(run_dir: Path) -> str | None:
+    """Infiera latest_status sin leer artefactos completos.
+
+    Orden:
+    1) Prefijo de RUN_SUMMARY.md
+    2) Último agent_output JSON (si es razonablemente pequeño)
+    """
+
+    # 1) RUN_SUMMARY prefix
+    summary_prefix = _read_text_prefix(run_dir / "RUN_SUMMARY.md", max_chars=12000)
+    if summary_prefix:
+        m = re.search(r"[ÚU]ltimo\s+estado\s+registrado:\s*`([^`]+)`", summary_prefix)
+        if m:
+            return m.group(1).strip()
+
+    # 2) último agent_output
+    agent_dir = run_dir / "agent_outputs"
+    outputs = sorted(agent_dir.glob("*.json")) if agent_dir.exists() else []
+    if not outputs:
+        return None
+
+    try:
+        latest = max(outputs, key=lambda p: p.stat().st_mtime)
+        if latest.stat().st_size > 1_000_000:
+            return None
+        data = json.loads(latest.read_text(encoding="utf-8", errors="replace"))
+        return _find_first_status(data)
+    except Exception:
+        return None
+
+
+def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
+    """Health check compacto de un run (sin abrir raw_outputs/TRACE/RUN_SUMMARY completos)."""
+
+    start = time.perf_counter()
+
+    run_dir = RUNS_DIR / run_id
+    has_run_dir = bool(run_dir.exists() and run_dir.is_dir())
+
+    handoff_md = INBOX_DIR / f"{run_id}.md"
+    handoff_json = INBOX_DIR / f"{run_id}.json"
+
+    has_handoff_md = handoff_md.exists()
+    has_handoff_json = handoff_json.exists()
+
+    trace_path = run_dir / "TRACE.md"
+    summary_path = run_dir / "RUN_SUMMARY.md"
+
+    has_trace = trace_path.exists()
+    has_run_summary = summary_path.exists()
+
+    agent_outputs = sorted((run_dir / "agent_outputs").glob("*.json")) if (run_dir / "agent_outputs").exists() else []
+    raw_outputs = sorted((run_dir / "raw_outputs").glob("*.json")) if (run_dir / "raw_outputs").exists() else []
+
+    background_files = []
+    background_dir = run_dir / "background"
+    if background_dir.exists():
+        background_files = [p for p in background_dir.glob("*") if p.is_file()]
+
+    agent_outputs_count = len(agent_outputs)
+    raw_outputs_count = len(raw_outputs)
+    background_files_count = len(background_files)
+
+    opencode_outputs = [p for p in agent_outputs if "_opencode" in p.name]
+    opencode_raw_outputs = [p for p in raw_outputs if "_opencode_raw" in p.name]
+    opencode_registered = bool(opencode_outputs and opencode_raw_outputs)
+
+    indexed_in_run_index = is_registered_in_run_index(run_id)
+
+    latest_status = infer_latest_status(run_dir) if has_run_dir else None
+
+    # stale: hay background meta pero no hay outputs luego de cierto tiempo
+    now = time.time()
+    stale = False
+    try:
+        meta_files = sorted(background_dir.glob("*_meta.json")) if background_dir.exists() else []
+        if meta_files and agent_outputs_count == 0 and raw_outputs_count == 0:
+            newest_meta = max(meta_files, key=lambda p: p.stat().st_mtime)
+            age_s = now - newest_meta.stat().st_mtime
+            if age_s > max(1, int(stale_minutes)) * 60:
+                stale = True
+    except Exception:
+        stale = False
+
+    # failed: status explícito
+    failed = False
+    if isinstance(latest_status, str) and latest_status.strip().lower() in {"failed", "error", "errored"}:
+        failed = True
+
+    exists = bool(has_run_dir or has_handoff_md or has_handoff_json)
+
+    issues: list[str] = []
+    recommendations: list[str] = []
+
+    if not exists:
+        health_status = "missing"
+        issues.append("run_id no encontrado (sin run_dir ni handoff).")
+        recommendations.append("Verifica el run_id o crea/dispatch un nuevo run.")
+    elif has_run_dir and has_trace and has_run_summary and agent_outputs_count > 0:
+        health_status = "healthy"
+        if not opencode_registered:
+            issues.append("No hay evidencia completa de OpenCode (opencode_registered=false).")
+            recommendations.append("Si se esperaba OpenCode, reintentar dispatch o revisar background logs (por referencia).")
+    else:
+        health_status = "partial"
+
+    if failed:
+        health_status = "failed"
+        issues.append(f"Último status indica fallo: {latest_status}")
+        recommendations.append("Revisar agent_outputs (procesado) o reintentar el agente según el escenario.")
+
+    if stale and health_status not in {"failed"}:
+        health_status = "stale"
+        issues.append("Ejecución parece estancada (background meta sin outputs recientes).")
+        recommendations.append("Revisar proceso async/estado y reintentar check_opencode_run_status en unos segundos.")
+
+    if has_run_dir and not has_trace:
+        issues.append("Falta TRACE.md")
+    if has_run_dir and not has_run_summary:
+        issues.append("Falta RUN_SUMMARY.md")
+    if has_run_dir and agent_outputs_count == 0:
+        issues.append("Sin agent_outputs")
+
+    # archive_recommended: cuando hay evidencia valiosa o pesada (heurística simple)
+    archive_recommended = bool(has_run_dir and (indexed_in_run_index or raw_outputs_count > 0 or background_files_count > 0))
+    if archive_recommended:
+        recommendations.append(f"Archivar (no destructivo) con --archive {RECOMMENDED_ARCHIVE_DIR}")
+
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    return {
+        "run_id": run_id,
+        "exists": exists,
+        "has_run_dir": has_run_dir,
+        "has_handoff_md": bool(has_handoff_md),
+        "has_handoff_json": bool(has_handoff_json),
+        "has_trace": bool(has_trace),
+        "has_run_summary": bool(has_run_summary),
+        "agent_outputs_count": agent_outputs_count,
+        "raw_outputs_count": raw_outputs_count,
+        "background_files_count": background_files_count,
+        "latest_status": latest_status,
+        "opencode_registered": opencode_registered,
+        "archive_recommended": archive_recommended,
+        "indexed_in_RUN_INDEX": indexed_in_run_index,
+        "health_status": health_status,
+        "issues": issues[:10],
+        "recommendations": recommendations[:10],
+        "elapsed_ms": elapsed_ms,
+    }
 
 
 def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
@@ -377,6 +568,17 @@ def main() -> None:
         help="Incluye resumen de `git status --porcelain`.",
     )
     parser.add_argument(
+        "--health",
+        action="store_true",
+        help="Devuelve health check compacto para un run_id (requiere --run-id).",
+    )
+    parser.add_argument(
+        "--stale-minutes",
+        type=int,
+        default=15,
+        help="Umbral en minutos para marcar stale cuando hay background meta sin outputs (default 15).",
+    )
+    parser.add_argument(
         "--archive",
         default=None,
         help=(
@@ -410,6 +612,32 @@ def main() -> None:
         target_ids = [p.name for p in run_dirs[: max(0, args.max_runs)]]
 
     summaries = [summarize_run(run_id) for run_id in target_ids]
+
+    # Health check compacto (no escribe archivos)
+    if args.health:
+        if not args.run_id:
+            print(json.dumps({
+                "ok": False,
+                "status": "error",
+                "error": "--health requiere --run-id.",
+            }, ensure_ascii=False, indent=2))
+            sys.exit(2)
+
+        health = check_run_health(str(args.run_id), stale_minutes=int(args.stale_minutes))
+
+        out: dict[str, object] = {
+            "ok": True,
+            "status": "ok",
+            "mode": "health",
+            "root": str(ROOT),
+            "health": health,
+        }
+
+        if args.include_git_status:
+            out["git"] = git_dirty_porcelain()
+
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return
 
     # Archive-only (no destructivo): por defecto el script NO escribe nada.
     archive_results: list[dict[str, object]] = []
