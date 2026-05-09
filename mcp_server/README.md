@@ -121,13 +121,15 @@ Para evitar bloqueos se agregó:
 
     start_opencode_from_handoff_async
 
-Uso esperado desde Continue:
+Uso esperado desde Continue (compact-first):
 
 1. Ejecutar `run_diagnostic_flow` con `with_opencode=false`.
 2. Tomar el `run_id`.
 3. Ejecutar `start_opencode_from_handoff_async` con ese `run_id`.
 4. Esperar unos segundos.
-5. Ejecutar `show_latest_run` para revisar `TRACE.md`, `RUN_SUMMARY.md`, `agent_outputs/` y `raw_outputs/`.
+5. Ejecutar `get_run_status` o `check_opencode_run_status` para confirmar (con **conteos y flags**) si ya existe salida en `agent_outputs/` y `raw_outputs/`.
+
+Nota: `show_latest_run` imprime `RUN_SUMMARY.md` y `TRACE.md` completos y puede ser demasiado verboso para el chat de Continue. Usarlo solo si el usuario pide detalle y en modo **preview-only** (resumen/pedazos cortos).
 
 Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
 
@@ -139,11 +141,12 @@ Esta herramienta devuelve inmediatamente `status: started` y registra logs en:
 
 ## Uso recomendado con OpenCode asíncrono desde Continue
 
-Para usar OpenCode real desde Continue, usar el patrón en tres pasos:
+Para usar OpenCode real desde Continue, usar el patrón (compact-first):
 
 1. `run_diagnostic_flow` con `with_opencode=false`.
 2. `start_opencode_from_handoff_async` con el `run_id`.
-3. `show_latest_run` con el mismo `run_id`.
+3. `check_opencode_run_status` (o `get_run_status`) con el mismo `run_id`.
+4. (Opcional) `show_latest_run` solo si se necesita detalle y el usuario lo solicita.
 
 ### Herramienta async
 
@@ -163,7 +166,13 @@ La herramienta escribe logs en:
 
 ### Resultado final
 
-El resultado se consulta con:
+El resultado se consulta preferentemente con:
+
+    check_opencode_run_status
+
+(Respuesta compacta con existencia/conteos.)
+
+Si el usuario requiere detalle, usar:
 
     show_latest_run
 

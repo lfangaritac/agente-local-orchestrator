@@ -294,4 +294,55 @@ REPLIT_HANDOFF.md
 PROJECT_ACTIVATION_PROTOCOL.md
 SECRETS_MANIFEST.md
 QUICK_START.md
+```
 
+---
+
+## CONTEXT_BUDGET_AND_MINIMAL_MODE_POLICY
+
+### Objetivo
+Reducir consumo de tokens/contexto en Continue priorizando **cobertura por capas** (inventario → rutas → preview → fragmento) y evitando cargar artefactos voluminosos.
+
+### Reglas operativas
+
+1) **Usar `run_id` + rutas + conteos, no contenido completo**
+- Para runs/handoffs: reportar `run_id`, rutas, existencia, conteos y previews cortos.
+- No pegar `TRACE.md`, `RUN_SUMMARY.md` o handoffs completos en el chat salvo solicitud explícita.
+
+2) **Artefactos voluminosos: exclusión por defecto**
+No deben entrar al contexto “normal” (ni copiarse al chat) estos artefactos:
+- `docs/agent_runs/**`
+- `docs/agent_queue/**`
+- `**/raw_outputs/**`
+- `**/TRACE.md`
+- `**/RUN_SUMMARY.md`
+- `**/*_stdout.log`
+- `**/*_stderr.log`
+
+3) **MCP: política compact-first**
+- Preferir: `get_run_status` / `check_opencode_run_status`.
+- Evitar: `show_latest_run` desde Continue (es verboso). Usarlo solo si el usuario pide detalle y **resumiendo** (preview-only).
+
+4) **Evitar fuentes automáticas salvo necesidad**
+- No usar *Active File* para handoffs, TRACE, RUN_SUMMARY o logs.
+- No usar `@Terminal`, `@Git Diff`, `@Open` o “archivos abiertos” salvo necesidad específica.
+  - Si se usan, extraer solo el fragmento mínimo relevante.
+
+5) **Reglas Always Applied: versión mínima**
+- Mantener reglas permanentes (Always Applied) en versión mínima.
+- Preferir referencias a este protocolo en lugar de duplicar listas/formats extensos.
+
+6) **Autorización antes de cargar contexto grande**
+Antes de:
+- pegar un documento largo,
+- pegar un log,
+- abrir/pegar secciones grandes de `TRACE.md` o `RUN_SUMMARY.md`,
+Continue debe pedir autorización explícita y justificar por qué es necesario.
+
+---
+
+## Exclusiones configurables para Continue (best-effort)
+
+Este repositorio incluye un archivo `.continueignore` con exclusiones para reducir contaminación de contexto.
+
+Limitación: **no hay evidencia dentro del repo** de que la versión instalada de Continue lea `.continueignore`. Si no surte efecto, mantener esta política y configurar exclusiones/ignore en la configuración real de Continue (fuera del repo), según la versión instalada.

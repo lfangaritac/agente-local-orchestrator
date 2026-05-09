@@ -1,0 +1,23 @@
+# .continueignore
+#
+# Objetivo:
+# Reducir consumo de contexto/tokens en Continue excluyendo artefactos voluminosos.
+#
+# Compatibilidad:
+# - Este repositorio no contiene evidencia verificable de que Continue (versión instalada)
+#   lea .continueignore. Se incluye como mecanismo best-effort.
+# - Si tu Continue no lo respeta, usa la alternativa documentada en:
+#   CONTINUE_USAGE_PROTOCOL.md -> CONTEXT_BUDGET_AND_MINIMAL_MODE_POLICY.
+
+# Artefactos de orquestación (históricos / voluminosos)
+docs/agent_runs/**
+docs/agent_queue/**
+
+# Salidas crudas y bitácoras extensas
+**/raw_outputs/**
+**/TRACE.md
+**/RUN_SUMMARY.md
+
+# Logs de background
+**/*_stdout.log
+**/*_stderr.log
