@@ -23,6 +23,9 @@ import argparse
 import json
 import os
 import subprocess
+import sys
+import time
+import zipfile
 from typing import Iterable
 
 
@@ -113,6 +116,135 @@ def summarize_run(run_id: str) -> RunArtifactSummary:
     )
 
 
+def _resolve_within_root(path: Path) -> Path:
+    """Resuelve y bloquea rutas fuera del repo ROOT."""
+
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(ROOT)
+    except ValueError as exc:
+        raise ValueError("Ruta fuera de ROOT (bloqueada).") from exc
+    return resolved
+
+
+def _iter_files_recursive(base_dir: Path) -> list[Path]:
+    try:
+        return [p for p in base_dir.rglob("*") if p.is_file()]
+    except Exception:
+        return []
+
+
+def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
+    """Crea un zip no destructivo con evidencia local del run.
+
+    Incluye (si existen):
+    - docs/agent_runs/<run_id>/**
+    - docs/agent_queue/inbox/<run_id>.{md,json}
+
+    No borra ni mueve originales.
+    """
+
+    start = time.perf_counter()
+
+    # Resolver destino dentro de ROOT
+    archive_dir = Path(archive_dir_arg)
+    if not archive_dir.is_absolute():
+        archive_dir = ROOT / archive_dir
+
+    try:
+        archive_dir = _resolve_within_root(archive_dir)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": run_id,
+            "error": f"archive_dir inválido: {exc}",
+            "archive_dir": str(archive_dir),
+        }
+
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    run_dir = RUNS_DIR / run_id
+    inbox_md = INBOX_DIR / f"{run_id}.md"
+    inbox_json = INBOX_DIR / f"{run_id}.json"
+
+    files_to_add: list[tuple[Path, str]] = []
+
+    if run_dir.exists() and run_dir.is_dir():
+        for f in _iter_files_recursive(run_dir):
+            try:
+                rel = f.relative_to(ROOT).as_posix()
+            except Exception:
+                continue
+            arcname = f"{run_id}/" + rel
+            files_to_add.append((f, arcname))
+
+    for f in [inbox_md, inbox_json]:
+        if f.exists() and f.is_file():
+            try:
+                rel = f.relative_to(ROOT).as_posix()
+            except Exception:
+                continue
+            arcname = f"{run_id}/" + rel
+            files_to_add.append((f, arcname))
+
+    if not files_to_add:
+        return {
+            "ok": False,
+            "status": "not_found",
+            "run_id": run_id,
+            "error": "No se encontraron archivos del run ni handoffs asociados para archivar.",
+            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+            "elapsed_ms": int((time.perf_counter() - start) * 1000),
+        }
+
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    zip_path = archive_dir / f"{run_id}_{ts}.zip"
+
+    try:
+        zip_path = _resolve_within_root(zip_path)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": run_id,
+            "error": f"zip_path inválido: {exc}",
+            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+        }
+
+    try:
+        with zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for src, arcname in files_to_add:
+                try:
+                    zf.write(src, arcname=arcname)
+                except Exception:
+                    continue
+    except Exception as exc:
+        return {
+            "ok": False,
+            "status": "error",
+            "run_id": run_id,
+            "error": f"No se pudo crear zip: {exc}",
+            "archive_dir": str(archive_dir.relative_to(ROOT)).replace("\\", "/"),
+        }
+
+    try:
+        size_bytes = int(zip_path.stat().st_size)
+    except Exception:
+        size_bytes = 0
+
+    return {
+        "ok": True,
+        "status": "archived",
+        "run_id": run_id,
+        "archive_path": str(zip_path.relative_to(ROOT)).replace("\\", "/"),
+        "archive_bytes": size_bytes,
+        "included_files": len(files_to_add),
+        "elapsed_ms": int((time.perf_counter() - start) * 1000),
+        "note": "Archive-only: no se borraron ni movieron originales.",
+    }
+
+
 def git_dirty_porcelain() -> dict[str, object]:
     """Devuelve un resumen compacto del estado git (sin imprimir diffs)."""
 
@@ -153,6 +285,20 @@ def main() -> None:
         action="store_true",
         help="Incluye resumen de `git status --porcelain`.",
     )
+    parser.add_argument(
+        "--archive",
+        default=None,
+        help=(
+            "Modo archive-only (no destructivo): crea un .zip del run y handoffs asociados en el directorio indicado. "
+            "Por seguridad requiere --run-id (o --all explícito)."
+        ),
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Permite archivar múltiples runs cuando se usa --archive (respeta --max-runs).",
+    )
+
     args = parser.parse_args()
 
     # Runs disponibles (carpetas). Ojo: ignorar README/notes en docs/agent_runs.
@@ -172,6 +318,21 @@ def main() -> None:
         target_ids = [p.name for p in run_dirs[: max(0, args.max_runs)]]
 
     summaries = [summarize_run(run_id) for run_id in target_ids]
+
+    # Archive-only (no destructivo): por defecto el script NO escribe nada.
+    archive_results: list[dict[str, object]] = []
+    if args.archive:
+        if not args.run_id and not args.all:
+            print(json.dumps({
+                "ok": False,
+                "status": "error",
+                "error": "--archive requiere --run-id (o --all explícito).",
+                "archive_dir": str(args.archive),
+            }, ensure_ascii=False, indent=2))
+            sys.exit(2)
+
+        for run_id in target_ids:
+            archive_results.append(archive_run(run_id, str(args.archive)))
 
     # Archivos grandes (best-effort): solo scan de files bajo agent_runs (sin leer contenido)
     large_threshold = int(args.large_file_kb) * 1024
@@ -220,8 +381,13 @@ def main() -> None:
             for s in summaries
         ],
         "large_files_top": large_files,
+        "archive": {
+            "requested": bool(args.archive),
+            "mode": "archive-only" if args.archive else "audit-only",
+            "results": archive_results,
+        },
         "policy": {
-            "dry_run_only": True,
+            "dry_run_only": not bool(args.archive),
             "do_not_version": [
                 "docs/agent_runs/<run_id>/**",
                 "docs/agent_queue/inbox/<run_id>.*",
