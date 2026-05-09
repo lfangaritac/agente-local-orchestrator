@@ -42,6 +42,7 @@ Aplicar: `CONTINUE_USAGE_PROTOCOL.md` → **CONTEXT_BUDGET_AND_MINIMAL_MODE_POLI
 En particular:
 - No cargar al chat artefactos voluminosos (`docs/agent_runs/**`, `docs/agent_queue/**`, `raw_outputs/**`, `TRACE.md`, `RUN_SUMMARY.md`, logs).
 - Usar `run_id` + rutas + conteos + previews cortos.
+- Si hay ambigüedad de objetivo/alcance o decisión de umbral (riesgo/costo/seguridad/calidad), preguntar al usuario antes de ejecutar.
 
 ## 4) Alertas críticas (recordatorio compacto)
 

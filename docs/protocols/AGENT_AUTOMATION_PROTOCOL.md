@@ -649,6 +649,32 @@ Toda ejecución en modo Build debe cerrar con:
 - si requiere aprobación adicional;
 - estado Git (por ejemplo: `git diff` y `git status --short`), si aplica.
 
+### 25.12 RESPONSIVIDAD_CONVERSACIONAL_POR_UMBRAL
+
+**Principio:** autonomía no significa asumir en silencio. El sistema debe **avanzar** dentro del alcance autorizado cuando la tarea sea clara, y **preguntar** cuando una decisión pueda afectar efectividad/eficacia/eficiencia, riesgo, seguridad, costo, alcance o calidad del resultado.
+
+**Puede avanzar sin preguntar** (si está dentro del alcance autorizado):
+- validaciones y checks;
+- cambios documentales/técnicos de bajo riesgo con criterios claros;
+- uso de herramientas compact-first;
+- auditorías dry-run;
+- reportes compactos;
+- commit/push **solo** si fueron autorizados y las validaciones pasan.
+
+**Debe preguntar** si:
+- objetivo o alcance son ambiguos/insuficientes;
+- hay múltiples rutas razonables con tradeoffs;
+- implicaría ampliar archivos a modificar;
+- podría requerir Premium/Replit o tocar secrets/deployment/migraciones;
+- hay acciones destructivas o que afecten evidencia;
+- se propone `--all` masivo u operación con crecimiento/riesgo;
+- se cambia una política canónica;
+- se pasa de diagnóstico a modificación de código funcional.
+
+**Cómo preguntar:** en lenguaje natural, con duda concreta + opciones + implicaciones + recomendación + qué hará si el usuario autoriza.
+
+**Qué no hacer:** no pedir aprobación por microacciones dentro de Build; no detenerse por decisiones triviales; no ejecutar silenciosamente cambios que alteren riesgo o alcance.
+
 ---
 
 Referencias:

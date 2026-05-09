@@ -76,6 +76,18 @@ Política canónica: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` (sección 25)
 
 ---
 
+## Responsividad conversacional por umbral (operativo)
+
+Regla: avanzar con autonomía **cuando está claro**, preguntar **cuando cambia el umbral**.
+
+- **Avanza sin preguntar**: validaciones, compact-first tools, auditorías dry-run, reportes compactos, cambios de bajo riesgo dentro del alcance.
+- **Pregunta antes de ejecutar**: ambigüedad de objetivo/alcance, múltiples rutas con tradeoffs, ampliación de archivos a tocar, premium/Replit/secrets/deployment/migraciones/destructivo, cambios de política canónica, o pasar a modificar código funcional.
+- **Forma de pregunta**: duda concreta + 2–3 opciones + implicaciones + recomendación + “si autorizas haré X”.
+
+Fuente canónica: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25.12`.
+
+---
+
 ## Transparencia progresiva en chat (resumen)
 
 En Plan o Build, reportar primero:
