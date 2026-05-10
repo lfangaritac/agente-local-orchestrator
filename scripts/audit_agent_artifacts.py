@@ -566,13 +566,16 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
     manifest_path = Path(str(zip_path) + ".manifest.json")
 
     errors: list[str] = []
+    error_codes: list[str] = []
     zip_exists = zip_path.is_file()
     manifest_exists = manifest_path.is_file()
 
     if not zip_exists:
         errors.append(f"ZIP no encontrado: {zip_path}")
+        error_codes.append("zip_missing")
     if not manifest_exists:
         errors.append(f"Manifest no encontrado: {manifest_path}")
+        error_codes.append("manifest_missing")
 
     archive_sha256_actual = ""
     archive_sha256_manifest = ""
@@ -582,6 +585,8 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
     included_files_count_matches = False
 
     manifest_archive_obj: dict[str, Any] | None = None
+    manifest_parsed = False
+    manifest_schema_ok = False
 
     if zip_exists and manifest_exists:
         # 1) Leer manifest (solo metadatos)
@@ -589,6 +594,7 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8", errors="replace"))
             manifest_archive_obj = manifest.get("archive") if isinstance(manifest, dict) else None
             if not isinstance(manifest_archive_obj, dict):
+                error_codes.append("manifest_schema_error")
                 raise ValueError("Campo 'archive' inválido o ausente.")
 
             archive_sha256_manifest = str(manifest_archive_obj.get("sha256") or "").strip()
@@ -596,18 +602,28 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
             try:
                 manifest_included_files_count = int(raw_count)
             except Exception:
+                error_codes.append("manifest_bad_included_files_count")
                 raise ValueError("Campo 'archive.included_files_count' no es int.")
 
             if not archive_sha256_manifest:
                 errors.append("Manifest sin archive.sha256.")
+                error_codes.append("manifest_missing_sha256")
         except Exception as exc:
             errors.append(f"Error leyendo manifest: {exc}")
+            if not error_codes or error_codes[-1] not in ("manifest_schema_error", "manifest_bad_included_files_count"):
+                error_codes.append("manifest_read_error")
+        else:
+            manifest_parsed = True
+
+        if manifest_parsed:
+            manifest_schema_ok = bool(archive_sha256_manifest)
 
         # 2) Recalcular SHA256 del ZIP
         try:
             archive_sha256_actual = sha256_file(zip_path)
         except Exception as exc:
             errors.append(f"Error calculando SHA256: {exc}")
+            error_codes.append("sha256_calc_error")
 
         # 3) Contar entries del ZIP (sin extraer). Contar solo archivos (no directorios).
         try:
@@ -616,12 +632,14 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
                 zip_entries_count = sum(0 if getattr(zi, "is_dir", lambda: False)() else 1 for zi in infos)
         except Exception as exc:
             errors.append(f"Error leyendo ZIP: {exc}")
+            error_codes.append("zip_read_error")
 
         # 4) Comparaciones
         if archive_sha256_actual and archive_sha256_manifest:
             sha256_matches = archive_sha256_actual == archive_sha256_manifest
             if not sha256_matches:
                 errors.append("Mismatch de SHA256.")
+                error_codes.append("sha256_mismatch")
 
         if manifest_included_files_count is not None:
             included_files_count_matches = zip_entries_count == manifest_included_files_count
@@ -629,11 +647,16 @@ def verify_archive(zip_path_arg: str) -> dict[str, object]:
                 errors.append(
                     f"Mismatch de conteo de archivos: ZIP={zip_entries_count}, manifest={manifest_included_files_count}"
                 )
+                error_codes.append("included_files_count_mismatch")
 
     elapsed_ms = int((time.perf_counter() - start) * 1000)
 
     return {
         "ok": len(errors) == 0,
+        "status": "ok" if len(errors) == 0 else "error",
+        "error_codes": error_codes,
+        "manifest_parsed": manifest_parsed,
+        "manifest_schema_ok": manifest_schema_ok,
         "archive_path": str(zip_path),
         "manifest_path": str(manifest_path),
         "archive_exists": zip_exists,

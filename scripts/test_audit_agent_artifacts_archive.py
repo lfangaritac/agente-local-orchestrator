@@ -79,6 +79,7 @@ def main() -> None:
         v2 = audit.verify_archive(str(zip_path))
         assert v2["ok"] is False
         assert v2["sha256_matches"] is False
+        assert "sha256_mismatch" in v2["error_codes"]
         assert any("Mismatch de SHA256" in e for e in v2["errors"])
         print("Hash mismatch detected OK")
 
