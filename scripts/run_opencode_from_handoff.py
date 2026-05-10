@@ -239,6 +239,8 @@ def _is_disallowed_allowed_file(path: str) -> bool:
     p = _normalize_rel(path).lower()
     disallowed_prefixes = [
         ".env",
+        ".gitignore",
+        ".continueignore",
         "secrets",
         "docs/agent_runs/",
         "docs/agent_queue/",

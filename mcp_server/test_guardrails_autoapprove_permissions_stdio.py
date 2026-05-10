@@ -464,6 +464,38 @@ def main() -> None:
             raise AssertionError(f"Caso 13: status esperado blocked. parsed={r13}")
         assert_contains(str(r13.get("guardrail_error") or ""), "sensible/bloqueada", "Caso 13 guardrail_error")
 
+        # 14) Bloqueo por .gitignore
+        r14 = call_create_and_dispatch(
+            24,
+            {
+                **base_args,
+                "objective": "Bloqueo: allowed_files contiene .gitignore.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": [".gitignore"],
+            },
+        )
+        if r14.get("status") != "blocked":
+            raise AssertionError(f"Caso 14: status esperado blocked. parsed={r14}")
+        assert_contains(str(r14.get("guardrail_error") or ""), "sensible/bloqueada", "Caso 14 guardrail_error")
+
+        # 15) Bloqueo por .continueignore
+        r15 = call_create_and_dispatch(
+            25,
+            {
+                **base_args,
+                "objective": "Bloqueo: allowed_files contiene .continueignore.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": [".continueignore"],
+            },
+        )
+        if r15.get("status") != "blocked":
+            raise AssertionError(f"Caso 15: status esperado blocked. parsed={r15}")
+        assert_contains(str(r15.get("guardrail_error") or ""), "sensible/bloqueada", "Caso 15 guardrail_error")
+
         # Reporte compacto para debugging local si algo falla.
         result = {
             "ok": True,
@@ -482,6 +514,8 @@ def main() -> None:
                 "duplicates": {"status": r11.get("status"), "guardrail_error": r11.get("guardrail_error")},
                 "opencode_json_blocked": {"status": r12.get("status"), "guardrail_error": r12.get("guardrail_error")},
                 "opencode_config_example_blocked": {"status": r13.get("status"), "guardrail_error": r13.get("guardrail_error")},
+                "gitignore_blocked": {"status": r14.get("status"), "guardrail_error": r14.get("guardrail_error")},
+                "continueignore_blocked": {"status": r15.get("status"), "guardrail_error": r15.get("guardrail_error")},
             },
         }
 

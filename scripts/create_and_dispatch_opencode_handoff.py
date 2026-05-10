@@ -76,6 +76,8 @@ def main() -> None:
         p = path.strip().replace("\\", "/").lower()
         disallowed_prefixes = [
             ".env",
+            ".gitignore",
+            ".continueignore",
             "secrets",
             "docs/agent_runs/",
             "docs/agent_queue/",
