@@ -552,6 +552,103 @@ def git_dirty_porcelain() -> dict[str, object]:
     }
 
 
+def verify_archive(zip_path_arg: str) -> dict[str, object]:
+    """Verifica la integridad de un archive ZIP contra su manifest sidecar.
+
+    Reglas:
+    - No extrae el ZIP.
+    - No abre contenidos internos.
+    """
+
+    start = time.perf_counter()
+
+    zip_path = Path(zip_path_arg)
+    manifest_path = Path(str(zip_path) + ".manifest.json")
+
+    errors: list[str] = []
+    zip_exists = zip_path.is_file()
+    manifest_exists = manifest_path.is_file()
+
+    if not zip_exists:
+        errors.append(f"ZIP no encontrado: {zip_path}")
+    if not manifest_exists:
+        errors.append(f"Manifest no encontrado: {manifest_path}")
+
+    archive_sha256_actual = ""
+    archive_sha256_manifest = ""
+    sha256_matches = False
+    zip_entries_count = 0
+    manifest_included_files_count: int | None = None
+    included_files_count_matches = False
+
+    manifest_archive_obj: dict[str, Any] | None = None
+
+    if zip_exists and manifest_exists:
+        # 1) Leer manifest (solo metadatos)
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8", errors="replace"))
+            manifest_archive_obj = manifest.get("archive") if isinstance(manifest, dict) else None
+            if not isinstance(manifest_archive_obj, dict):
+                raise ValueError("Campo 'archive' inválido o ausente.")
+
+            archive_sha256_manifest = str(manifest_archive_obj.get("sha256") or "").strip()
+            raw_count = manifest_archive_obj.get("included_files_count")
+            try:
+                manifest_included_files_count = int(raw_count)
+            except Exception:
+                raise ValueError("Campo 'archive.included_files_count' no es int.")
+
+            if not archive_sha256_manifest:
+                errors.append("Manifest sin archive.sha256.")
+        except Exception as exc:
+            errors.append(f"Error leyendo manifest: {exc}")
+
+        # 2) Recalcular SHA256 del ZIP
+        try:
+            archive_sha256_actual = sha256_file(zip_path)
+        except Exception as exc:
+            errors.append(f"Error calculando SHA256: {exc}")
+
+        # 3) Contar entries del ZIP (sin extraer). Contar solo archivos (no directorios).
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                infos = zf.infolist()
+                zip_entries_count = sum(0 if getattr(zi, "is_dir", lambda: False)() else 1 for zi in infos)
+        except Exception as exc:
+            errors.append(f"Error leyendo ZIP: {exc}")
+
+        # 4) Comparaciones
+        if archive_sha256_actual and archive_sha256_manifest:
+            sha256_matches = archive_sha256_actual == archive_sha256_manifest
+            if not sha256_matches:
+                errors.append("Mismatch de SHA256.")
+
+        if manifest_included_files_count is not None:
+            included_files_count_matches = zip_entries_count == manifest_included_files_count
+            if not included_files_count_matches:
+                errors.append(
+                    f"Mismatch de conteo de archivos: ZIP={zip_entries_count}, manifest={manifest_included_files_count}"
+                )
+
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    return {
+        "ok": len(errors) == 0,
+        "archive_path": str(zip_path),
+        "manifest_path": str(manifest_path),
+        "archive_exists": zip_exists,
+        "manifest_exists": manifest_exists,
+        "archive_sha256_actual": archive_sha256_actual,
+        "archive_sha256_manifest": archive_sha256_manifest,
+        "sha256_matches": sha256_matches,
+        "zip_entries_count": zip_entries_count,
+        "manifest_included_files_count": manifest_included_files_count or 0,
+        "included_files_count_matches": included_files_count_matches,
+        "errors": errors,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Audita artefactos operacionales (read-only).")
     parser.add_argument("--run-id", default=None, help="Si se indica, audita solo ese run_id.")
@@ -592,8 +689,20 @@ def main() -> None:
         action="store_true",
         help="Permite archivar múltiples runs cuando se usa --archive (respeta --max-runs).",
     )
+    parser.add_argument(
+        "--verify-archive",
+        default=None,
+        help="Verifica la integridad de un archive ZIP (recalcula SHA256 y compara con manifest sidecar).",
+    )
 
     args = parser.parse_args()
+
+    # Modo verify-archive (no requiere escanear docs/agent_runs)
+    if args.verify_archive:
+        result_verify = verify_archive(str(args.verify_archive))
+        # JSON compacto (una línea) para facilitar consumo por tooling.
+        print(json.dumps(result_verify, ensure_ascii=False, separators=(",", ":")))
+        sys.exit(0 if result_verify["ok"] else 1)
 
     # Runs disponibles (carpetas). Ojo: ignorar README/notes en docs/agent_runs.
     run_dirs = [p for p in _safe_list_dirs(RUNS_DIR) if p.name and not p.name.endswith(".md")]
