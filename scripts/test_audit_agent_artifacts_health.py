@@ -165,9 +165,106 @@ def main() -> None:
 
         cases.append({"label": label, "ok": True, "health_status": got.get("health_status"), "got": got})
 
+    # --- Tests for infer_latest_run_id() ---
+
+    # 7) infer_latest_run_id desde runs_dir
+    label_inf = "infer_latest_run_id_from_runs_dir"
+    with tempfile.TemporaryDirectory(prefix="audit-latest-run-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        run_a = root / "docs" / "agent_runs" / "run_20260510_112400"
+        run_b = root / "docs" / "agent_runs" / "run_20260510_113000"
+        run_a.mkdir(parents=True)
+        run_b.mkdir(parents=True)
+        now = time.time()
+        os.utime(run_a, (now - 3600, now - 3600))
+        os.utime(run_b, (now, now))
+
+        got = audit.infer_latest_run_id()
+        if got != "run_20260510_113000":
+            raise AssertionError(f"{label_inf}: expected run_20260510_113000, got {got}")
+        cases.append({"label": label_inf, "ok": True, "got": got})
+
+    # 8) infer_latest_run_id fallback inbox
+    label_inf = "infer_latest_run_id_fallback_inbox"
+    with tempfile.TemporaryDirectory(prefix="audit-latest-run-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        inbox_dir = root / "docs" / "agent_queue" / "inbox"
+        inbox_dir.mkdir(parents=True)
+        handoff = inbox_dir / "run_20260510_114500.md"
+        handoff.write_text("handoff")
+        now = time.time()
+        os.utime(handoff, (now, now))
+
+        got = audit.infer_latest_run_id()
+        if got != "run_20260510_114500":
+            raise AssertionError(f"{label_inf}: expected run_20260510_114500, got {got}")
+        cases.append({"label": label_inf, "ok": True, "got": got})
+
+    # 9) infer_latest_run_id none
+    label_inf = "infer_latest_run_id_none"
+    with tempfile.TemporaryDirectory(prefix="audit-latest-run-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        got = audit.infer_latest_run_id()
+        if got is not None:
+            raise AssertionError(f"{label_inf}: expected None, got {got}")
+        cases.append({"label": label_inf, "ok": True, "got": got})
+
+    # --- Tests for compute_operational_status() ---
+
+    # 10) compute_operational_status sin git/subprocess, latest_run failed -> overall_status=error
+    label_cs = "compute_operational_status_latest_run_failed"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+
+        run_dir = root / "docs" / "agent_runs" / "run_failed_001"
+        run_dir.mkdir(parents=True)
+        _write_text(run_dir / "RUN_SUMMARY.md", "Último estado registrado: `failed`\n")
+
+        result, exit_code = audit.compute_operational_status(
+            include_git_status=False,
+            run_quick_checks=False,
+            verify_master_files=False,
+        )
+
+        if result.get("overall_status") != "error":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'error'. Got: {result}")
+        if exit_code != 2:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 2. Got: {exit_code}")
+        if result.get("latest_run_relevant") is None:
+            raise AssertionError(f"{label_cs}: latest_run_relevant no debe ser None. Got: {result}")
+        if (result.get("latest_run_relevant") or {}).get("health_status") != "failed":
+            raise AssertionError(f"{label_cs}: latest_run health_status debe ser 'failed'. Got: {result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
+    # 11) compute_operational_status sin git/subprocess, sin runs -> overall_status=ok
+    label_cs = "compute_operational_status_empty"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+
+        result, exit_code = audit.compute_operational_status(
+            include_git_status=False,
+            run_quick_checks=False,
+            verify_master_files=False,
+        )
+
+        if result.get("overall_status") != "ok":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'ok'. Got: {result}")
+        if exit_code != 0:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 0. Got: {exit_code}")
+        if result.get("latest_run_relevant") is not None:
+            raise AssertionError(f"{label_cs}: latest_run_relevant debe ser None. Got: {result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
     # --- Tests for next_actions_for_run() ---
 
-    # 7) next_actions missing: run_id no encontrado
+    # 12) next_actions missing: run_id no encontrado
     label_nx = "next_actions_missing"
     with tempfile.TemporaryDirectory(prefix="audit-next-actions-") as td:
         root = Path(td)

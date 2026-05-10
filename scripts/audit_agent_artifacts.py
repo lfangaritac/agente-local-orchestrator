@@ -391,6 +391,235 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
     }
 
 
+def infer_latest_run_id() -> str | None:
+    """Infiero el último run_id sin abrir artefactos voluminosos.
+
+    Orden de preferencia:
+    1) Directorios bajo RUNS_DIR (excluyendo .md).
+    2) Fallback a archivos .md en INBOX_DIR.
+    """
+
+    candidates: list[tuple[str, float]] = []
+
+    try:
+        for p in RUNS_DIR.iterdir():
+            if p.is_dir() and p.name and not p.name.endswith(".md"):
+                try:
+                    mtime = p.stat().st_mtime
+                    candidates.append((p.name, mtime))
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    if not candidates:
+        try:
+            for p in INBOX_DIR.glob("*.md"):
+                try:
+                    name = p.stem
+                    mtime = p.stat().st_mtime
+                    candidates.append((name, mtime))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    return candidates[0][0]
+
+
+def _run_subprocess_json(command: list[str], timeout_s: int = 120) -> dict[str, Any] | None:
+    """Ejecuta un comando y parsea su stdout como JSON. Devuelve None si falla."""
+
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_s,
+        )
+        stdout = (completed.stdout or "").strip()
+        if not stdout:
+            return None
+        return json.loads(stdout)
+    except Exception:
+        return None
+
+
+def compute_operational_status(
+    *,
+    include_git_status: bool,
+    run_quick_checks: bool,
+    verify_master_files: bool,
+) -> tuple[dict[str, object], int]:
+    """Compute operational status read-only (compact-first).
+
+    Retorna (result_dict, exit_code).
+    Exit codes:
+      0 = overall_status ok
+      1 = warn
+      2 = error (o error de ejecución interna)
+    """
+
+    start = time.perf_counter()
+
+    result: dict[str, object] = {
+        "ok": True,
+        "status": "ok",
+        "mode": "operational-status",
+    }
+
+    warnings: list[str] = []
+    exit_code = 0
+
+    # 1) git status
+    git_info: dict[str, object] | None = None
+    if include_git_status:
+        git_info = git_dirty_porcelain()
+        result["git"] = git_info
+        if git_info.get("ok") is not True:
+            warnings.append("git status failed")
+            result["git_clean"] = None
+            exit_code = max(exit_code, 2)
+        else:
+            dirty = bool(git_info.get("dirty"))
+            result["git_clean"] = not dirty
+            if dirty:
+                warnings.append("working tree dirty")
+                exit_code = max(exit_code, 1)
+    else:
+        result["git_clean"] = None
+
+    # 2) runner_quick
+    runner_quick: dict[str, object] = {"status": "not_run"}
+    if run_quick_checks:
+        quick_data = _run_subprocess_json(
+            [sys.executable, str(ROOT / "scripts" / "run_local_checks.py"), "--mode", "quick"],
+            timeout_s=120,
+        )
+        if quick_data is None:
+            runner_quick = {
+                "status": "error",
+                "error": "failed to run or parse quick checks",
+            }
+            warnings.append("quick checks execution failed")
+            exit_code = max(exit_code, 2)
+        else:
+            ok = bool(quick_data.get("ok"))
+            passed = int(quick_data.get("passed", 0))
+            failed = int(quick_data.get("failed", 0))
+            first_failure = quick_data.get("first_failure")
+            runner_quick = {
+                "status": "ok" if ok else "failed",
+                "passed": passed,
+                "failed": failed,
+                "first_failure": {
+                    "name": first_failure.get("name") if isinstance(first_failure, dict) else None,
+                    "returncode": first_failure.get("returncode") if isinstance(first_failure, dict) else None,
+                } if first_failure else None,
+            }
+            if not ok:
+                warnings.append(f"quick checks failed ({failed} failed)")
+                exit_code = max(exit_code, 1)
+        result["runner_quick"] = runner_quick
+    else:
+        result["runner_quick"] = runner_quick
+
+    # 3) verify_master_files
+    verify_info: dict[str, object] = {"status": "not_run"}
+    if verify_master_files:
+        vm_data = _run_subprocess_json(
+            [sys.executable, str(ROOT / "scripts" / "verify_master_files.py"), "--compact"],
+            timeout_s=60,
+        )
+        if vm_data is None:
+            verify_info = {
+                "status": "error",
+                "error": "failed to run or parse verify_master_files",
+            }
+            warnings.append("verify_master_files execution failed")
+            exit_code = max(exit_code, 2)
+        else:
+            # Modo compacto devuelve campos aplanados en la raíz (no bajo 'summary')
+            all_ok = bool(vm_data.get("all_ok")) if isinstance(vm_data, dict) else False
+            total_missing = int(vm_data.get("total_missing", 0)) if isinstance(vm_data, dict) else 0
+            total_errors = int(vm_data.get("total_errors", 0)) if isinstance(vm_data, dict) else 0
+            missing_files = vm_data.get("missing_files") if isinstance(vm_data, dict) else []
+            verify_info = {
+                "status": "ok" if all_ok else "missing",
+                "total_missing": total_missing,
+                "total_errors": total_errors,
+                "missing_files": missing_files[:10] if isinstance(missing_files, list) else [],
+            }
+            if not all_ok:
+                warnings.append(f"master files missing ({total_missing}) or errors ({total_errors})")
+                exit_code = max(exit_code, 1)
+        result["verify_master_files"] = verify_info
+    else:
+        result["verify_master_files"] = verify_info
+
+    # 4) latest_run_relevant
+    latest_run_id = infer_latest_run_id()
+    latest_run_info: dict[str, object] | None = None
+    if latest_run_id:
+        health = check_run_health(latest_run_id)
+        nx = next_actions_for_run(latest_run_id)
+        latest_run_info = {
+            "run_id": latest_run_id,
+            "health_status": health.get("health_status"),
+            "next_actions": nx.get("next_actions"),
+        }
+        hs = str(health.get("health_status") or "")
+        if hs == "failed":
+            warnings.append(f"latest run failed: {latest_run_id}")
+            exit_code = max(exit_code, 2)
+        elif hs in ("stale", "partial"):
+            warnings.append(f"latest run {hs}: {latest_run_id}")
+            exit_code = max(exit_code, 1)
+    result["latest_run_relevant"] = latest_run_info
+
+    # 5) warnings
+    result["warnings"] = warnings
+
+    # 6) suggested_next_step
+    suggested = "avanzar a siguiente tarea o build"
+    if include_git_status and result.get("git_clean") is False:
+        suggested = "limpiar working tree (git status)"
+    elif run_quick_checks and runner_quick.get("status") == "failed":
+        suggested = "revisar checks fallidos"
+    elif verify_master_files and verify_info.get("status") == "missing":
+        suggested = "revisar archivos maestros"
+    elif latest_run_info:
+        hs = str(latest_run_info.get("health_status") or "")
+        if hs == "failed":
+            suggested = f"revisar run fallido: {latest_run_id}"
+        elif hs == "stale":
+            suggested = f"revisar run estancado: {latest_run_id}"
+        elif hs == "partial":
+            suggested = f"revisar run parcial: {latest_run_id}"
+    result["suggested_next_step"] = suggested
+
+    # 7) overall_status
+    if exit_code == 2:
+        result["overall_status"] = "error"
+    elif exit_code == 1:
+        result["overall_status"] = "warn"
+    else:
+        result["overall_status"] = "ok"
+
+    result["ok"] = exit_code == 0
+    result["status"] = "ok" if exit_code == 0 else ("warn" if exit_code == 1 else "error")
+    result["elapsed_ms"] = int((time.perf_counter() - start) * 1000)
+
+    return result, exit_code
+
+
 def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     """Crea un zip no destructivo con evidencia local del run.
 
@@ -768,8 +997,33 @@ def main() -> None:
         default=None,
         help="Devuelve JSON compacto con próximas acciones recomendadas para un RUN_ID (basado en check_run_health). No escanea docs/agent_runs completo.",
     )
+    parser.add_argument(
+        "--operational-status",
+        action="store_true",
+        help="Modo diagnóstico operativo compact-first (read-only). Devuelve JSON con estado del repo + siguiente paso seguro.",
+    )
+    parser.add_argument(
+        "--run-quick-checks",
+        action="store_true",
+        help="Ejecuta python scripts/run_local_checks.py --mode quick (solo con --operational-status).",
+    )
+    parser.add_argument(
+        "--no-verify-master-files",
+        action="store_true",
+        help="Deshabilita verify_master_files en --operational-status (por defecto está activo).",
+    )
 
     args = parser.parse_args()
+
+    # Modo operational-status (read-only, compact-first)
+    if args.operational_status:
+        op_result, op_exit = compute_operational_status(
+            include_git_status=bool(args.include_git_status),
+            run_quick_checks=bool(args.run_quick_checks),
+            verify_master_files=not bool(args.no_verify_master_files),
+        )
+        print(json.dumps(op_result, ensure_ascii=False, separators=(",", ":")))
+        sys.exit(op_exit)
 
     # Modo verify-archive (no requiere escanear docs/agent_runs)
     if args.verify_archive:
