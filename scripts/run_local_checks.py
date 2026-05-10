@@ -197,7 +197,21 @@ def main() -> None:
     passed = sum(1 for r in results if r.ok)
     failed = sum(1 for r in results if not r.ok)
 
+    failed_checks = [r for r in results if not r.ok]
+
     duration_ms = int((time.perf_counter() - start_all) * 1000)
+
+    first_failure: dict | None = None
+    if failed_checks:
+        f = failed_checks[0]
+        first_failure = {
+            "name": f.name,
+            "returncode": f.returncode,
+            "elapsed_ms": f.elapsed_ms,
+            "command": f.command,
+            "stdout_preview": f.stdout_preview,
+            "stderr_preview": f.stderr_preview,
+        }
 
     out = {
         "ok": failed == 0,
@@ -210,6 +224,8 @@ def main() -> None:
         "require_clean": bool(args.require_clean),
         "git_clean": git_clean,
         "mcp_stdio_tests_included": bool(args.include_mcp_stdio_tests),
+        "failed_checks_names": [r.name for r in failed_checks],
+        "first_failure": first_failure,
         "checks": [
             {
                 "name": r.name,
