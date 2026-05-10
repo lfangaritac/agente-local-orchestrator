@@ -356,6 +356,82 @@ def main() -> None:
             raise AssertionError(f"Caso 7b: status esperado blocked. parsed={r7b}")
         assert_contains(str(r7b.get("guardrail_error") or ""), "rutas relativas", "Caso 7b guardrail_error")
 
+        # 8) Permitido: normalización de backslash
+        r8 = call_create_and_dispatch(
+            18,
+            {
+                **base_args,
+                "objective": "Caso permitido: allowed_files normaliza .\\ -> ./ -> limpio.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": [".\\QUICK_START.md"],
+            },
+        )
+        if r8.get("status") == "blocked":
+            raise AssertionError(f"Caso 8 (backslash): quedó blocked. parsed={r8}")
+        if r8.get("status") != "waiting_authorization":
+            raise AssertionError(f"Caso 8 (backslash): status inesperado. parsed={r8}")
+        if r8.get("guardrail_error") is not None:
+            raise AssertionError(f"Caso 8 (backslash): guardrail_error debe ser null. parsed={r8}")
+
+        # 9) Permitido: normalización de ./
+        r9 = call_create_and_dispatch(
+            19,
+            {
+                **base_args,
+                "objective": "Caso permitido: allowed_files normaliza ./ prefix.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": ["./QUICK_START.md"],
+            },
+        )
+        if r9.get("status") == "blocked":
+            raise AssertionError(f"Caso 9 (./): quedó blocked. parsed={r9}")
+        if r9.get("status") != "waiting_authorization":
+            raise AssertionError(f"Caso 9 (./): status inesperado. parsed={r9}")
+        if r9.get("guardrail_error") is not None:
+            raise AssertionError(f"Caso 9 (./): guardrail_error debe ser null. parsed={r9}")
+
+        # 10) Permitido: normalización de whitespace
+        r10 = call_create_and_dispatch(
+            20,
+            {
+                **base_args,
+                "objective": "Caso permitido: allowed_files normaliza whitespace.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": [" QUICK_START.md "],
+            },
+        )
+        if r10.get("status") == "blocked":
+            raise AssertionError(f"Caso 10 (whitespace): quedó blocked. parsed={r10}")
+        if r10.get("status") != "waiting_authorization":
+            raise AssertionError(f"Caso 10 (whitespace): status inesperado. parsed={r10}")
+        if r10.get("guardrail_error") is not None:
+            raise AssertionError(f"Caso 10 (whitespace): guardrail_error debe ser null. parsed={r10}")
+
+        # 11) Permitido: duplicados
+        r11 = call_create_and_dispatch(
+            21,
+            {
+                **base_args,
+                "objective": "Caso permitido: duplicados en allowed_files (debe dedup).",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": ["QUICK_START.md", "QUICK_START.md"],
+            },
+        )
+        if r11.get("status") == "blocked":
+            raise AssertionError(f"Caso 11 (duplicados): quedó blocked. parsed={r11}")
+        if r11.get("status") != "waiting_authorization":
+            raise AssertionError(f"Caso 11 (duplicados): status inesperado. parsed={r11}")
+        if r11.get("guardrail_error") is not None:
+            raise AssertionError(f"Caso 11 (duplicados): guardrail_error debe ser null. parsed={r11}")
+
         # Reporte compacto para debugging local si algo falla.
         result = {
             "ok": True,
@@ -368,6 +444,10 @@ def main() -> None:
                 "wildcard": {"status": r6.get("status"), "guardrail_error": r6.get("guardrail_error")},
                 "path_traversal": {"status": r7a.get("status"), "guardrail_error": r7a.get("guardrail_error")},
                 "absolute_path": {"status": r7b.get("status"), "guardrail_error": r7b.get("guardrail_error")},
+                "backslash_normalization": {"status": r8.get("status"), "guardrail_error": r8.get("guardrail_error")},
+                "dot_slash_normalization": {"status": r9.get("status"), "guardrail_error": r9.get("guardrail_error")},
+                "whitespace_normalization": {"status": r10.get("status"), "guardrail_error": r10.get("guardrail_error")},
+                "duplicates": {"status": r11.get("status"), "guardrail_error": r11.get("guardrail_error")},
             },
         }
 

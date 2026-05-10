@@ -100,6 +100,24 @@ def main() -> None:
             return False
         return True
 
+    def _normalize_path(path: str) -> str:
+        p = str(path)
+        p = p.strip()
+        p = p.replace("\\", "/")
+        while p.startswith("./"):
+            p = p[2:]
+        return p
+
+    # Normalize and deduplicate allowed_files before any validation or output.
+    raw_allowed = args.allowed_files or []
+    normalized_allowed = [_normalize_path(f) for f in raw_allowed]
+    seen: set[str] = set()
+    deduped_allowed: list[str] = []
+    for p in normalized_allowed:
+        if p not in seen:
+            seen.add(p)
+            deduped_allowed.append(p)
+
     # Guardrails previos al dispatch.
     guardrail_error: str | None = None
     if auto_approve_permissions:
@@ -109,14 +127,14 @@ def main() -> None:
             guardrail_error = "auto_approve_permissions=true requiere user_authorized_build=true."
         elif str(args.risk_level).lower().strip() != "low":
             guardrail_error = "auto_approve_permissions solo permitido con risk_level=low."
-        elif not args.allowed_files:
+        elif not deduped_allowed:
             guardrail_error = "auto_approve_permissions requiere allowed_files no vacío."
         else:
-            for f in args.allowed_files:
-                if not _is_exact_relative_path(str(f)):
+            for f in deduped_allowed:
+                if not _is_exact_relative_path(f):
                     guardrail_error = f"allowed_files debe contener rutas relativas exactas (sin wildcards): {f!r}"
                     break
-                if _is_disallowed_allowed_file(str(f)):
+                if _is_disallowed_allowed_file(f):
                     guardrail_error = f"allowed_files contiene ruta sensible/bloqueada para auto_approve_permissions: {f!r}"
                     break
 
@@ -129,7 +147,7 @@ def main() -> None:
         "model": args.model,
         "risk_level": args.risk_level,
         "scenario": args.scenario,
-        "allowed_files": args.allowed_files,
+        "allowed_files": deduped_allowed,
         "validation_commands": args.validation_commands,
         "requires_authorization": requires_auth,
         "authorization_granted": auth_granted,
@@ -146,7 +164,7 @@ def main() -> None:
 
     json_path.write_text(json.dumps(package, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    allowed_files_md = "\n".join(f"- `{f}`" for f in args.allowed_files) if args.allowed_files else "- N/A"
+    allowed_files_md = "\n".join(f"- `{f}`" for f in deduped_allowed) if deduped_allowed else "- N/A"
     validation_commands_md = "\n".join(f"- `{c}`" for c in args.validation_commands) if args.validation_commands else "- N/A"
 
     md_content = (
