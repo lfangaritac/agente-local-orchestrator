@@ -24,6 +24,60 @@ ROOT = Path(__file__).resolve().parents[1]
 QUEUE_INBOX = ROOT / "docs" / "agent_queue" / "inbox"
 RUNS = ROOT / "docs" / "agent_runs"
 
+# ---------------------------------------------------------------------------
+# Pre-gate: operational_status check
+# ---------------------------------------------------------------------------
+sys.path.insert(0, str(ROOT))
+from scripts.audit_agent_artifacts import compute_operational_status  # noqa: E402
+sys.path.pop(0)
+
+
+def _run_pregate() -> dict:
+    """Run operational-status pre-gate.
+
+    Returns compact pre_gate dict on success.
+    Exits script with error message on failure.
+    """
+    result_dict, _exit_code = compute_operational_status(
+        include_git_status=True,
+        run_quick_checks=True,
+        verify_master_files=True,
+    )
+
+    build_blocked = bool(result_dict.get("build_blocked", False))
+    ready_to_advance = bool(result_dict.get("ready_to_advance", False))
+    overall_status = str(result_dict.get("overall_status", "error") or "error")
+
+    if build_blocked or not ready_to_advance or overall_status != "ok":
+        block_info = {
+            "ok": False,
+            "status": "blocked_pre_gate",
+            "pre_gate": {
+                "build_blocked": build_blocked,
+                "ready_to_advance": ready_to_advance,
+                "overall_status": overall_status,
+                "blockers": result_dict.get("blockers", []),
+                "runner_quick": result_dict.get("runner_quick", {}),
+                "verify_master_files": result_dict.get("verify_master_files", {}),
+                "git_clean": result_dict.get("git_clean"),
+                "elapsed_ms": result_dict.get("elapsed_ms"),
+            },
+            "blockers": result_dict.get("blockers", []),
+            "next_action": result_dict.get("next_action"),
+        }
+        print(json.dumps(block_info, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    return {
+        "build_blocked": build_blocked,
+        "ready_to_advance": ready_to_advance,
+        "overall_status": overall_status,
+        "git_clean": result_dict.get("git_clean"),
+        "runner_quick_status": result_dict.get("runner_quick", {}).get("status"),
+        "master_files_status": result_dict.get("verify_master_files", {}).get("status"),
+        "elapsed_ms": result_dict.get("elapsed_ms"),
+    }
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -65,6 +119,8 @@ def main() -> None:
     user_authorized_build = args.user_authorized_build.lower() == "true"
 
     run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
+
+    compact_pregate = _run_pregate()
 
     QUEUE_INBOX.mkdir(parents=True, exist_ok=True)
     RUNS.mkdir(parents=True, exist_ok=True)
@@ -161,6 +217,7 @@ def main() -> None:
         "status": "created",
         "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
         "guardrail_error": guardrail_error,
+        "pre_gate": compact_pregate,
     }
 
     json_path = QUEUE_INBOX / f"{run_id}.json"
@@ -178,7 +235,11 @@ def main() -> None:
         f"- target_agent: `{args.target_agent}`\n"
         f"- scenario: `{args.scenario}`\n"
         f"- risk_level: `{args.risk_level}`\n"
-        f"- model: `{args.model}`\n\n"
+        f"- model: `{args.model}`\n"
+        f"- pre_gate_overall: `{compact_pregate['overall_status']}`\n"
+        f"- pre_gate_git_clean: `{compact_pregate['git_clean']}`\n"
+        f"- pre_gate_runner_quick: `{compact_pregate['runner_quick_status']}`\n"
+        f"- pre_gate_master_files: `{compact_pregate['master_files_status']}`\n\n"
         "## Objective\n\n"
         f"{args.objective}\n\n"
         "## Handoff Body\n\n"
@@ -214,7 +275,12 @@ def main() -> None:
         f"- auto_approve_permissions: {auto_approve_permissions}\n"
         f"- build_authorized: {build_authorized}\n"
         f"- user_authorized_build: {user_authorized_build}\n"
-        f"- guardrail_error: {guardrail_error}\n",
+        f"- guardrail_error: {guardrail_error}\n"
+        f"- pre_gate_overall: {compact_pregate['overall_status']}\n"
+        f"- pre_gate_git_clean: {compact_pregate['git_clean']}\n"
+        f"- pre_gate_runner_quick: {compact_pregate['runner_quick_status']}\n"
+        f"- pre_gate_master_files: {compact_pregate['master_files_status']}\n"
+        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n",
         encoding="utf-8",
     )
 
@@ -227,7 +293,12 @@ def main() -> None:
         f"- authorization: {auth_status}\n"
         f"- auto_approve_permissions: {auto_approve_permissions}\n"
         f"- build_authorized: {build_authorized}\n"
-        f"- user_authorized_build: {user_authorized_build}\n",
+        f"- user_authorized_build: {user_authorized_build}\n"
+        f"- pre_gate_overall: {compact_pregate['overall_status']}\n"
+        f"- pre_gate_git_clean: {compact_pregate['git_clean']}\n"
+        f"- pre_gate_runner_quick: {compact_pregate['runner_quick_status']}\n"
+        f"- pre_gate_master_files: {compact_pregate['master_files_status']}\n"
+        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n",
         encoding="utf-8",
     )
 

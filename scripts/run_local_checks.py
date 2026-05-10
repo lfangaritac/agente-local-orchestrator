@@ -118,6 +118,7 @@ def _build_checks(mode: str, *, include_mcp_stdio_tests: bool) -> list[tuple[str
         _py_run(r".\scripts\test_postcheck_scope_guardrail.py"),
         _py_run(r".\scripts\test_audit_agent_artifacts_health.py"),
         _py_run(r".\scripts\test_audit_agent_artifacts_archive.py"),
+        _py_run(r".\scripts\test_create_and_dispatch_pregate.py"),
     ]
 
     if mode == "quick":
