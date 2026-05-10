@@ -29,6 +29,7 @@ RUNS = ROOT / "docs" / "agent_runs"
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(ROOT))
 from scripts.audit_agent_artifacts import compute_operational_status  # noqa: E402
+from scripts.apply_to_project import parse_registry, resolve_project  # noqa: E402
 sys.path.pop(0)
 
 
@@ -79,6 +80,50 @@ def _run_pregate() -> dict:
     }
 
 
+def _resolve_target_project(
+    project_id: str,
+    project_query: str | None,
+    registry_path: Path,
+) -> dict | None:
+    """Resolve target project from PROJECT_REGISTRY.
+
+    Returns resolved target_project dict on success, None if resolution is skipped
+    (orchestrator with no --project). Exits script with error on failure.
+    """
+    skip_keywords = {"orchestrator", "none", ""}
+
+    if project_query:
+        query = project_query
+        resolution_source = "--project flag"
+    elif project_id.lower() in skip_keywords:
+        return None
+    else:
+        query = project_id
+        resolution_source = "project_id auto-resolution"
+
+    entries, warnings = parse_registry(registry_path)
+    resolve_result = resolve_project(query, entries)
+
+    resolve_result["resolution_source"] = resolution_source
+    resolve_result["query"] = query
+
+    if warnings:
+        resolve_result.setdefault("warnings", []).extend(warnings)
+
+    if not resolve_result["ok"]:
+        block_info = {
+            "ok": False,
+            "status": "blocked_target_project",
+            "target_project": resolve_result,
+            "errors": resolve_result.get("errors", []),
+            "warnings": resolve_result.get("warnings", []),
+        }
+        print(json.dumps(block_info, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    return resolve_result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-id", required=True)
@@ -92,6 +137,17 @@ def main() -> None:
     parser.add_argument("--validation-commands", action="append", default=[])
     parser.add_argument("--requires-authorization", type=str, default="false")
     parser.add_argument("--authorization-granted", type=str, default="false")
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="Project ID, alias, nombre canónico o ruta a resolver desde PROJECT_REGISTRY. "
+             "Si no se pasa y project_id != 'orchestrator', se intenta resolver usando project_id.",
+    )
+    parser.add_argument(
+        "--registry-path",
+        default=None,
+        help="Ruta al archivo PROJECT_REGISTRY.md (default: ROOT/PROJECT_REGISTRY.md).",
+    )
 
     # Guardrail: auto-approve de permisos (OpenCode) es peligroso.
     # Debe estar apagado por defecto y solo habilitarse con autorización explícita.
@@ -121,6 +177,18 @@ def main() -> None:
     run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
 
     compact_pregate = _run_pregate()
+
+    # Resolve target project BEFORE creating any artifacts.
+    registry_path = (
+        Path(args.registry_path).expanduser().resolve()
+        if args.registry_path
+        else ROOT / "PROJECT_REGISTRY.md"
+    )
+    target_project = _resolve_target_project(
+        project_id=args.project_id,
+        project_query=args.project,
+        registry_path=registry_path,
+    )
 
     QUEUE_INBOX.mkdir(parents=True, exist_ok=True)
     RUNS.mkdir(parents=True, exist_ok=True)
@@ -220,6 +288,19 @@ def main() -> None:
         "pre_gate": compact_pregate,
     }
 
+    if target_project is not None:
+        package["target_project"] = {
+            "ok": target_project["ok"],
+            "project_found": target_project["project_found"],
+            "matched_by": target_project["matched_by"],
+            "project": target_project["project"],
+            "candidates": target_project.get("candidates", []),
+            "errors": target_project.get("errors", []),
+            "warnings": target_project.get("warnings", []),
+            "resolution_source": target_project["resolution_source"],
+            "query": target_project["query"],
+        }
+
     json_path = QUEUE_INBOX / f"{run_id}.json"
     md_path = QUEUE_INBOX / f"{run_id}.md"
 
@@ -239,8 +320,21 @@ def main() -> None:
         f"- pre_gate_overall: `{compact_pregate['overall_status']}`\n"
         f"- pre_gate_git_clean: `{compact_pregate['git_clean']}`\n"
         f"- pre_gate_runner_quick: `{compact_pregate['runner_quick_status']}`\n"
-        f"- pre_gate_master_files: `{compact_pregate['master_files_status']}`\n\n"
-        "## Objective\n\n"
+        f"- pre_gate_master_files: `{compact_pregate['master_files_status']}`\n"
+    )
+
+    if target_project is not None:
+        tp = target_project["project"] or {}
+        md_content += (
+            f"- target_project_id: `{tp.get('id', '')}`\n"
+            f"- target_project_name: `{tp.get('name', '')}`\n"
+            f"- target_project_path: `{tp.get('path', '')}`\n"
+            f"- target_project_matched_by: `{target_project['matched_by']}`\n"
+            f"- target_project_resolution_source: `{target_project['resolution_source']}`\n"
+        )
+
+    md_content += (
+        "\n## Objective\n\n"
         f"{args.objective}\n\n"
         "## Handoff Body\n\n"
         f"{args.handoff_body}\n\n"
@@ -265,7 +359,7 @@ def main() -> None:
 
     auth_status = "granted" if auth_granted else ("pending" if requires_auth else "not_required")
 
-    trace_path.write_text(
+    trace_lines = (
         f"# TRACE — {run_id}\n\n"
         f"## Inicio — create_and_dispatch_opencode_handoff\n\n"
         f"- run_id: {run_id}\n"
@@ -280,11 +374,22 @@ def main() -> None:
         f"- pre_gate_git_clean: {compact_pregate['git_clean']}\n"
         f"- pre_gate_runner_quick: {compact_pregate['runner_quick_status']}\n"
         f"- pre_gate_master_files: {compact_pregate['master_files_status']}\n"
-        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n",
-        encoding="utf-8",
+        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n"
     )
 
-    summary_path.write_text(
+    if target_project is not None:
+        tp = target_project["project"] or {}
+        trace_lines += (
+            f"- target_project_id: {tp.get('id', '')}\n"
+            f"- target_project_name: {tp.get('name', '')}\n"
+            f"- target_project_path: {tp.get('path', '')}\n"
+            f"- target_project_matched_by: {target_project['matched_by']}\n"
+            f"- target_project_resolution_source: {target_project['resolution_source']}\n"
+        )
+
+    trace_path.write_text(trace_lines, encoding="utf-8")
+
+    summary_lines = (
         f"# RUN_SUMMARY — {run_id}\n\n"
         f"- status: created\n"
         f"- project_id: {args.project_id}\n"
@@ -298,9 +403,20 @@ def main() -> None:
         f"- pre_gate_git_clean: {compact_pregate['git_clean']}\n"
         f"- pre_gate_runner_quick: {compact_pregate['runner_quick_status']}\n"
         f"- pre_gate_master_files: {compact_pregate['master_files_status']}\n"
-        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n",
-        encoding="utf-8",
+        f"- pre_gate_elapsed_ms: {compact_pregate['elapsed_ms']}\n"
     )
+
+    if target_project is not None:
+        tp = target_project["project"] or {}
+        summary_lines += (
+            f"- target_project_id: {tp.get('id', '')}\n"
+            f"- target_project_name: {tp.get('name', '')}\n"
+            f"- target_project_path: {tp.get('path', '')}\n"
+            f"- target_project_matched_by: {target_project['matched_by']}\n"
+            f"- target_project_resolution_source: {target_project['resolution_source']}\n"
+        )
+
+    summary_path.write_text(summary_lines, encoding="utf-8")
 
     background_meta_path = None
 
