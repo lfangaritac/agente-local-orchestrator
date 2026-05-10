@@ -363,6 +363,8 @@ Esto no reemplaza `RUN_INDEX` y la evidencia archivada no es contexto base; se r
 - `show_latest_run`: solo bajo solicitud explícita y como detalle (*preview-only*; evitar uso por defecto).
 - `raw_outputs` y logs: consultar solo en Nivel 3/4 con autorización explícita.
 
+Nota (Build low-risk con OpenCode): en modo no interactivo, OpenCode puede requerir auto-aprobación de permisos para aplicar cambios. Esto solo debe habilitarse con un switch explícito + guardrails (risk_level=low + allowed_files acotado). Ver `mcp_server/README.md`.
+
 **Relación con `.continueignore`:** es mitigación *best-effort*; esta política prevalece aunque la instalación de Continue no soporte ignores.
 
 ## 16. Control humano

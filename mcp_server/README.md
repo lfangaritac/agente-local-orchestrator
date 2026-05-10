@@ -282,6 +282,13 @@ Esta herramienta:
 - `requires_authorization`
 - `authorization_granted`
 
+**Build low-risk (peligroso; default false):**
+
+- `auto_approve_permissions` (si true, usa internamente `opencode.cmd run --dangerously-skip-permissions`)
+- `build_authorized` (debe ser true si `auto_approve_permissions=true`)
+
+Guardrails: solo debe usarse con `risk_level=low` y `allowed_files` no vacío y acotado a rutas exactas (sin wildcards). Si los guardrails fallan, el dispatch queda `blocked`.
+
 ### Output
 
 - `ok`

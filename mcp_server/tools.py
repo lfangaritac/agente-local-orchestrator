@@ -528,10 +528,28 @@ def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None
     if arguments.get("authorization_granted") is True:
         command.extend(["--authorization-granted", "true"])
 
+    if arguments.get("auto_approve_permissions") is True:
+        command.extend(["--auto-approve-permissions", "true"])
+
+    if arguments.get("build_authorized") is True:
+        command.extend(["--build-authorized", "true"])
+
     result = _run_python_script(command, timeout=60)
+    parsed = _json_or_text(result.get("stdout", ""))
+
+    # Si el script devuelve ok=false en JSON, reflejarlo en la respuesta MCP.
+    if isinstance(parsed, dict) and parsed.get("ok") is False:
+        return {
+            "ok": False,
+            "status": parsed.get("status") or "error",
+            "error": parsed.get("error") or parsed.get("guardrail_error") or "create_and_dispatch_opencode_handoff bloqueado.",
+            "parsed": parsed,
+            "elapsed_ms": result.get("elapsed_ms"),
+        }
+
     return {
         **result,
-        "parsed": _json_or_text(result.get("stdout", "")),
+        "parsed": parsed,
     }
 
 

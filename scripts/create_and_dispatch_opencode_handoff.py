@@ -38,10 +38,24 @@ def main() -> None:
     parser.add_argument("--validation-commands", action="append", default=[])
     parser.add_argument("--requires-authorization", type=str, default="false")
     parser.add_argument("--authorization-granted", type=str, default="false")
+
+    # Guardrail: auto-approve de permisos (OpenCode) es peligroso.
+    # Debe estar apagado por defecto y solo habilitarse con autorización explícita.
+    parser.add_argument("--auto-approve-permissions", type=str, default="false")
+    parser.add_argument(
+        "--build-authorized",
+        type=str,
+        default="false",
+        help="Marcador explícito: el usuario autorizó modo Build para esta ejecución (requerido si auto_approve_permissions=true).",
+    )
+
     args = parser.parse_args()
 
     requires_auth = args.requires_authorization.lower() == "true"
     auth_granted = args.authorization_granted.lower() == "true"
+
+    auto_approve_permissions = args.auto_approve_permissions.lower() == "true"
+    build_authorized = args.build_authorized.lower() == "true"
 
     run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
 
@@ -50,6 +64,52 @@ def main() -> None:
 
     run_dir = RUNS / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+
+    def _is_disallowed_allowed_file(path: str) -> bool:
+        p = path.strip().replace("\\", "/").lower()
+        disallowed_prefixes = [
+            ".env",
+            "secrets",
+            "docs/agent_runs/",
+            "docs/agent_queue/",
+            "raw_outputs",
+            "deployment",
+            "deploy",
+            "migrations",
+            "infra",
+            "infrastructure",
+        ]
+        return any(p == pref or p.startswith(pref) for pref in disallowed_prefixes)
+
+    def _is_exact_relative_path(path: str) -> bool:
+        s = path.strip().replace("\\", "/")
+        if not s:
+            return False
+        if s.startswith("/") or ":" in s.split("/")[0]:
+            return False
+        if ".." in s.split("/"):
+            return False
+        if any(ch in s for ch in ["*", "?", "[", "]"]):
+            return False
+        return True
+
+    # Guardrails previos al dispatch.
+    guardrail_error: str | None = None
+    if auto_approve_permissions:
+        if not build_authorized:
+            guardrail_error = "auto_approve_permissions=true requiere build_authorized=true."
+        elif str(args.risk_level).lower().strip() != "low":
+            guardrail_error = "auto_approve_permissions solo permitido con risk_level=low."
+        elif not args.allowed_files:
+            guardrail_error = "auto_approve_permissions requiere allowed_files no vacío."
+        else:
+            for f in args.allowed_files:
+                if not _is_exact_relative_path(str(f)):
+                    guardrail_error = f"allowed_files debe contener rutas relativas exactas (sin wildcards): {f!r}"
+                    break
+                if _is_disallowed_allowed_file(str(f)):
+                    guardrail_error = f"allowed_files contiene ruta sensible/bloqueada para auto_approve_permissions: {f!r}"
+                    break
 
     package = {
         "run_id": run_id,
@@ -64,8 +124,11 @@ def main() -> None:
         "validation_commands": args.validation_commands,
         "requires_authorization": requires_auth,
         "authorization_granted": auth_granted,
+        "auto_approve_permissions": auto_approve_permissions,
+        "build_authorized": build_authorized,
         "status": "created",
         "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+        "guardrail_error": guardrail_error,
     }
 
     json_path = QUEUE_INBOX / f"{run_id}.json"
@@ -95,6 +158,10 @@ def main() -> None:
         "## Authorization\n\n"
         f"- requires_authorization: `{requires_auth}`\n"
         f"- authorization_granted: `{auth_granted}`\n\n"
+        "## Permissions (guardrails)\n\n"
+        f"- auto_approve_permissions: `{auto_approve_permissions}`\n"
+        f"- build_authorized: `{build_authorized}`\n"
+        f"- guardrail_error: `{guardrail_error}`\n\n"
         "## Status\n\ncreated\n"
     )
     md_path.write_text(md_content, encoding="utf-8")
@@ -110,7 +177,10 @@ def main() -> None:
         f"- run_id: {run_id}\n"
         f"- timestamp: {package['timestamp']}\n"
         f"- status: created\n"
-        f"- authorization: {auth_status}\n",
+        f"- authorization: {auth_status}\n"
+        f"- auto_approve_permissions: {auto_approve_permissions}\n"
+        f"- build_authorized: {build_authorized}\n"
+        f"- guardrail_error: {guardrail_error}\n",
         encoding="utf-8",
     )
 
@@ -120,13 +190,17 @@ def main() -> None:
         f"- project_id: {args.project_id}\n"
         f"- target_agent: {args.target_agent}\n"
         f"- model: {args.model}\n"
-        f"- authorization: {auth_status}\n",
+        f"- authorization: {auth_status}\n"
+        f"- auto_approve_permissions: {auto_approve_permissions}\n"
+        f"- build_authorized: {build_authorized}\n",
         encoding="utf-8",
     )
 
     background_meta_path = None
 
-    if requires_auth and not auth_granted:
+    if guardrail_error:
+        status = "blocked"
+    elif requires_auth and not auth_granted:
         status = "waiting_authorization"
     else:
         status = "dispatched"
@@ -154,6 +228,10 @@ def main() -> None:
             "--prompt",
             f"Lee el handoff {run_id} y actúa según el objetivo: {args.objective}",
         ]
+
+        # Solo permitir skip de permisos cuando está explícitamente autorizado y guardraileado.
+        if auto_approve_permissions:
+            command.append("--auto-approve-permissions")
 
         stdout_file = stdout_path.open("w", encoding="utf-8", errors="replace")
         stderr_file = stderr_path.open("w", encoding="utf-8", errors="replace")
@@ -185,6 +263,8 @@ def main() -> None:
             "stderr_path": str(stderr_path),
             "meta_path": str(background_meta_path),
             "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "auto_approve_permissions": auto_approve_permissions,
+            "build_authorized": build_authorized,
         }
         background_meta_path.write_text(json.dumps(meta, ensure_ascii=True, indent=2), encoding="utf-8")
 
@@ -201,6 +281,9 @@ def main() -> None:
         "target_agent": args.target_agent,
         "model": args.model,
         "next_tool": "check_opencode_run_status",
+        "auto_approve_permissions": auto_approve_permissions,
+        "build_authorized": build_authorized,
+        "guardrail_error": guardrail_error,
         "user_message": f"Handoff '{run_id}' creado. Estado: {status}.",
     }
 

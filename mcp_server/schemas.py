@@ -262,6 +262,16 @@ TOOL_SCHEMAS = [
                     "description": "Si la autorización humana ya fue concedida.",
                     "default": False,
                 },
+                "auto_approve_permissions": {
+                    "type": "boolean",
+                    "description": "Habilita auto-aprobación de permisos de OpenCode (usa internamente --dangerously-skip-permissions). Default false. Solo para Build low-risk con allowed_files acotado.",
+                    "default": False,
+                },
+                "build_authorized": {
+                    "type": "boolean",
+                    "description": "Marcador explícito: el usuario autorizó modo Build para esta ejecución (requerido si auto_approve_permissions=true).",
+                    "default": False,
+                },
             },
             "required": ["project_id", "objective", "target_agent", "model", "risk_level", "scenario"],
             "additionalProperties": False,

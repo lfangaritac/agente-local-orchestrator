@@ -33,6 +33,11 @@ def main() -> None:
     parser.add_argument("--agent", default="context-validator")
     parser.add_argument("--model", default="opencode-go/qwen3.6-plus")
     parser.add_argument(
+        "--auto-approve-permissions",
+        action="store_true",
+        help="Si se indica, pasa el flag de auto-aprobación de permisos a run_opencode_from_handoff (requiere guardrails en el paquete).",
+    )
+    parser.add_argument(
         "--prompt",
         default=(
             "Lee el archivo de handoff adjunto. Actúa en modo diagnóstico. "
@@ -77,6 +82,9 @@ def main() -> None:
         args.prompt,
     ]
 
+    if args.auto_approve_permissions:
+        command.append("--auto-approve-permissions")
+
     stdout_file = stdout_path.open("w", encoding="utf-8", errors="replace")
     stderr_file = stderr_path.open("w", encoding="utf-8", errors="replace")
 
@@ -97,6 +105,7 @@ def main() -> None:
 
     meta = {
         "ok": True,
+        "auto_approve_permissions": bool(args.auto_approve_permissions),
         "status": "started",
         "run_id": args.run_id,
         "pid": proc.pid,
@@ -107,7 +116,7 @@ def main() -> None:
         "stderr_path": str(stderr_path),
         "meta_path": str(meta_path),
         "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
-        "next_action": "Consultar show_latest_run luego de unos segundos para verificar si OpenCode registró resultado.",
+        "next_action": "Consultar run_health_check/check_opencode_run_status luego de unos segundos para verificar si OpenCode registró resultado.",
     }
 
     meta_path.write_text(json.dumps(meta, ensure_ascii=True, indent=2), encoding="utf-8")

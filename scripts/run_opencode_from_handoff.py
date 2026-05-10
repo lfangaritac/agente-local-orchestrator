@@ -228,6 +228,59 @@ def write_run_summary(run_id: str) -> None:
     summary_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _normalize_rel(path: str) -> str:
+    return path.strip().replace("\\", "/")
+
+
+def _is_disallowed_allowed_file(path: str) -> bool:
+    p = _normalize_rel(path).lower()
+    disallowed_prefixes = [
+        ".env",
+        "secrets",
+        "docs/agent_runs/",
+        "docs/agent_queue/",
+        "raw_outputs",
+        "deployment",
+        "deploy",
+        "migrations",
+        "infra",
+        "infrastructure",
+    ]
+    return any(p == pref or p.startswith(pref) for pref in disallowed_prefixes)
+
+
+def _is_exact_relative_path(path: str) -> bool:
+    s = _normalize_rel(path)
+    if not s:
+        return False
+    if s.startswith("/") or ":" in s.split("/")[0]:
+        return False
+    if ".." in s.split("/"):
+        return False
+    if any(ch in s for ch in ["*", "?", "[", "]"]):
+        return False
+    return True
+
+
+def _git_diff_name_only() -> list[str]:
+    try:
+        completed = subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except Exception:
+        return []
+
+    if completed.returncode != 0:
+        return []
+
+    return [_normalize_rel(ln) for ln in (completed.stdout or "").splitlines() if ln.strip()]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", default=None)
@@ -242,6 +295,11 @@ def main() -> None:
             "Responde con un JSON corto con estas claves: status, agent, model, file_read, summary, next_action."
         ),
     )
+
+    # Guardrail: este flag habilita auto-aprobación de permisos en OpenCode.
+    # Está apagado por defecto y solo debe usarse con package guardraileado.
+    parser.add_argument("--auto-approve-permissions", action="store_true")
+
     args = parser.parse_args()
 
     if args.run_id:
@@ -259,9 +317,49 @@ def main() -> None:
     agent = args.agent or package.get("target_agent") or "context-validator"
     model = args.model or "opencode-go/qwen3.6-plus"
 
+    # Auto-approve de permisos: solo cuando es explícito (flag) + package compatible.
+    auto_approve_permissions = bool(args.auto_approve_permissions)
+
+    if auto_approve_permissions:
+        # Requisitos mínimos (defensa en profundidad):
+        # - Debe estar explícitamente marcado como Build autorizado.
+        # - risk_level debe ser low.
+        # - allowed_files debe estar definido y ser una lista no vacía de rutas exactas.
+        if package.get("auto_approve_permissions") is not True:
+            safe_print("ERROR: auto_approve_permissions fue solicitado pero el paquete no lo habilita.")
+            sys.exit(2)
+
+        if package.get("build_authorized") is not True:
+            safe_print("ERROR: auto_approve_permissions requiere build_authorized=true en el paquete.")
+            sys.exit(2)
+
+        if str(package.get("risk_level") or "").lower().strip() != "low":
+            safe_print("ERROR: auto_approve_permissions solo permitido con risk_level=low.")
+            sys.exit(2)
+
+        allowed_files = package.get("allowed_files")
+        if not isinstance(allowed_files, list) or not allowed_files:
+            safe_print("ERROR: auto_approve_permissions requiere allowed_files no vacío en el paquete.")
+            sys.exit(2)
+
+        for f in allowed_files:
+            if not isinstance(f, str) or not _is_exact_relative_path(f):
+                safe_print(f"ERROR: allowed_files inválido para auto_approve_permissions (debe ser ruta exacta relativa): {f!r}")
+                sys.exit(2)
+            if _is_disallowed_allowed_file(f):
+                safe_print(f"ERROR: allowed_files contiene ruta sensible/bloqueada para auto_approve_permissions: {f!r}")
+                sys.exit(2)
+
     command = [
         "opencode.cmd",
         "run",
+    ]
+
+    if auto_approve_permissions:
+        # Nota: flag explícitamente peligroso de OpenCode.
+        command.append("--dangerously-skip-permissions")
+
+    command.extend([
         "--agent",
         agent,
         "--model",
@@ -271,7 +369,7 @@ def main() -> None:
         "--format",
         args.format,
         args.prompt,
-    ]
+    ])
 
     safe_print("=== Invocando OpenCode ===")
     safe_print(" ".join(command[:-1]) + " <prompt>")
@@ -296,6 +394,29 @@ def main() -> None:
     status = "diagnostic"
     summary = text[:700].replace("\n", " ").strip() if text else "OpenCode respondió sin texto extraíble."
 
+    # Post-check (guardrail): si se habilitó auto-approve, verificar que el diff solo toque allowed_files.
+    changed_files: list[str] = []
+    out_of_scope: list[str] = []
+
+    if auto_approve_permissions:
+        changed_files = _git_diff_name_only()
+        allowed_set = { _normalize_rel(str(p)) for p in (package.get("allowed_files") or []) }
+
+        for p in changed_files:
+            if p not in allowed_set:
+                out_of_scope.append(p)
+
+        if out_of_scope:
+            status = "error"
+            summary = (
+                "ERROR: OpenCode produjo cambios fuera de allowed_files. "
+                f"Fuera de alcance: {out_of_scope[:10]}"
+            )
+        elif changed_files:
+            status = "build_applied"
+        else:
+            status = "no_changes"
+
     run_dir = RUNS / run_id
     outputs_dir = run_dir / "agent_outputs"
     raw_outputs_dir = run_dir / "raw_outputs"
@@ -318,6 +439,10 @@ def main() -> None:
         "tokens": parsed.get("tokens"),
         "cost": parsed.get("cost"),
         "text": text,
+        "auto_approve_permissions": auto_approve_permissions,
+        "allowed_files": package.get("allowed_files"),
+        "changed_files": changed_files[:50],
+        "out_of_scope_changes": out_of_scope[:50],
     }
 
     result_path = outputs_dir / f"{safe_timestamp}_{agent}_opencode.json"
