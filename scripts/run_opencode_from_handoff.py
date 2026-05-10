@@ -229,7 +229,10 @@ def write_run_summary(run_id: str) -> None:
 
 
 def _normalize_rel(path: str) -> str:
-    return path.strip().replace("\\", "/")
+    p = str(path).strip().replace("\\", "/")
+    while p.startswith("./"):
+        p = p[2:]
+    return p
 
 
 def _is_disallowed_allowed_file(path: str) -> bool:

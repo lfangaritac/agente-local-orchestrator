@@ -80,6 +80,33 @@ def main() -> None:
         expected_out=[],
     )
 
+    # 6) Normalización: prefijo ./ en changed_files.
+    check(
+        "normalize_dot_slash_changed",
+        changed_files=["./docs/foo.md"],
+        allowed_files=["docs/foo.md"],
+        expected_status="build_applied",
+        expected_out=[],
+    )
+
+    # 7) Normalización: espacios accidentales en changed_files.
+    check(
+        "normalize_spaces_changed",
+        changed_files=[" docs/foo.md "],
+        allowed_files=["docs/foo.md"],
+        expected_status="build_applied",
+        expected_out=[],
+    )
+
+    # 8) Normalización: prefijo ./ en allowed_files + out-of-scope real.
+    check(
+        "normalize_dot_slash_allowed_with_extra",
+        changed_files=["docs/foo.md", "README.md"],
+        allowed_files=["./docs/foo.md"],
+        expected_status="error",
+        expected_out=["README.md"],
+    )
+
     print(json.dumps({"ok": True, "cases": cases}, ensure_ascii=True, indent=2))
 
 
