@@ -309,6 +309,16 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         issues.append("Ejecución parece estancada (background meta sin outputs recientes).")
         recommendations.append("Revisar proceso async/estado y reintentar check_opencode_run_status en unos segundos.")
 
+    if health_status == "partial" and background_files_count > 0 and agent_outputs_count == 0 and raw_outputs_count == 0:
+        has_meta = any("_meta.json" in p.name for p in background_files)
+        if has_meta:
+            recommendations.append("Reintentar check_opencode_run_status en unos segundos.")
+            recommendations.append("Reconsultar run_health_check luego de un intervalo.")
+            recommendations.append("Si persiste, revisar background logs por referencia (sin abrirlos automáticamente).")
+
+    if has_handoff_md and not has_run_dir:
+        recommendations.append("Handoff presente sin run_dir: verificar dispatch/autorización y reconsultar.")
+
     if has_run_dir and not has_trace:
         issues.append("Falta TRACE.md")
     if has_run_dir and not has_run_summary:
@@ -317,7 +327,14 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         issues.append("Sin agent_outputs")
 
     # archive_recommended: cuando hay evidencia valiosa o pesada (heurística simple)
-    archive_recommended = bool(has_run_dir and (indexed_in_run_index or raw_outputs_count > 0 or background_files_count > 0))
+    has_outputs = agent_outputs_count > 0 or raw_outputs_count > 0
+    archive_recommended = bool(
+        has_run_dir and (
+            indexed_in_run_index or
+            has_outputs or
+            (background_files_count > 0 and (stale or failed))
+        )
+    )
     if archive_recommended:
         recommendations.append(f"Archivar (no destructivo) con --archive {RECOMMENDED_ARCHIVE_DIR}")
 

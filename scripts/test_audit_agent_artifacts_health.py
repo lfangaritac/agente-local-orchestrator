@@ -128,6 +128,43 @@ def main() -> None:
 
     check("healthy_complete_run", setup_fn=setup_healthy, run_id="run_healthy", expect="healthy")
 
+    # 6) partial-in-progress: background meta reciente sin outputs, no archive prematuro.
+    def setup_partial_in_progress_meta_no_outputs(*, root: Path, run_id: str) -> None:
+        run_dir = root / "docs" / "agent_runs" / run_id
+        bg_dir = run_dir / "background"
+        now = time.time()
+        recent = now - 60
+        _touch(bg_dir / f"{run_id}_meta.json", mtime=recent)
+        # Sin agent_outputs / raw_outputs
+
+    label = "partial_in_progress_meta_no_outputs"
+    run_id = "run_in_progress"
+    with tempfile.TemporaryDirectory(prefix="audit-health-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        setup_partial_in_progress_meta_no_outputs(root=root, run_id=run_id)
+        got = audit.check_run_health(run_id, stale_minutes=15)
+
+        if got.get("health_status") != "partial":
+            raise AssertionError(f"{label}: health_status esperado='partial' got={got}")
+
+        recs_lower = [r.lower() for r in got.get("recommendations", [])]
+        if not any("check_opencode_run_status" in r for r in recs_lower):
+            raise AssertionError(
+                f"{label}: recommendations debe contener 'check_opencode_run_status'. Got: {got.get('recommendations')}"
+            )
+        if any("archivar" in r for r in recs_lower):
+            raise AssertionError(
+                f"{label}: recommendations no debe contener 'Archivar' (archive prematuro). Got: {got.get('recommendations')}"
+            )
+        if got.get("archive_recommended", False):
+            raise AssertionError(
+                f"{label}: archive_recommended debe ser False (run en progreso). Got: {got}"
+            )
+
+        cases.append({"label": label, "ok": True, "health_status": got.get("health_status"), "got": got})
+
     print(json.dumps({"ok": True, "cases": cases}, ensure_ascii=True, indent=2))
 
 
