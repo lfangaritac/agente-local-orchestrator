@@ -256,6 +256,9 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
     raw_outputs_count = len(raw_outputs)
     background_files_count = len(background_files)
 
+    background_meta_files = [p for p in background_files if "_meta.json" in p.name]
+    background_meta_count = len(background_meta_files)
+
     opencode_outputs = [p for p in agent_outputs if "_opencode" in p.name]
     opencode_raw_outputs = [p for p in raw_outputs if "_opencode_raw" in p.name]
     opencode_registered = bool(opencode_outputs and opencode_raw_outputs)
@@ -309,6 +312,15 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         issues.append("Ejecución parece estancada (background meta sin outputs recientes).")
         recommendations.append("Revisar proceso async/estado y reintentar check_opencode_run_status en unos segundos.")
 
+    # in_progress: background meta exists, no outputs, not stale, not failed
+    in_progress = bool(
+        background_meta_count > 0
+        and agent_outputs_count == 0
+        and raw_outputs_count == 0
+        and not stale
+        and not failed
+    )
+
     if health_status == "partial" and background_files_count > 0 and agent_outputs_count == 0 and raw_outputs_count == 0:
         has_meta = any("_meta.json" in p.name for p in background_files)
         if has_meta:
@@ -351,6 +363,8 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         "agent_outputs_count": agent_outputs_count,
         "raw_outputs_count": raw_outputs_count,
         "background_files_count": background_files_count,
+        "background_meta_count": background_meta_count,
+        "in_progress": in_progress,
         "latest_status": latest_status,
         "opencode_registered": opencode_registered,
         "archive_recommended": archive_recommended,
@@ -359,6 +373,125 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         "issues": issues[:10],
         "recommendations": recommendations[:10],
         "elapsed_ms": elapsed_ms,
+    }
+
+
+def _recovery_matrix(health: dict) -> dict[str, object]:
+    """Matriz compacta de recuperación: dado health, produce guía consistente."""
+
+    health_status = str(health.get("health_status", ""))
+    in_progress = bool(health.get("in_progress", False))
+    archive_recommended = bool(health.get("archive_recommended", False))
+    latest_status = health.get("latest_status")
+
+    if health_status == "missing":
+        return {
+            "decision": "verify",
+            "severity": "info",
+            "recommended_tool": "run_health_check",
+            "recommended_command": "(MCP) run_health_check",
+            "next_actions": [
+                "Verify run_id is correct",
+                "If run_id is valid, create/dispatch a new run",
+            ],
+            "should_wait": False,
+            "should_retry": False,
+            "should_stop": False,
+            "review_reference_only": True,
+            "archive_recommended": False,
+            "reason": "Run ID not found. Verify the run_id or create a new run.",
+        }
+
+    if health_status == "partial" and in_progress:
+        return {
+            "decision": "wait",
+            "severity": "warn",
+            "recommended_tool": "check_opencode_run_status",
+            "recommended_command": "(MCP) check_opencode_run_status",
+            "next_actions": [
+                "Wait for current run to complete",
+                "Re-consult check_opencode_run_status",
+                "Do NOT archive prematurely",
+            ],
+            "should_wait": True,
+            "should_retry": False,
+            "should_stop": True,
+            "review_reference_only": False,
+            "archive_recommended": False,
+            "reason": "Run appears in-progress (background meta without outputs). Block advance, wait and re-consult.",
+        }
+
+    if health_status == "partial":
+        return {
+            "decision": "verify",
+            "severity": "info",
+            "recommended_tool": "check_opencode_run_status",
+            "recommended_command": "(MCP) check_opencode_run_status",
+            "next_actions": [
+                "Verify run state via check_opencode_run_status",
+                "Review background logs by reference if needed",
+            ],
+            "should_wait": False,
+            "should_retry": False,
+            "should_stop": False,
+            "review_reference_only": True,
+            "archive_recommended": archive_recommended,
+            "reason": "Run is partial (incomplete artifacts). Verify state before proceeding.",
+        }
+
+    if health_status == "stale":
+        return {
+            "decision": "wait",
+            "severity": "warn",
+            "recommended_tool": "check_opencode_run_status",
+            "recommended_command": "(MCP) check_opencode_run_status + run_health_check",
+            "next_actions": [
+                "Wait and re-consult check_opencode_run_status",
+                "Review background logs by reference",
+                "If persists, consider re-dispatch",
+            ],
+            "should_wait": True,
+            "should_retry": True,
+            "should_stop": True,
+            "review_reference_only": False,
+            "archive_recommended": archive_recommended,
+            "reason": "Run is stale (background meta without recent outputs). Block advance, wait/re-consult.",
+        }
+
+    if health_status == "failed":
+        return {
+            "decision": "stop",
+            "severity": "error",
+            "recommended_tool": "check_opencode_run_status",
+            "recommended_command": "(MCP) check_opencode_run_status + run_health_check",
+            "next_actions": [
+                "Diagnose failure cause",
+                "Review agent_outputs (processed) by reference",
+                "Re-dispatch agent or correct error",
+            ],
+            "should_wait": False,
+            "should_retry": False,
+            "should_stop": True,
+            "review_reference_only": False,
+            "archive_recommended": archive_recommended,
+            "reason": f"Run failed (status: {latest_status or 'unknown'}). Block advance, diagnose and correct.",
+        }
+
+    # healthy or unknown
+    return {
+        "decision": "advance",
+        "severity": "ok",
+        "recommended_tool": "audit_agent_artifacts",
+        "recommended_command": "avanzar a siguiente tarea o build",
+        "next_actions": [
+            "Proceed with next task or build",
+        ],
+        "should_wait": False,
+        "should_retry": False,
+        "should_stop": False,
+        "review_reference_only": False,
+        "archive_recommended": archive_recommended,
+        "reason": "Run is healthy or no issues detected. Safe to advance.",
     }
 
 
@@ -379,16 +512,29 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
     if health_status in ("partial", "stale") or (isinstance(bg_count, int) and int(bg_count) > 0):
         suggested_tools.append("check_opencode_run_status")
 
-    return {
+    matrix = _recovery_matrix(health)
+
+    result: dict[str, object] = {
         "ok": True,
         "status": "ok",
         "run_id": run_id,
         "exists": health.get("exists", False),
         "health_status": health.get("health_status", "unknown"),
+        "in_progress": health.get("in_progress", False),
+        "background_meta_count": health.get("background_meta_count", 0),
         "latest_status": health.get("latest_status"),
         "next_actions": next_actions,
         "suggested_tools": suggested_tools,
     }
+
+    for key in ("decision", "severity", "recommended_tool", "recommended_command",
+                 "should_wait", "should_retry", "should_stop", "review_reference_only",
+                 "archive_recommended", "reason"):
+        result[key] = matrix.get(key)
+
+    result["extended_actions"] = list(matrix.get("next_actions", []))
+
+    return result
 
 
 def infer_latest_run_id() -> str | None:
@@ -586,30 +732,57 @@ def compute_operational_status(
     latest_run_id = infer_latest_run_id()
     latest_run_info: dict[str, object] | None = None
     if latest_run_id:
-        health = check_run_health(latest_run_id)
         nx = next_actions_for_run(latest_run_id)
+
+        decision = str(nx.get("decision") or "advance")
+        in_progress = bool(nx.get("in_progress", False))
+        hs = str(nx.get("health_status") or "")
+        should_stop = bool(nx.get("should_stop", False))
+
         latest_run_info = {
             "run_id": latest_run_id,
-            "health_status": health.get("health_status"),
+            "health_status": hs,
+            "in_progress": in_progress,
+            "decision": nx.get("decision"),
+            "severity": nx.get("severity"),
+            "should_stop": should_stop,
+            "should_wait": nx.get("should_wait", False),
+            "should_retry": nx.get("should_retry", False),
+            "review_reference_only": nx.get("review_reference_only", False),
+            "archive_recommended": nx.get("archive_recommended", False),
+            "reason": nx.get("reason", ""),
             "next_actions": nx.get("next_actions"),
+            "extended_actions": nx.get("extended_actions", []),
         }
-        hs = str(health.get("health_status") or "")
-        if hs == "failed":
+
+        # Use recovery matrix to decide blocker vs attention
+        if decision == "stop":
             blockers.append("latest_run_failed")
-            next_action = {"decision": "stop", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check + check_opencode_run_status"}
+            if next_action is None:
+                next_action = {"decision": "stop", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check + check_opencode_run_status"}
             exit_code = max(exit_code, 2)
-        elif hs == "stale":
-            attention.append("latest_run_stale")
+        elif decision == "wait" and should_stop:
+            # stale or partial+in_progress: block advance (attention, not blocker)
+            if hs == "stale":
+                attention.append("latest_run_stale")
+            elif hs == "partial":
+                attention.append("latest_run_partial_in_progress")
             if next_action is None:
                 next_action = {"decision": "wait", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
             exit_code = max(exit_code, 1)
-        elif hs == "partial":
-            attention.append("latest_run_partial")
-            if next_action is None:
-                next_action = {"decision": "verify", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
-            exit_code = max(exit_code, 1)
+        elif decision == "verify" and not should_stop:
+            # non-blocking verify guidance: does NOT change overall_status/exit_code.
+            if hs == "partial":
+                attention.append("latest_run_partial")
+                if next_action is None:
+                    next_action = {"decision": "verify", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
+            elif hs == "missing":
+                # missing does not block the repo
+                attention.append("latest_run_missing")
+                if next_action is None:
+                    next_action = {"decision": "verify", "tool": "run_health_check", "command": "(MCP) run_health_check"}
 
-        # h) archive_suggested
+        # archive_suggested
         next_actions_list = latest_run_info.get("next_actions") or []
         if isinstance(next_actions_list, list) and any("Archivar" in str(a) for a in next_actions_list):
             attention.append("archive_suggested")

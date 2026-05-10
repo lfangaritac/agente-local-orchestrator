@@ -162,6 +162,14 @@ def main() -> None:
             raise AssertionError(
                 f"{label}: archive_recommended debe ser False (run en progreso). Got: {got}"
             )
+        if got.get("in_progress") is not True:
+            raise AssertionError(
+                f"{label}: in_progress debe ser True (background meta sin outputs). Got: {got}"
+            )
+        if not isinstance(got.get("background_meta_count"), int) or int(got.get("background_meta_count", 0)) <= 0:
+            raise AssertionError(
+                f"{label}: background_meta_count debe ser > 0. Got: {got}"
+            )
 
         cases.append({"label": label, "ok": True, "health_status": got.get("health_status"), "got": got})
 
@@ -420,6 +428,233 @@ def main() -> None:
             raise AssertionError(f"{label_nx}: next_actions no debe estar vacío, got={got}")
 
         cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # --- Tests for next_actions_for_run recovery matrix ---
+
+    # 14) next_actions missing: decision=verify, should_stop=False
+    label_nx = "next_actions_missing_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        got = audit.next_actions_for_run("run_missing")
+        if got.get("decision") != "verify":
+            raise AssertionError(f"{label_nx}: decision debe ser 'verify', got={got.get('decision')}")
+        if got.get("severity") != "info":
+            raise AssertionError(f"{label_nx}: severity debe ser 'info', got={got.get('severity')}")
+        if got.get("should_stop") is not False:
+            raise AssertionError(f"{label_nx}: should_stop debe ser False, got={got.get('should_stop')}")
+        if got.get("review_reference_only") is not True:
+            raise AssertionError(f"{label_nx}: review_reference_only debe ser True, got={got.get('review_reference_only')}")
+        if got.get("archive_recommended") is not False:
+            raise AssertionError(f"{label_nx}: archive_recommended debe ser False, got={got.get('archive_recommended')}")
+        if not got.get("reason"):
+            raise AssertionError(f"{label_nx}: reason no debe estar vacío, got={got}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 15) next_actions partial in_progress: decision=wait, should_stop=True
+    label_nx = "next_actions_partial_in_progress_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        setup_partial_in_progress_meta_no_outputs(root=root, run_id="run_in_progress")
+        got = audit.next_actions_for_run("run_in_progress", stale_minutes=15)
+        if got.get("decision") != "wait":
+            raise AssertionError(f"{label_nx}: decision debe ser 'wait', got={got.get('decision')}")
+        if got.get("severity") != "warn":
+            raise AssertionError(f"{label_nx}: severity debe ser 'warn', got={got.get('severity')}")
+        if got.get("should_stop") is not True:
+            raise AssertionError(f"{label_nx}: should_stop debe ser True, got={got.get('should_stop')}")
+        if got.get("should_wait") is not True:
+            raise AssertionError(f"{label_nx}: should_wait debe ser True, got={got.get('should_wait')}")
+        if got.get("archive_recommended") is not False:
+            raise AssertionError(f"{label_nx}: archive_recommended debe ser False, got={got.get('archive_recommended')}")
+        if got.get("recommended_tool") != "check_opencode_run_status":
+            raise AssertionError(f"{label_nx}: recommended_tool debe ser 'check_opencode_run_status', got={got.get('recommended_tool')}")
+        if not got.get("reason"):
+            raise AssertionError(f"{label_nx}: reason no debe estar vacío, got={got}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 16) next_actions partial (run dir only, no background): decision=verify, should_stop=False
+    label_nx = "next_actions_partial_no_bg"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        (root / "docs" / "agent_runs" / "run_partial_no_bg").mkdir(parents=True, exist_ok=True)
+        got = audit.next_actions_for_run("run_partial_no_bg")
+        if got.get("decision") != "verify":
+            raise AssertionError(f"{label_nx}: decision debe ser 'verify', got={got.get('decision')}")
+        if got.get("severity") != "info":
+            raise AssertionError(f"{label_nx}: severity debe ser 'info', got={got.get('severity')}")
+        if got.get("should_stop") is not False:
+            raise AssertionError(f"{label_nx}: should_stop debe ser False, got={got.get('should_stop')}")
+        if got.get("review_reference_only") is not True:
+            raise AssertionError(f"{label_nx}: review_reference_only debe ser True, got={got.get('review_reference_only')}")
+        if got.get("in_progress") is not False:
+            raise AssertionError(f"{label_nx}: in_progress debe ser False, got={got.get('in_progress')}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 17) next_actions stale: decision=wait, should_stop=True
+    label_nx = "next_actions_stale_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_stale"
+        bg_dir = run_dir / "background"
+        now = time.time()
+        old = now - (60 * 60)
+        _touch(bg_dir / "run_stale_meta.json", mtime=old)
+        got = audit.next_actions_for_run("run_stale", stale_minutes=1)
+        if got.get("decision") != "wait":
+            raise AssertionError(f"{label_nx}: decision debe ser 'wait', got={got.get('decision')}")
+        if got.get("severity") != "warn":
+            raise AssertionError(f"{label_nx}: severity debe ser 'warn', got={got.get('severity')}")
+        if got.get("should_stop") is not True:
+            raise AssertionError(f"{label_nx}: should_stop debe ser True, got={got.get('should_stop')}")
+        if got.get("should_wait") is not True:
+            raise AssertionError(f"{label_nx}: should_wait debe ser True, got={got.get('should_wait')}")
+        if got.get("should_retry") is not True:
+            raise AssertionError(f"{label_nx}: should_retry debe ser True, got={got.get('should_retry')}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 18) next_actions failed: decision=stop, should_stop=True
+    label_nx = "next_actions_failed_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_failed"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        _write_text(run_dir / "RUN_SUMMARY.md", "Último estado registrado: `failed`\n")
+        got = audit.next_actions_for_run("run_failed")
+        if got.get("decision") != "stop":
+            raise AssertionError(f"{label_nx}: decision debe ser 'stop', got={got.get('decision')}")
+        if got.get("severity") != "error":
+            raise AssertionError(f"{label_nx}: severity debe ser 'error', got={got.get('severity')}")
+        if got.get("should_stop") is not True:
+            raise AssertionError(f"{label_nx}: should_stop debe ser True, got={got.get('should_stop')}")
+        if got.get("review_reference_only") is not False:
+            raise AssertionError(f"{label_nx}: review_reference_only debe ser False, got={got.get('review_reference_only')}")
+        if not got.get("reason"):
+            raise AssertionError(f"{label_nx}: reason no debe estar vacío, got={got}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 19) next_actions healthy: decision=advance, severity=ok, should_stop=False
+    label_nx = "next_actions_healthy_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_healthy"
+        _write_text(run_dir / "TRACE.md", "# TRACE\n")
+        _write_text(run_dir / "RUN_SUMMARY.md", "Último estado registrado: `diagnostic`\n")
+        agent_out = {"run_id": "run_healthy", "status": "diagnostic", "message": "ok"}
+        _write_text(run_dir / "agent_outputs" / "run_healthy_opencode_output.json", json.dumps(agent_out))
+        _write_text(run_dir / "raw_outputs" / "run_healthy_opencode_raw_output.json", json.dumps({"raw": "data"}))
+        got = audit.next_actions_for_run("run_healthy")
+        if got.get("decision") != "advance":
+            raise AssertionError(f"{label_nx}: decision debe ser 'advance', got={got.get('decision')}")
+        if got.get("severity") != "ok":
+            raise AssertionError(f"{label_nx}: severity debe ser 'ok', got={got.get('severity')}")
+        if got.get("should_stop") is not False:
+            raise AssertionError(f"{label_nx}: should_stop debe ser False, got={got.get('should_stop')}")
+        if got.get("should_wait") is not False:
+            raise AssertionError(f"{label_nx}: should_wait debe ser False, got={got.get('should_wait')}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # --- Tests for compute_operational_status integration ---
+
+    # 20) compute_operational_status: latest_run partial in_progress -> overall_status=warn, attention
+    label_cs = "compute_operational_status_partial_in_progress"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        setup_partial_in_progress_meta_no_outputs(root=root, run_id="run_ip")
+        result, exit_code = audit.compute_operational_status(
+            include_git_status=False,
+            run_quick_checks=False,
+            verify_master_files=False,
+        )
+        latest = result.get("latest_run_relevant") or {}
+        if latest.get("health_status") != "partial":
+            raise AssertionError(f"{label_cs}: health_status debe ser 'partial', got={latest}")
+        if latest.get("in_progress") is not True:
+            raise AssertionError(f"{label_cs}: in_progress debe ser True, got={latest}")
+        if latest.get("decision") != "wait":
+            raise AssertionError(f"{label_cs}: decision debe ser 'wait', got={latest}")
+        if "latest_run_partial_in_progress" not in result.get("attention", []):
+            raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_partial_in_progress', got={result}")
+        if result.get("overall_status") != "warn":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'warn', got={result}")
+        if result.get("ready_to_advance") is not False:
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser False (partial+in_progress bloquea avance), got={result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
+    # 21) compute_operational_status: latest_run stale -> overall_status=warn, attention, blocks advance
+    label_cs = "compute_operational_status_stale"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_stale"
+        bg_dir = run_dir / "background"
+        now = time.time()
+        old = now - (60 * 60)
+        _touch(bg_dir / "run_stale_meta.json", mtime=old)
+        result, exit_code = audit.compute_operational_status(
+            include_git_status=False,
+            run_quick_checks=False,
+            verify_master_files=False,
+        )
+        latest = result.get("latest_run_relevant") or {}
+        if latest.get("health_status") != "stale":
+            raise AssertionError(f"{label_cs}: health_status debe ser 'stale', got={latest}")
+        if latest.get("decision") != "wait":
+            raise AssertionError(f"{label_cs}: decision debe ser 'wait', got={latest}")
+        if "latest_run_stale" not in result.get("attention", []):
+            raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_stale', got={result}")
+        if result.get("overall_status") != "warn":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'warn', got={result}")
+        if result.get("ready_to_advance") is not False:
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser False (stale bloquea), got={result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
+    # 22) compute_operational_status: latest_run partial (no bg, no in_progress) -> no block
+    label_cs = "compute_operational_status_partial_no_in_progress"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_partial"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        # Empty run dir -> partial, no background -> not in_progress
+        result, exit_code = audit.compute_operational_status(
+            include_git_status=False,
+            run_quick_checks=False,
+            verify_master_files=False,
+        )
+        latest = result.get("latest_run_relevant") or {}
+        if latest.get("health_status") != "partial":
+            raise AssertionError(f"{label_cs}: health_status debe ser 'partial', got={latest}")
+        if latest.get("in_progress") is not False:
+            raise AssertionError(f"{label_cs}: in_progress debe ser False, got={latest}")
+        if latest.get("decision") != "verify":
+            raise AssertionError(f"{label_cs}: decision debe ser 'verify', got={latest}")
+        if "latest_run_partial" not in result.get("attention", []):
+            raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_partial', got={result}")
+        if result.get("build_blocked") is not False:
+            raise AssertionError(f"{label_cs}: build_blocked debe ser False (partial no-in-progress no bloquea), got={result}")
+        if result.get("overall_status") != "ok":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'ok' (no debe bloquear pre-gate), got={result}")
+        if exit_code != 0:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 0 (no debe bloquear), got={exit_code}")
+        if result.get("ready_to_advance") is not True:
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser True (partial no-in-progress no bloquea), got={result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
 
     print(json.dumps({"ok": True, "cases": cases}, ensure_ascii=True, indent=2))
 
