@@ -352,6 +352,31 @@ TOOL_SCHEMAS = [
             },
             "additionalProperties": False
         }
-    }
+    },
+    {
+        "name": "operational_status",
+        "description": "Diagnóstico operativo compact-first del orquestador (estado git, quick checks, master files, último run). Read-only.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "include_git_status": {
+                    "type": "boolean",
+                    "description": "Incluye resumen de git status --porcelain.",
+                    "default": True,
+                },
+                "run_quick_checks": {
+                    "type": "boolean",
+                    "description": "Ejecuta scripts/run_local_checks.py --mode quick.",
+                    "default": False,
+                },
+                "verify_master_files": {
+                    "type": "boolean",
+                    "description": "Verifica archivos maestros críticos.",
+                    "default": True,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 

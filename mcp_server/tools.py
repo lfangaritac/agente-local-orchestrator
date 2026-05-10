@@ -39,6 +39,7 @@ ALLOWED_TOOLS = {
     "run_health_check",
     "verify_master_files",
     "create_and_dispatch_opencode_handoff",
+    "operational_status",
 }
 
 
@@ -615,6 +616,59 @@ def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, An
     }
 
 
+def operational_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Diagnóstico operativo compact-first vía scripts/audit_agent_artifacts.py --operational-status.
+
+    Restricciones:
+    - Read-only.
+    - No abre raw_outputs ni TRACE/RUN_SUMMARY completos.
+    - Devuelve payload normalizado del script (sin duplicar stdout/stderr completos).
+    """
+
+    arguments = arguments or {}
+
+    command = [
+        "scripts/audit_agent_artifacts.py",
+        "--operational-status",
+    ]
+
+    if arguments.get("include_git_status", True) is True:
+        command.append("--include-git-status")
+
+    if arguments.get("run_quick_checks", False) is True:
+        command.append("--run-quick-checks")
+
+    if arguments.get("verify_master_files", True) is False:
+        command.append("--no-verify-master-files")
+
+    result = _run_python_script(command, timeout=120, max_output_chars=65536)
+
+    parsed = _json_or_text(result.get("stdout", ""))
+    if isinstance(parsed, dict):
+        # El script ya devuelve ok/status/overall_status/etc.
+        # Preservar el ok operativo original antes de sobrescribir.
+        operational_ok = bool(parsed.get("ok"))
+        # Forzar ok=True para MCP cuando el JSON parseó, evitando isError por warn/error operativo.
+        parsed["ok"] = True
+        parsed["operational_ok"] = operational_ok
+        parsed.setdefault("elapsed_ms", result.get("elapsed_ms"))
+        return parsed
+
+    # Fallback si stdout no es JSON
+    stderr_raw = result.get("stderr", "")
+    stderr_preview = stderr_raw
+    if len(stderr_preview) > 1200:
+        stderr_preview = stderr_preview[:1200] + "\n... [truncated]"
+
+    return {
+        "ok": False,
+        "status": "error",
+        "error": "Salida no JSON del operational status.",
+        "stderr_preview": stderr_preview,
+        "elapsed_ms": result.get("elapsed_ms"),
+    }
+
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -628,6 +682,7 @@ TOOL_HANDLERS = {
     "run_health_check": run_health_check,
     "verify_master_files": verify_master_files,
     "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
+    "operational_status": operational_status,
 }
 
 
