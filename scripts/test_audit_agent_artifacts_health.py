@@ -165,6 +165,50 @@ def main() -> None:
 
         cases.append({"label": label, "ok": True, "health_status": got.get("health_status"), "got": got})
 
+    # --- Tests for next_actions_for_run() ---
+
+    # 7) next_actions missing: run_id no encontrado
+    label_nx = "next_actions_missing"
+    with tempfile.TemporaryDirectory(prefix="audit-next-actions-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        # No crear nada -> missing
+        got = audit.next_actions_for_run("run_missing")
+
+        if got.get("ok") is not True:
+            raise AssertionError(f"{label_nx}: ok debe ser True, got={got}")
+        if got.get("status") != "ok":
+            raise AssertionError(f"{label_nx}: status debe ser 'ok', got={got}")
+        if got.get("exists") is not False:
+            raise AssertionError(f"{label_nx}: exists debe ser False, got={got}")
+        if got.get("health_status") != "missing":
+            raise AssertionError(f"{label_nx}: health_status debe ser 'missing', got={got}")
+        if "run_health_check" not in got.get("suggested_tools", []):
+            raise AssertionError(f"{label_nx}: suggested_tools debe contener 'run_health_check', got={got}")
+
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 8) next_actions partial_in_progress: background meta reciente sin outputs
+    label_nx = "next_actions_partial_in_progress"
+    with tempfile.TemporaryDirectory(prefix="audit-next-actions-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        setup_partial_in_progress_meta_no_outputs(root=root, run_id="run_in_progress")
+        got = audit.next_actions_for_run("run_in_progress", stale_minutes=15)
+
+        if got.get("ok") is not True:
+            raise AssertionError(f"{label_nx}: ok debe ser True, got={got}")
+        if "check_opencode_run_status" not in got.get("suggested_tools", []):
+            raise AssertionError(
+                f"{label_nx}: suggested_tools debe contener 'check_opencode_run_status', got={got}"
+            )
+        if len(got.get("next_actions", [])) == 0:
+            raise AssertionError(f"{label_nx}: next_actions no debe estar vacío, got={got}")
+
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
     print(json.dumps({"ok": True, "cases": cases}, ensure_ascii=True, indent=2))
 
 

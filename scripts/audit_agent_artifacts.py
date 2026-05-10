@@ -362,6 +362,35 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
     }
 
 
+def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
+    """Devuelve JSON compacto con próximas acciones recomendadas para un run.
+
+    Reutiliza check_run_health() sin lecturas adicionales voluminosas.
+    No abre raw_outputs/TRACE/RUN_SUMMARY completos.
+    """
+
+    health = check_run_health(run_id, stale_minutes=stale_minutes)
+
+    next_actions: list[str] = list(health.get("recommendations", []))[:5]
+
+    suggested_tools: list[str] = ["run_health_check"]
+    health_status = health.get("health_status", "")
+    bg_count = health.get("background_files_count", 0)
+    if health_status in ("partial", "stale") or (isinstance(bg_count, int) and int(bg_count) > 0):
+        suggested_tools.append("check_opencode_run_status")
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "run_id": run_id,
+        "exists": health.get("exists", False),
+        "health_status": health.get("health_status", "unknown"),
+        "latest_status": health.get("latest_status"),
+        "next_actions": next_actions,
+        "suggested_tools": suggested_tools,
+    }
+
+
 def archive_run(run_id: str, archive_dir_arg: str) -> dict[str, object]:
     """Crea un zip no destructivo con evidencia local del run.
 
@@ -734,6 +763,11 @@ def main() -> None:
         default=None,
         help="Verifica la integridad de un archive ZIP (recalcula SHA256 y compara con manifest sidecar).",
     )
+    parser.add_argument(
+        "--next-actions",
+        default=None,
+        help="Devuelve JSON compacto con próximas acciones recomendadas para un RUN_ID (basado en check_run_health). No escanea docs/agent_runs completo.",
+    )
 
     args = parser.parse_args()
 
@@ -743,6 +777,12 @@ def main() -> None:
         # JSON compacto (una línea) para facilitar consumo por tooling.
         print(json.dumps(result_verify, ensure_ascii=False, separators=(",", ":")))
         sys.exit(0 if result_verify["ok"] else 1)
+
+    # Modo next-actions compact-first (no requiere escanear docs/agent_runs)
+    if args.next_actions:
+        result_nx = next_actions_for_run(str(args.next_actions), stale_minutes=int(args.stale_minutes))
+        print(json.dumps(result_nx, ensure_ascii=False, separators=(",", ":")))
+        sys.exit(0)
 
     # Runs disponibles (carpetas). Ojo: ignorar README/notes en docs/agent_runs.
     run_dirs = [p for p in _safe_list_dirs(RUNS_DIR) if p.name and not p.name.endswith(".md")]
