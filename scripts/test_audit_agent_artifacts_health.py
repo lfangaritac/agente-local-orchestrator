@@ -79,8 +79,9 @@ def main() -> None:
 
     check("partial_run_dir_only", setup_fn=setup_partial_run_dir_only, run_id="run_partial", expect="partial")
 
-    # 3) stale: existe background meta pero no hay outputs y el meta es antiguo.
-    def setup_stale(*, root: Path, run_id: str) -> None:
+    # 3) stale_orphan: existe background meta pero no hay outputs y el meta es antiguo.
+    # Sin PID detectable => se trata como huérfano (warning no bloqueante).
+    def setup_stale_orphan(*, root: Path, run_id: str) -> None:
         run_dir = root / "docs" / "agent_runs" / run_id
         bg_dir = run_dir / "background"
 
@@ -90,7 +91,37 @@ def main() -> None:
 
         # Sin agent_outputs / raw_outputs.
 
-    check("stale_meta_no_outputs", setup_fn=setup_stale, run_id="run_stale", stale_minutes=1, expect="stale")
+    check("stale_orphan_meta_no_outputs", setup_fn=setup_stale_orphan, run_id="run_stale", stale_minutes=1, expect="stale_orphan")
+
+    # 3b) stale (activo): meta antiguo + pid + pid activo (simulado) => stale bloqueante.
+    def setup_stale_active(*, root: Path, run_id: str) -> None:
+        run_dir = root / "docs" / "agent_runs" / run_id
+        bg_dir = run_dir / "background"
+        now = time.time()
+        old = now - (60 * 60)
+        meta_path = bg_dir / f"{run_id}_meta.json"
+        _write_text(meta_path, json.dumps({"pid": 12345}))
+        os.utime(meta_path, (old, old))
+
+    label = "stale_active_meta_no_outputs"
+    run_id = "run_stale_active"
+    with tempfile.TemporaryDirectory(prefix="audit-health-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+
+        original_is_pid_running = audit._is_pid_running
+        audit._is_pid_running = lambda _pid: True
+        try:
+            setup_stale_active(root=root, run_id=run_id)
+            got = audit.check_run_health(run_id, stale_minutes=1)
+        finally:
+            audit._is_pid_running = original_is_pid_running
+
+        if got.get("health_status") != "stale":
+            raise AssertionError(f"{label}: health_status esperado='stale' got={got}")
+
+        cases.append({"label": label, "ok": True, "health_status": got.get("health_status"), "got": got})
 
     # 4) failed: RUN_SUMMARY indica fallo (no requiere outputs).
     def setup_failed(*, root: Path, run_id: str) -> None:
@@ -496,8 +527,8 @@ def main() -> None:
             raise AssertionError(f"{label_nx}: in_progress debe ser False, got={got.get('in_progress')}")
         cases.append({"label": label_nx, "ok": True, "got": got})
 
-    # 17) next_actions stale: decision=wait, should_stop=True
-    label_nx = "next_actions_stale_matrix"
+    # 17) next_actions stale_orphan: decision=verify, should_stop=False
+    label_nx = "next_actions_stale_orphan_matrix"
     with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
         root = Path(td)
         _patch_module_paths(audit, root)
@@ -508,6 +539,37 @@ def main() -> None:
         old = now - (60 * 60)
         _touch(bg_dir / "run_stale_meta.json", mtime=old)
         got = audit.next_actions_for_run("run_stale", stale_minutes=1)
+        if got.get("decision") != "verify":
+            raise AssertionError(f"{label_nx}: decision debe ser 'verify', got={got.get('decision')}")
+        if got.get("severity") != "warn":
+            raise AssertionError(f"{label_nx}: severity debe ser 'warn', got={got.get('severity')}")
+        if got.get("should_stop") is not False:
+            raise AssertionError(f"{label_nx}: should_stop debe ser False, got={got.get('should_stop')}")
+        if got.get("review_reference_only") is not True:
+            raise AssertionError(f"{label_nx}: review_reference_only debe ser True, got={got.get('review_reference_only')}")
+        cases.append({"label": label_nx, "ok": True, "got": got})
+
+    # 17b) next_actions stale (activo): decision=wait, should_stop=True
+    label_nx = "next_actions_stale_active_matrix"
+    with tempfile.TemporaryDirectory(prefix="audit-nx-matrix-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_stale_active"
+        bg_dir = run_dir / "background"
+        now = time.time()
+        old = now - (60 * 60)
+        meta_path = bg_dir / "run_stale_active_meta.json"
+        _write_text(meta_path, json.dumps({"pid": 12345}))
+        os.utime(meta_path, (old, old))
+
+        original_is_pid_running = audit._is_pid_running
+        audit._is_pid_running = lambda _pid: True
+        try:
+            got = audit.next_actions_for_run("run_stale_active", stale_minutes=1)
+        finally:
+            audit._is_pid_running = original_is_pid_running
+
         if got.get("decision") != "wait":
             raise AssertionError(f"{label_nx}: decision debe ser 'wait', got={got.get('decision')}")
         if got.get("severity") != "warn":
@@ -594,8 +656,8 @@ def main() -> None:
             raise AssertionError(f"{label_cs}: ready_to_advance debe ser False (partial+in_progress bloquea avance), got={result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
 
-    # 21) compute_operational_status: latest_run stale -> overall_status=warn, attention, blocks advance
-    label_cs = "compute_operational_status_stale"
+    # 21) compute_operational_status: latest_run stale_orphan -> overall_status=ok, attention, NO bloquea avance
+    label_cs = "compute_operational_status_stale_orphan"
     with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
         root = Path(td)
         _patch_module_paths(audit, root)
@@ -611,6 +673,46 @@ def main() -> None:
             verify_master_files=False,
         )
         latest = result.get("latest_run_relevant") or {}
+        if latest.get("health_status") != "stale_orphan":
+            raise AssertionError(f"{label_cs}: health_status debe ser 'stale_orphan', got={latest}")
+        if latest.get("decision") != "verify":
+            raise AssertionError(f"{label_cs}: decision debe ser 'verify', got={latest}")
+        if "latest_run_stale_orphan" not in result.get("attention", []):
+            raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_stale_orphan', got={result}")
+        if result.get("overall_status") != "ok":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'ok' (no debe bloquear pre-gate), got={result}")
+        if exit_code != 0:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 0 (no debe bloquear), got={exit_code}")
+        if result.get("ready_to_advance") is not True:
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser True (stale_orphan no bloquea), got={result}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
+    # 21b) compute_operational_status: latest_run stale activo -> overall_status=warn, attention, bloquea avance
+    label_cs = "compute_operational_status_stale_active"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+        run_dir = root / "docs" / "agent_runs" / "run_stale_active"
+        bg_dir = run_dir / "background"
+        now = time.time()
+        old = now - (60 * 60)
+        meta_path = bg_dir / "run_stale_active_meta.json"
+        _write_text(meta_path, json.dumps({"pid": 12345}))
+        os.utime(meta_path, (old, old))
+
+        original_is_pid_running = audit._is_pid_running
+        audit._is_pid_running = lambda _pid: True
+        try:
+            result, exit_code = audit.compute_operational_status(
+                include_git_status=False,
+                run_quick_checks=False,
+                verify_master_files=False,
+            )
+        finally:
+            audit._is_pid_running = original_is_pid_running
+
+        latest = result.get("latest_run_relevant") or {}
         if latest.get("health_status") != "stale":
             raise AssertionError(f"{label_cs}: health_status debe ser 'stale', got={latest}")
         if latest.get("decision") != "wait":
@@ -619,8 +721,10 @@ def main() -> None:
             raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_stale', got={result}")
         if result.get("overall_status") != "warn":
             raise AssertionError(f"{label_cs}: overall_status debe ser 'warn', got={result}")
+        if exit_code != 1:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 1, got={exit_code}")
         if result.get("ready_to_advance") is not False:
-            raise AssertionError(f"{label_cs}: ready_to_advance debe ser False (stale bloquea), got={result}")
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser False (stale activo bloquea), got={result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
 
     # 22) compute_operational_status: latest_run partial (no bg, no in_progress) -> no block

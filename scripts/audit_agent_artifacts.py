@@ -224,6 +224,77 @@ def infer_latest_status(run_dir: Path) -> str | None:
         return None
 
 
+def _read_pid_from_meta(path: Path) -> int | None:
+    """Lee pid desde un *_meta.json de background (best-effort, tamaño acotado)."""
+
+    try:
+        if not path.exists() or not path.is_file():
+            return None
+        # Meta JSON debería ser pequeño; proteger contra casos anómalos.
+        if path.stat().st_size > 512_000:
+            return None
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        pid = data.get("pid") if isinstance(data, dict) else None
+        if pid is None:
+            return None
+        pid_int = int(pid)
+        return pid_int if pid_int > 0 else None
+    except Exception:
+        return None
+
+
+def _is_pid_running(pid: int) -> bool:
+    """Best-effort: detecta si un PID está activo.
+
+    Nota: se usa solo para distinguir runs stale huérfanos vs in-progress.
+    """
+
+    try:
+        pid_int = int(pid)
+    except Exception:
+        return False
+
+    if pid_int <= 0:
+        return False
+
+    if os.name == "nt":
+        try:
+            completed = subprocess.run(
+                [
+                    "tasklist",
+                    "/FI",
+                    f"PID eq {pid_int}",
+                    "/FO",
+                    "CSV",
+                    "/NH",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
+            )
+            if completed.returncode != 0:
+                return False
+            out = (completed.stdout or "").strip()
+            if not out:
+                return False
+            # Cuando no existe: "INFO: No tasks are running which match the specified criteria."
+            if "No tasks are running" in out:
+                return False
+            # Línea CSV típicamente incluye el PID como campo.
+            return str(pid_int) in out
+        except Exception:
+            return False
+
+    # POSIX
+    try:
+        os.kill(pid_int, 0)
+        return True
+    except Exception:
+        return False
+
+
 def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
     """Health check compacto de un run (sin abrir raw_outputs/TRACE/RUN_SUMMARY completos)."""
 
@@ -267,13 +338,23 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
 
     latest_status = infer_latest_status(run_dir) if has_run_dir else None
 
+    newest_meta: Path | None = None
+    if background_meta_files:
+        try:
+            newest_meta = max(background_meta_files, key=lambda p: p.stat().st_mtime)
+        except Exception:
+            newest_meta = None
+
+    process_pid = _read_pid_from_meta(newest_meta) if newest_meta else None
+    process_running: bool | None = None
+    if process_pid is not None:
+        process_running = _is_pid_running(process_pid)
+
     # stale: hay background meta pero no hay outputs luego de cierto tiempo
     now = time.time()
     stale = False
     try:
-        meta_files = sorted(background_dir.glob("*_meta.json")) if background_dir.exists() else []
-        if meta_files and agent_outputs_count == 0 and raw_outputs_count == 0:
-            newest_meta = max(meta_files, key=lambda p: p.stat().st_mtime)
+        if newest_meta and agent_outputs_count == 0 and raw_outputs_count == 0:
             age_s = now - newest_meta.stat().st_mtime
             if age_s > max(1, int(stale_minutes)) * 60:
                 stale = True
@@ -284,6 +365,9 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
     failed = False
     if isinstance(latest_status, str) and latest_status.strip().lower() in {"failed", "error", "errored"}:
         failed = True
+
+    # stale_orphan: stale pero sin proceso activo (pid inexistente o no ejecutándose)
+    stale_orphan = bool(stale and (process_running is False or process_running is None))
 
     exists = bool(has_run_dir or has_handoff_md or has_handoff_json)
 
@@ -307,18 +391,26 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         issues.append(f"Último status indica fallo: {latest_status}")
         recommendations.append("Revisar agent_outputs (procesado) o reintentar el agente según el escenario.")
 
+    # stale / stale_orphan
     if stale and health_status not in {"failed"}:
-        health_status = "stale"
-        issues.append("Ejecución parece estancada (background meta sin outputs recientes).")
-        recommendations.append("Revisar proceso async/estado y reintentar check_opencode_run_status en unos segundos.")
+        if stale_orphan:
+            health_status = "stale_orphan"
+            issues.append("Run stale huérfano (background meta antiguo, sin outputs, proceso no activo).")
+            recommendations.append("Revisar por referencia (next-actions/health). No debe bloquear nuevos builds.")
+        else:
+            health_status = "stale"
+            issues.append("Ejecución parece estancada (background meta sin outputs recientes).")
+            recommendations.append("Revisar proceso async/estado y reintentar check_opencode_run_status en unos segundos.")
 
-    # in_progress: background meta exists, no outputs, not stale, not failed
+    # in_progress: background meta exists, no outputs, not stale, not failed.
+    # Si hay pid y NO está corriendo, no considerarlo in_progress.
     in_progress = bool(
         background_meta_count > 0
         and agent_outputs_count == 0
         and raw_outputs_count == 0
         and not stale
         and not failed
+        and process_running is not False
     )
 
     if health_status == "partial" and background_files_count > 0 and agent_outputs_count == 0 and raw_outputs_count == 0:
@@ -347,7 +439,7 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
             (background_files_count > 0 and (stale or failed))
         )
     )
-    if archive_recommended:
+    if archive_recommended and not in_progress:
         recommendations.append(f"Archivar (no destructivo) con --archive {RECOMMENDED_ARCHIVE_DIR}")
 
     elapsed_ms = int((time.perf_counter() - start) * 1000)
@@ -364,6 +456,9 @@ def check_run_health(run_id: str, stale_minutes: int = 15) -> dict[str, object]:
         "raw_outputs_count": raw_outputs_count,
         "background_files_count": background_files_count,
         "background_meta_count": background_meta_count,
+        "process_pid": process_pid,
+        "process_running": process_running,
+        "stale_orphan": stale_orphan,
         "in_progress": in_progress,
         "latest_status": latest_status,
         "opencode_registered": opencode_registered,
@@ -439,6 +534,24 @@ def _recovery_matrix(health: dict) -> dict[str, object]:
             "reason": "Run is partial (incomplete artifacts). Verify state before proceeding.",
         }
 
+    if health_status == "stale_orphan":
+        return {
+            "decision": "verify",
+            "severity": "warn",
+            "recommended_tool": "run_health_check",
+            "recommended_command": "(MCP) run_health_check",
+            "next_actions": [
+                "Review by reference (health/next-actions)",
+                "Consider non-destructive archive if needed",
+            ],
+            "should_wait": False,
+            "should_retry": False,
+            "should_stop": False,
+            "review_reference_only": True,
+            "archive_recommended": archive_recommended,
+            "reason": "Run is stale but appears orphan (no active process). Do not block new builds; review by reference.",
+        }
+
     if health_status == "stale":
         return {
             "decision": "wait",
@@ -509,7 +622,7 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
     suggested_tools: list[str] = ["run_health_check"]
     health_status = health.get("health_status", "")
     bg_count = health.get("background_files_count", 0)
-    if health_status in ("partial", "stale") or (isinstance(bg_count, int) and int(bg_count) > 0):
+    if health_status in ("partial", "stale", "stale_orphan") or (isinstance(bg_count, int) and int(bg_count) > 0):
         suggested_tools.append("check_opencode_run_status")
 
     matrix = _recovery_matrix(health)
@@ -790,6 +903,10 @@ def compute_operational_status(
                 attention.append("latest_run_partial")
                 if next_action is None:
                     next_action = {"decision": "verify", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
+            elif hs == "stale_orphan":
+                attention.append("latest_run_stale_orphan")
+                if next_action is None:
+                    next_action = {"decision": "verify", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check"}
             elif hs == "missing":
                 # missing does not block the repo
                 attention.append("latest_run_missing")
