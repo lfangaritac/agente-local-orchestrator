@@ -1,26 +1,13 @@
 #!/usr/bin/env python3
-"""
-apply_to_project.py
-
-Aplica el sistema operativo de agentes desde este orquestador local hacia otro proyecto.
-
-Uso:
-  python scripts/apply_to_project.py --target "C:/Ruta/Del/Proyecto"
-  python scripts/apply_to_project.py --target "C:/Ruta/Del/Proyecto" --dry-run
-  python scripts/apply_to_project.py --target "C:/Ruta/Del/Proyecto" --output json
-  python scripts/apply_to_project.py --target "C:/Ruta/Del/Proyecto" --dry-run --output json
-
-No copia secrets.
-No sobrescribe archivos existentes.
-No hace commit ni push en el proyecto destino.
-"""
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 from pathlib import Path
+from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +36,170 @@ DIRS_TO_CREATE = [
     "docs/decisions",
     "docs/test_reports",
 ]
+
+REGISTRY_KEYS = {
+    "project_id",
+    "nombre_can\u00f3nico",
+    "alias_permitidos",
+    "ruta_local",
+    "repositorio_remoto",
+    "origen",
+    "stack_detectado",
+    "documentaci\u00f3n_principal",
+    "c\u00f3digo_fuente_relevante",
+    "estado_sincronizaci\u00f3n",
+    "alertas_cr\u00edticas",
+    "lecciones_locales",
+    "\u00faltimo_an\u00e1lisis",
+    "responsable",
+}
+
+
+def parse_registry(registry_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    if not registry_path.exists():
+        return [], [f"registry file not found: {registry_path}"]
+
+    content = registry_path.read_text(encoding="utf-8")
+    lines = content.split("\n")
+
+    entries: list[dict[str, Any]] = []
+    current: dict[str, Any] = {}
+    warnings: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not stripped:
+            if current:
+                entries.append(current)
+                current = {}
+            continue
+
+        if stripped.startswith("#") or stripped.startswith("|---"):
+            continue
+
+        match = re.match(r'^-?\s*(.+?):\s*(.*)$', stripped)
+        if match:
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+
+            if key in REGISTRY_KEYS:
+                if key == "alias_permitidos":
+                    current[key] = [a.strip() for a in value.split(",") if a.strip()]
+                else:
+                    current[key] = value
+
+    if current:
+        entries.append(current)
+
+    if not entries:
+        warnings.append("registry_empty")
+
+    return entries, warnings
+
+
+def _resolve_entry(entry: dict) -> dict:
+    return {
+        "id": entry.get("project_id", ""),
+        "name": entry.get("nombre_can\u00f3nico", ""),
+        "path": entry.get("ruta_local", ""),
+        "aliases": entry.get("alias_permitidos", []),
+    }
+
+
+def resolve_project(query: str, entries: list[dict]) -> dict:
+    result: dict[str, Any] = {
+        "ok": True,
+        "query": query,
+        "project_found": False,
+        "matched_by": None,
+        "project": None,
+        "candidates": [],
+        "errors": [],
+        "warnings": [],
+    }
+
+    query_path = Path(query).expanduser().resolve()
+    if query_path.is_dir():
+        for entry in entries:
+            rl = entry.get("ruta_local", "")
+            if rl:
+                try:
+                    if Path(rl).expanduser().resolve() == query_path:
+                        result["project_found"] = True
+                        result["matched_by"] = "path_direct"
+                        result["project"] = _resolve_entry(entry)
+                        return result
+                except Exception:
+                    pass
+
+        result["project_found"] = True
+        result["matched_by"] = "path_direct"
+        result["project"] = {
+            "id": "",
+            "name": query_path.name,
+            "path": str(query_path),
+            "aliases": [],
+        }
+        return result
+
+    query_lower = query.lower()
+
+    for entry in entries:
+        pid = entry.get("project_id", "")
+        if pid and pid.lower() == query_lower:
+            result["project_found"] = True
+            result["matched_by"] = "project_id"
+            result["project"] = _resolve_entry(entry)
+            return result
+
+    alias_matches = []
+    for entry in entries:
+        aliases = entry.get("alias_permitidos", [])
+        if any(a.lower() == query_lower for a in aliases):
+            alias_matches.append(entry)
+
+    if len(alias_matches) == 1:
+        result["project_found"] = True
+        result["matched_by"] = "alias"
+        result["project"] = _resolve_entry(alias_matches[0])
+        return result
+
+    if len(alias_matches) > 1:
+        result["ok"] = False
+        result["matched_by"] = "alias"
+        result["candidates"] = [_resolve_entry(e) for e in alias_matches]
+        result["errors"].append(
+            f"ambiguous alias '{query}' matches {len(alias_matches)} projects"
+        )
+        return result
+
+    for entry in entries:
+        name = entry.get("nombre_can\u00f3nico", "")
+        if name and name.lower() == query_lower:
+            result["project_found"] = True
+            result["matched_by"] = "nombre_canonico"
+            result["project"] = _resolve_entry(entry)
+            return result
+
+    try:
+        for entry in entries:
+            rl = entry.get("ruta_local", "")
+            if rl:
+                try:
+                    if Path(rl).expanduser().resolve() == query_path:
+                        result["project_found"] = True
+                        result["matched_by"] = "ruta_local"
+                        result["project"] = _resolve_entry(entry)
+                        return result
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    result["ok"] = False
+    result["errors"].append(f"no project matched query '{query}'")
+    return result
 
 
 def _dry_register(source: Path, target: Path, dry_actions: list[str], label: str) -> None:
@@ -96,6 +247,7 @@ def _build_result(
     created: list[str],
     copied: list[str],
     skipped: list[str],
+    resolved_project: dict | None = None,
 ) -> dict:
     next_steps = [
         "1. Revisar PROJECT_CONTEXT.md.",
@@ -115,7 +267,7 @@ def _build_result(
             "y actualizar SECRETS_MANIFEST.md sin incluir valores sensibles."
         )
 
-    return {
+    result = {
         "ok": True,
         "target": str(target_root),
         "dry_run": dry_run,
@@ -126,9 +278,23 @@ def _build_result(
         "next_steps": next_steps,
     }
 
+    if resolved_project:
+        result["resolved_project"] = resolved_project
+
+    return result
+
 
 def _output_text(result: dict) -> None:
-    print("\nSistema aplicado al proyecto destino.\n")
+    rp = result.get("resolved_project")
+    if rp:
+        print(f"Proyecto resuelto: {rp.get('name') or rp.get('id') or rp.get('path', '')}")
+        print()
+
+    if result.get("resolve_only"):
+        print("(resolve-only: no se realizaron cambios)")
+        return
+
+    print("Sistema aplicado al proyecto destino.\n")
     print(f"Destino: {result['target']}")
     if result["dry_run"]:
         print("(dry-run: no se realizaron cambios)")
@@ -159,13 +325,74 @@ def _output_text(result: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Aplicar sistema de agentes a otro proyecto.")
-    parser.add_argument("--target", required=True, help="Ruta del proyecto destino.")
-    parser.add_argument("--dry-run", action="store_true", help="Solo mostrar que hariamos sin ejecutar.")
-    parser.add_argument("--output", choices=["text", "json"], default="text", help="Formato de salida.")
+    parser.add_argument("--target", help="Ruta del proyecto destino.")
+    parser.add_argument(
+        "--project",
+        help="Project ID, alias, nombre canonico o ruta a resolver desde PROJECT_REGISTRY.",
+    )
+    parser.add_argument(
+        "--resolve-only",
+        action="store_true",
+        help="Solo resolver proyecto desde el registro sin copiar archivos.",
+    )
+    parser.add_argument(
+        "--registry-path",
+        default=None,
+        help="Ruta al archivo PROJECT_REGISTRY.md (default: <ROOT>/PROJECT_REGISTRY.md).",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Solo mostrar que hariamos sin ejecutar."
+    )
+    parser.add_argument(
+        "--output", choices=["text", "json"], default="text", help="Formato de salida."
+    )
     args = parser.parse_args()
 
-    target_root = Path(args.target).expanduser().resolve()
+    if not args.project and not args.target:
+        raise SystemExit("Se requiere --project o --target.")
 
+    if args.resolve_only and not args.project:
+        raise SystemExit("--resolve-only requiere --project.")
+
+    registry_path = (
+        Path(args.registry_path).expanduser().resolve()
+        if args.registry_path
+        else ROOT / "PROJECT_REGISTRY.md"
+    )
+
+    resolved_project = None
+    if args.project:
+        entries, warnings = parse_registry(registry_path)
+        resolve_result = resolve_project(args.project, entries)
+        if warnings:
+            resolve_result.setdefault("warnings", []).extend(warnings)
+
+        if args.resolve_only:
+            print(json.dumps(resolve_result, ensure_ascii=False, indent=None))
+            raise SystemExit(0 if resolve_result["ok"] else 1)
+
+        if not resolve_result["ok"]:
+            errors = "; ".join(resolve_result["errors"])
+            detail = json.dumps(resolve_result, ensure_ascii=False)
+            raise SystemExit(
+                f"Project resolution failed: {errors}\n{detail}"
+            )
+
+        resolved_project = resolve_result["project"]
+
+        if not args.target:
+            rl = resolved_project.get("path", "")
+            if rl:
+                args.target = rl
+            else:
+                raise SystemExit(
+                    "--target no especificado y el proyecto resuelto no tiene ruta_local."
+                )
+
+    if not args.target:
+        raise SystemExit("--target es requerido.")
+
+    target_root = Path(args.target).expanduser().resolve()
     if not target_root.exists():
         raise SystemExit(f"El proyecto destino no existe: {target_root}")
 
@@ -222,7 +449,7 @@ def main() -> None:
             skipped,
         )
 
-    result = _build_result(target_root, args.dry_run, created, copied, skipped)
+    result = _build_result(target_root, args.dry_run, created, copied, skipped, resolved_project)
 
     if args.output == "json":
         print(json.dumps(result, ensure_ascii=False, indent=None))
