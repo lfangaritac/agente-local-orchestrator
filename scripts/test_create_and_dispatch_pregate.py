@@ -14,6 +14,7 @@ import os
 import sys
 import tempfile
 import unittest
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -175,13 +176,31 @@ class TestPregatePassingWithAuth(unittest.TestCase):
                 self.assertEqual(package.get("requires_authorization"), True)
 
 
-class TestResolveTargetProject(unittest.TestCase):
-    """Tests for target project resolution (Fase 5C)."""
+def _write_registry_file(path: Path, entries: list[dict[str, object]]) -> None:
+    """Create a minimal registry markdown file for end-to-end tests."""
+
+    lines: list[str] = ["# PROJECT_REGISTRY.md", ""]
+    for e in entries:
+        lines.append(f"project_id: {e.get('project_id', '')}")
+        lines.append(f"nombre_canónico: {e.get('nombre_canónico', '')}")
+        aliases = e.get("alias_permitidos") or []
+        if isinstance(aliases, list):
+            lines.append(f"alias_permitidos: {', '.join(str(a) for a in aliases)}")
+        else:
+            lines.append(f"alias_permitidos: {aliases}")
+        lines.append(f"ruta_local: {e.get('ruta_local', '')}")
+        lines.append("")
+
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+class TestResolveTargetProjectEndToEnd(unittest.TestCase):
+    """End-to-end dry-run validation: registry temp -> resolution -> handoff artifacts."""
 
     @patch("scripts.create_and_dispatch_opencode_handoff.compute_operational_status")
-    @patch("scripts.create_and_dispatch_opencode_handoff.parse_registry")
-    def test_a_resolution_ok(self, mock_parse_registry, mock_compute):
-        """Resolution OK via project_id: package includes target_project."""
+    def test_a_project_resolved_and_attached(self, mock_compute):
+        """Resolved project via project_id auto-resolution attaches target_project + MD/TRACE/SUMMARY lines."""
+
         mock_compute.return_value = (
             {
                 "ok": True,
@@ -198,18 +217,21 @@ class TestResolveTargetProject(unittest.TestCase):
             0,
         )
 
-        entries = [
-            {
-                "project_id": "alpha",
-                "nombre_canónico": "Alpha Project",
-                "ruta_local": "/fake/path/alpha",
-                "alias_permitidos": ["a", "alfa"],
-            }
-        ]
-        mock_parse_registry.return_value = (entries, [])
-
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
+            reg_path = tmp_path / "PROJECT_REGISTRY.md"
+            _write_registry_file(
+                reg_path,
+                [
+                    {
+                        "project_id": "alpha",
+                        "nombre_canónico": "Alpha Project",
+                        "ruta_local": str(tmp_path / "alpha"),
+                        "alias_permitidos": ["a", "alfa"],
+                    }
+                ],
+            )
+
             mock_queue = tmp_path / "queue"
             mock_runs = tmp_path / "runs"
 
@@ -219,10 +241,15 @@ class TestResolveTargetProject(unittest.TestCase):
 
                 from scripts.create_and_dispatch_opencode_handoff import main
 
-                # requires_authorization=true to avoid actual dispatch
+                # requires_authorization=true to avoid actual async OpenCode dispatch
                 test_args = _make_opencode_handoff_args(
                     project_id="alpha",
-                    extra=["--requires-authorization", "true"],
+                    extra=[
+                        "--requires-authorization",
+                        "true",
+                        "--registry-path",
+                        str(reg_path),
+                    ],
                 )
 
                 with patch.object(sys, "argv", test_args):
@@ -230,21 +257,19 @@ class TestResolveTargetProject(unittest.TestCase):
 
                 json_files = list(mock_queue.glob("*.json"))
                 self.assertEqual(len(json_files), 1)
-
                 package = json.loads(json_files[0].read_text(encoding="utf-8"))
 
                 self.assertIn("target_project", package)
                 tp = package["target_project"]
-                self.assertTrue(tp["ok"])
-                self.assertTrue(tp["project_found"])
-                self.assertEqual(tp["matched_by"], "project_id")
-                self.assertEqual(tp["project"]["id"], "alpha")
-                self.assertEqual(tp["project"]["name"], "Alpha Project")
-                self.assertEqual(tp["project"]["path"], "/fake/path/alpha")
-                self.assertEqual(tp["resolution_source"], "project_id auto-resolution")
-                self.assertEqual(tp["query"], "alpha")
+                self.assertTrue(tp.get("ok"))
+                self.assertTrue(tp.get("project_found"))
+                self.assertEqual(tp.get("matched_by"), "project_id")
+                self.assertEqual(tp.get("project", {}).get("id"), "alpha")
+                self.assertEqual(tp.get("project", {}).get("name"), "Alpha Project")
+                self.assertEqual(tp.get("resolution_source"), "project_id auto-resolution")
+                self.assertEqual(tp.get("query"), "alpha")
 
-                # Check MD includes target_project lines
+                # MD includes compact target_project summary
                 md_files = list(mock_queue.glob("*.md"))
                 self.assertEqual(len(md_files), 1)
                 md_content = md_files[0].read_text(encoding="utf-8")
@@ -252,24 +277,21 @@ class TestResolveTargetProject(unittest.TestCase):
                 self.assertIn("target_project_name: `Alpha Project`", md_content)
                 self.assertIn("target_project_matched_by: `project_id`", md_content)
 
-                # Check TRACE includes target_project lines
-                trace_path = package.get("trace_path")
-                if trace_path:
-                    trace_content = Path(trace_path).read_text(encoding="utf-8")
-                    self.assertIn("target_project_id: alpha", trace_content)
-                    self.assertIn("target_project_name: Alpha Project", trace_content)
+                run_id = package.get("run_id")
+                self.assertTrue(run_id)
 
-                # Check RUN_SUMMARY includes target_project lines
-                summary_path = package.get("summary_path")
-                if summary_path:
-                    summary_content = Path(summary_path).read_text(encoding="utf-8")
-                    self.assertIn("target_project_id: alpha", summary_content)
-                    self.assertIn("target_project_name: Alpha Project", summary_content)
+                trace_content = (mock_runs / str(run_id) / "TRACE.md").read_text(encoding="utf-8")
+                self.assertIn("target_project_id: alpha", trace_content)
+                self.assertIn("target_project_name: Alpha Project", trace_content)
+
+                summary_content = (mock_runs / str(run_id) / "RUN_SUMMARY.md").read_text(encoding="utf-8")
+                self.assertIn("target_project_id: alpha", summary_content)
+                self.assertIn("target_project_name: Alpha Project", summary_content)
 
     @patch("scripts.create_and_dispatch_opencode_handoff.compute_operational_status")
-    @patch("scripts.create_and_dispatch_opencode_handoff.parse_registry")
-    def test_b_resolution_ambiguous(self, mock_parse_registry, mock_compute):
-        """Ambiguous alias resolution blocks and creates no artifacts."""
+    def test_b_project_ambiguous_blocks_without_artifacts(self, mock_compute):
+        """Ambiguous alias blocks with status=blocked_target_project and creates no artifacts."""
+
         mock_compute.return_value = (
             {
                 "ok": True,
@@ -286,25 +308,27 @@ class TestResolveTargetProject(unittest.TestCase):
             0,
         )
 
-        # Two entries sharing the same alias -> ambiguous
-        entries = [
-            {
-                "project_id": "project-a",
-                "nombre_canónico": "Project A",
-                "ruta_local": "/fake/path/a",
-                "alias_permitidos": ["shared"],
-            },
-            {
-                "project_id": "project-b",
-                "nombre_canónico": "Project B",
-                "ruta_local": "/fake/path/b",
-                "alias_permitidos": ["shared"],
-            },
-        ]
-        mock_parse_registry.return_value = (entries, [])
-
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
+            reg_path = tmp_path / "PROJECT_REGISTRY.md"
+            _write_registry_file(
+                reg_path,
+                [
+                    {
+                        "project_id": "project-a",
+                        "nombre_canónico": "Project A",
+                        "ruta_local": "/fake/path/a",
+                        "alias_permitidos": ["shared"],
+                    },
+                    {
+                        "project_id": "project-b",
+                        "nombre_canónico": "Project B",
+                        "ruta_local": "/fake/path/b",
+                        "alias_permitidos": ["shared"],
+                    },
+                ],
+            )
+
             mock_queue = tmp_path / "queue"
             mock_runs = tmp_path / "runs"
 
@@ -314,21 +338,93 @@ class TestResolveTargetProject(unittest.TestCase):
 
                 from scripts.create_and_dispatch_opencode_handoff import main
 
-                test_args = _make_opencode_handoff_args(project_id="shared")
+                test_args = _make_opencode_handoff_args(
+                    project_id="shared",
+                    extra=["--registry-path", str(reg_path)],
+                )
 
-                with patch.object(sys, "argv", test_args):
+                buf = StringIO()
+                with patch.object(sys, "stdout", buf), patch.object(sys, "argv", test_args):
                     with self.assertRaises(SystemExit) as cm:
                         main()
 
                 self.assertEqual(cm.exception.code, 1)
 
-                # NO artifacts should be created
-                self.assertFalse(
-                    mock_queue.exists(), "QUEUE_INBOX should not exist when blocked"
+                payload = json.loads(buf.getvalue())
+                self.assertEqual(payload.get("status"), "blocked_target_project")
+                tp = payload.get("target_project") or {}
+                self.assertFalse(tp.get("ok"))
+                self.assertEqual(tp.get("matched_by"), "alias")
+                self.assertGreaterEqual(len(tp.get("candidates") or []), 2)
+
+                self.assertFalse(mock_queue.exists(), "QUEUE_INBOX should not exist when blocked")
+                self.assertFalse(mock_runs.exists(), "RUNS should not exist when blocked")
+
+    @patch("scripts.create_and_dispatch_opencode_handoff.compute_operational_status")
+    def test_c_project_not_found_blocks_without_artifacts(self, mock_compute):
+        """Not found blocks with status=blocked_target_project and creates no artifacts."""
+
+        mock_compute.return_value = (
+            {
+                "ok": True,
+                "build_blocked": False,
+                "ready_to_advance": True,
+                "overall_status": "ok",
+                "blockers": [],
+                "next_action": {"decision": "advance"},
+                "git_clean": True,
+                "runner_quick": {"status": "ok", "passed": 5, "failed": 0},
+                "verify_master_files": {"status": "ok"},
+                "elapsed_ms": 37,
+            },
+            0,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            reg_path = tmp_path / "PROJECT_REGISTRY.md"
+            _write_registry_file(
+                reg_path,
+                [
+                    {
+                        "project_id": "alpha",
+                        "nombre_canónico": "Alpha Project",
+                        "ruta_local": "/fake/path/alpha",
+                        "alias_permitidos": ["a"],
+                    }
+                ],
+            )
+
+            mock_queue = tmp_path / "queue"
+            mock_runs = tmp_path / "runs"
+
+            with patch(
+                "scripts.create_and_dispatch_opencode_handoff.QUEUE_INBOX", mock_queue
+            ), patch("scripts.create_and_dispatch_opencode_handoff.RUNS", mock_runs):
+
+                from scripts.create_and_dispatch_opencode_handoff import main
+
+                test_args = _make_opencode_handoff_args(
+                    project_id="does-not-exist",
+                    extra=["--registry-path", str(reg_path)],
                 )
-                self.assertFalse(
-                    mock_runs.exists(), "RUNS should not exist when blocked"
-                )
+
+                buf = StringIO()
+                with patch.object(sys, "stdout", buf), patch.object(sys, "argv", test_args):
+                    with self.assertRaises(SystemExit) as cm:
+                        main()
+
+                self.assertEqual(cm.exception.code, 1)
+
+                payload = json.loads(buf.getvalue())
+                self.assertEqual(payload.get("status"), "blocked_target_project")
+                tp = payload.get("target_project") or {}
+                self.assertFalse(tp.get("ok"))
+                errors = tp.get("errors") or []
+                self.assertTrue(any("no project matched" in str(e) for e in errors))
+
+                self.assertFalse(mock_queue.exists(), "QUEUE_INBOX should not exist when blocked")
+                self.assertFalse(mock_runs.exists(), "RUNS should not exist when blocked")
 
 
 if __name__ == "__main__":
