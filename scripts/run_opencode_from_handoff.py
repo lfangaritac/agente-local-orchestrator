@@ -281,6 +281,39 @@ def _git_diff_name_only() -> list[str]:
     return [_normalize_rel(ln) for ln in (completed.stdout or "").splitlines() if ln.strip()]
 
 
+def validate_diff_scope(changed_files: list[str] | None, allowed_files: list[str] | None) -> dict:
+    """Valida el post-check de alcance: git diff --name-only ⊆ allowed_files.
+
+    Diseñada para ser testeable sin invocar OpenCode real ni ejecutar git.
+
+    Retorna:
+      - status: "error" | "build_applied" | "no_changes"
+      - changed_files: lista normalizada ("/", sin espacios)
+      - out_of_scope_changes: lista normalizada fuera de allowed_files
+    """
+
+    normalized_changed = [_normalize_rel(p) for p in (changed_files or []) if str(p).strip()]
+    allowed_set = {_normalize_rel(str(p)) for p in (allowed_files or []) if str(p).strip()}
+
+    out_of_scope: list[str] = []
+    for p in normalized_changed:
+        if p not in allowed_set:
+            out_of_scope.append(p)
+
+    if out_of_scope:
+        status = "error"
+    elif normalized_changed:
+        status = "build_applied"
+    else:
+        status = "no_changes"
+
+    return {
+        "status": status,
+        "changed_files": normalized_changed,
+        "out_of_scope_changes": out_of_scope,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", default=None)
@@ -403,20 +436,21 @@ def main() -> None:
     out_of_scope: list[str] = []
 
     if auto_approve_permissions:
-        changed_files = _git_diff_name_only()
-        allowed_set = { _normalize_rel(str(p)) for p in (package.get("allowed_files") or []) }
+        scope = validate_diff_scope(
+            changed_files=_git_diff_name_only(),
+            allowed_files=package.get("allowed_files") or [],
+        )
+        changed_files = list(scope.get("changed_files") or [])
+        out_of_scope = list(scope.get("out_of_scope_changes") or [])
 
-        for p in changed_files:
-            if p not in allowed_set:
-                out_of_scope.append(p)
-
-        if out_of_scope:
+        scope_status = str(scope.get("status") or "")
+        if scope_status == "error":
             status = "error"
             summary = (
                 "ERROR: OpenCode produjo cambios fuera de allowed_files. "
                 f"Fuera de alcance: {out_of_scope[:10]}"
             )
-        elif changed_files:
+        elif scope_status == "build_applied":
             status = "build_applied"
         else:
             status = "no_changes"
