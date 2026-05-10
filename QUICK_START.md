@@ -68,7 +68,7 @@ Un resultado correcto debe mostrar valores equivalentes a:
     alerts_checked_count: 10
     lessons_checked_count: 11
 
-### Diagnóstico rápido del run (compact-first)
+### Post-run: diagnóstico rápido del run (compact-first)
 
 Para diagnóstico rápido **sin dumps** y sin abrir artefactos completos, usar desde Continue (vía MCP) este orden:
 
