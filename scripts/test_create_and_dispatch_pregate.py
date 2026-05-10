@@ -427,5 +427,136 @@ class TestResolveTargetProjectEndToEnd(unittest.TestCase):
                 self.assertFalse(mock_runs.exists(), "RUNS should not exist when blocked")
 
 
+    @patch("scripts.create_and_dispatch_opencode_handoff.compute_operational_status")
+    def test_d_project_via_flag_resolved(self, mock_compute):
+        """--project flag forces resolution even when project_id would be skipped."""
+
+        mock_compute.return_value = (
+            {
+                "ok": True,
+                "build_blocked": False,
+                "ready_to_advance": True,
+                "overall_status": "ok",
+                "blockers": [],
+                "next_action": {"decision": "advance"},
+                "git_clean": True,
+                "runner_quick": {"status": "ok", "passed": 5, "failed": 0},
+                "verify_master_files": {"status": "ok"},
+                "elapsed_ms": 37,
+            },
+            0,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            reg_path = tmp_path / "PROJECT_REGISTRY.md"
+            _write_registry_file(
+                reg_path,
+                [
+                    {
+                        "project_id": "orchestrator",
+                        "nombre_canónico": "Local Orchestrator",
+                        "ruta_local": str(ROOT),
+                        "alias_permitidos": ["agente", "orq"],
+                    }
+                ],
+            )
+
+            mock_queue = tmp_path / "queue"
+            mock_runs = tmp_path / "runs"
+
+            with patch(
+                "scripts.create_and_dispatch_opencode_handoff.QUEUE_INBOX", mock_queue
+            ), patch("scripts.create_and_dispatch_opencode_handoff.RUNS", mock_runs):
+
+                from scripts.create_and_dispatch_opencode_handoff import main
+
+                test_args = _make_opencode_handoff_args(
+                    project_id="orchestrator",
+                    extra=[
+                        "--requires-authorization",
+                        "true",
+                        "--project",
+                        "orchestrator",
+                        "--registry-path",
+                        str(reg_path),
+                    ],
+                )
+
+                with patch.object(sys, "argv", test_args):
+                    main()
+
+                json_files = list(mock_queue.glob("*.json"))
+                self.assertEqual(len(json_files), 1)
+                package = json.loads(json_files[0].read_text(encoding="utf-8"))
+
+                self.assertIn("target_project", package)
+                tp = package["target_project"]
+                self.assertTrue(tp.get("ok"))
+                self.assertTrue(tp.get("project_found"))
+                self.assertEqual(tp.get("resolution_source"), "--project flag")
+                self.assertEqual(tp.get("query"), "orchestrator")
+                self.assertEqual(tp.get("project", {}).get("id"), "orchestrator")
+
+                md_files = list(mock_queue.glob("*.md"))
+                self.assertEqual(len(md_files), 1)
+                md_content = md_files[0].read_text(encoding="utf-8")
+                self.assertIn("target_project_id: `orchestrator`", md_content)
+                self.assertIn(
+                    "target_project_resolution_source: `--project flag`", md_content
+                )
+
+    @patch("scripts.create_and_dispatch_opencode_handoff.compute_operational_status")
+    def test_e_orchestrator_without_flag_no_resolution(self, mock_compute):
+        """project_id=orchestrator without --project flag skips resolution entirely."""
+
+        mock_compute.return_value = (
+            {
+                "ok": True,
+                "build_blocked": False,
+                "ready_to_advance": True,
+                "overall_status": "ok",
+                "blockers": [],
+                "next_action": {"decision": "advance"},
+                "git_clean": True,
+                "runner_quick": {"status": "ok", "passed": 5, "failed": 0},
+                "verify_master_files": {"status": "ok"},
+                "elapsed_ms": 37,
+            },
+            0,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            mock_queue = tmp_path / "queue"
+            mock_runs = tmp_path / "runs"
+
+            with patch(
+                "scripts.create_and_dispatch_opencode_handoff.QUEUE_INBOX", mock_queue
+            ), patch("scripts.create_and_dispatch_opencode_handoff.RUNS", mock_runs):
+
+                from scripts.create_and_dispatch_opencode_handoff import main
+
+                test_args = _make_opencode_handoff_args(
+                    project_id="orchestrator",
+                    extra=["--requires-authorization", "true"],
+                )
+
+                with patch.object(sys, "argv", test_args):
+                    main()
+
+                json_files = list(mock_queue.glob("*.json"))
+                self.assertEqual(len(json_files), 1)
+                package = json.loads(json_files[0].read_text(encoding="utf-8"))
+
+                self.assertNotIn("target_project", package)
+
+                md_files = list(mock_queue.glob("*.md"))
+                self.assertEqual(len(md_files), 1)
+                md_content = md_files[0].read_text(encoding="utf-8")
+                self.assertNotIn("target_project_id:", md_content)
+                self.assertNotIn("target_project_resolution_source:", md_content)
+
+
 if __name__ == "__main__":
     unittest.main()
