@@ -290,6 +290,8 @@ Esta herramienta:
 
 Guardrails: solo debe usarse con `risk_level=low` y `allowed_files` no vacío y acotado a rutas exactas (sin wildcards). Además requiere `build_authorized=true` y `user_authorized_build=true`. Si los guardrails fallan, el dispatch queda `blocked`.
 
+Nota operativa: en **Build autorizado**, preferir este camino (Continue → MCP → OpenCode) en lugar de aplicar diffs interactivos en VS Code/Continue que requieran múltiples Accept/Reject.
+
 ### Output
 
 - `ok`

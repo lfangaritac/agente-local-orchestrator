@@ -596,10 +596,12 @@ Requieren autorización humana explícita, incluso en modo Build:
 
 ### 25.6 Roles
 
-- **Continue**: contexto, gobierno, clasificación, preparación de handoffs, supervisión, consolidación de resultados y comunicación.
-- **OpenCode**: codificación, modificación técnica, validación técnica, pruebas y feedback estructurado.
-- **MCP**: verificación física, despacho, estado, trazabilidad, runs, evidencias y consulta compacta.
+- **Continue**: orquestación, contexto, gobierno, clasificación, preparación de handoffs, supervisión, consolidación de resultados y comunicación.
+- **OpenCode**: **ejecutor principal** de cambios en Build cuando el alcance es claro (modificación técnica + validación técnica).
+- **MCP**: despacho/estado/trazabilidad (herramientas compact-first por `run_id`).
 - **Usuario**: define intención, alcance y modo Plan/Build; autoriza acciones sensibles; decide negocio o arquitectura crítica cuando el sistema lo solicite.
+
+Regla operativa: en **Build autorizado** no usar como mecanismo principal la edición interactiva de diffs de VS Code/Continue (múltiples Accept/Reject). El camino preferido es **Continue → MCP → OpenCode → MCP**, con validación Git.
 
 ### 25.7 Transparencia progresiva en chat
 
@@ -653,7 +655,7 @@ Toda ejecución en modo Build debe cerrar con:
 - riesgos residuales;
 - acciones pendientes;
 - si requiere aprobación adicional;
-- estado Git (por ejemplo: `git diff` y `git status --short`), si aplica.
+- estado Git (por ejemplo: `git diff --stat`, `git diff --name-only` y `git status --short`), si aplica.
 
 ### 25.12 RESPONSIVIDAD_CONVERSACIONAL_POR_UMBRAL
 

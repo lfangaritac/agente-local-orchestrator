@@ -12,7 +12,7 @@ Continue debe:
 - detectar ambigüedades;
 - recomendar agente especializado de OpenCode;
 - sugerir línea/modelo según routing;
-- no ejecutar cambios críticos.
+- en **Build autorizado**, preferir que OpenCode ejecute cambios vía MCP (no diffs interactivos de VS Code/Continue).
 
 Continue no debe:
 - modificar archivos sin instrucción explícita;
