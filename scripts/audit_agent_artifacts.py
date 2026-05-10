@@ -504,7 +504,7 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
 
     health = check_run_health(run_id, stale_minutes=stale_minutes)
 
-    next_actions: list[str] = list(health.get("recommendations", []))[:5]
+    observed_recommendations: list[str] = list(health.get("recommendations", []))[:5]
 
     suggested_tools: list[str] = ["run_health_check"]
     health_status = health.get("health_status", "")
@@ -513,6 +513,18 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
         suggested_tools.append("check_opencode_run_status")
 
     matrix = _recovery_matrix(health)
+
+    matrix_actions = list(matrix.get("next_actions", []))
+
+    combined_actions: list[str] = []
+    for a in matrix_actions + observed_recommendations:
+        a = str(a).strip()
+        if not a:
+            continue
+        if a not in combined_actions:
+            combined_actions.append(a)
+
+    next_actions = combined_actions[:8]
 
     result: dict[str, object] = {
         "ok": True,
@@ -524,6 +536,7 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
         "background_meta_count": health.get("background_meta_count", 0),
         "latest_status": health.get("latest_status"),
         "next_actions": next_actions,
+        "observed_recommendations": observed_recommendations,
         "suggested_tools": suggested_tools,
     }
 
@@ -532,7 +545,8 @@ def next_actions_for_run(run_id: str, stale_minutes: int = 15) -> dict[str, obje
                  "archive_recommended", "reason"):
         result[key] = matrix.get(key)
 
-    result["extended_actions"] = list(matrix.get("next_actions", []))
+    # Back-compat: keep extended_actions as the matrix-driven action list.
+    result["extended_actions"] = matrix_actions
 
     return result
 
