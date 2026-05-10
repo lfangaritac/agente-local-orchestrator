@@ -528,12 +528,17 @@ def compute_operational_status(
                 "first_failure": {
                     "name": first_failure.get("name") if isinstance(first_failure, dict) else None,
                     "returncode": first_failure.get("returncode") if isinstance(first_failure, dict) else None,
+                    "command": first_failure.get("command") if isinstance(first_failure, dict) else None,
                 } if first_failure else None,
             }
             if not ok:
                 blockers.append("quick_failed")
                 if next_action is None:
-                    next_action = {"decision": "correct", "tool": "run_local_checks", "command": r"python .\scripts\run_local_checks.py --mode full --include-git-status"}
+                    ff_cmd = first_failure.get("command") if isinstance(first_failure, dict) else None
+                    if isinstance(ff_cmd, list) and ff_cmd:
+                        next_action = {"decision": "correct", "tool": "python", "command": " ".join(str(c) for c in ff_cmd)}
+                    else:
+                        next_action = {"decision": "correct", "tool": "run_local_checks", "command": r"python .\scripts\run_local_checks.py --mode full --include-git-status"}
                 quick_failed_flag = runner_quick.get("status") == "failed"
                 exit_code = max(exit_code, 1 if quick_failed_flag else 2)
         result["runner_quick"] = runner_quick

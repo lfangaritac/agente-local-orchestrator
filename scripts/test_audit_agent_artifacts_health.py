@@ -274,6 +274,109 @@ def main() -> None:
             raise AssertionError(f"{label_cs}: next_action.decision debe ser 'advance'. Got: {result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
 
+    # 12) compute_operational_status quick fail with first_failure.command -> rerun specific command
+    label_cs = "compute_operational_status_quick_fail_rerun_specific"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+
+        simulated_first_failure = {
+            "name": "test_mypy",
+            "returncode": 1,
+            "command": ["python", "-m", "mypy", "scripts/audit_agent_artifacts.py"],
+        }
+
+        def _mock_run_subprocess_json(command, timeout_s=120):
+            return {
+                "ok": False,
+                "mode": "quick",
+                "total_checks": 2,
+                "passed": 1,
+                "failed": 1,
+                "first_failure": simulated_first_failure,
+                "checks": [
+                    {"name": "test_flake8", "command": ["python", "-m", "flake8", "scripts/audit_agent_artifacts.py"], "ok": True, "returncode": 0},
+                    {"name": "test_mypy", "command": simulated_first_failure["command"], "ok": False, "returncode": 1},
+                ],
+            }
+
+        original_fn = audit._run_subprocess_json
+        audit._run_subprocess_json = _mock_run_subprocess_json
+        try:
+            result, exit_code = audit.compute_operational_status(
+                include_git_status=False,
+                run_quick_checks=True,
+                verify_master_files=False,
+            )
+        finally:
+            audit._run_subprocess_json = original_fn
+
+        if result.get("runner_quick") is None or result["runner_quick"].get("status") != "failed":
+            raise AssertionError(f"{label_cs}: runner_quick debe ser failed. Got: {result.get('runner_quick')}")
+        if result.get("overall_status") != "warn":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'warn'. Got: {result}")
+        if exit_code != 1:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 1. Got: {exit_code}")
+        if "quick_failed" not in result.get("blockers", []):
+            raise AssertionError(f"{label_cs}: blockers debe contener 'quick_failed'. Got: {result}")
+        next_action = result.get("next_action") or {}
+        if next_action.get("decision") != "correct":
+            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'correct'. Got: {next_action}")
+        if next_action.get("tool") != "python":
+            raise AssertionError(f"{label_cs}: next_action.tool debe ser 'python'. Got: {next_action}")
+        expected_cmd = " ".join(simulated_first_failure["command"])
+        if next_action.get("command") != expected_cmd:
+            raise AssertionError(f"{label_cs}: next_action.command debe ser {expected_cmd!r}. Got: {next_action}")
+        if "first_failure" in result.get("runner_quick", {}):
+            ff = result["runner_quick"]["first_failure"]
+            if ff and ff.get("command") != simulated_first_failure["command"]:
+                raise AssertionError(f"{label_cs}: runner_quick.first_failure.command no coincide. Got: {ff}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
+    # 13) compute_operational_status quick fail without first_failure.command -> fallback to full suite
+    label_cs = "compute_operational_status_quick_fail_fallback_no_command"
+    with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
+        root = Path(td)
+        _patch_module_paths(audit, root)
+        _write_text(audit.RUN_INDEX, "# RUN_INDEX\n")
+
+        def _mock_run_subprocess_no_cmd(command, timeout_s=120):
+            return {
+                "ok": False,
+                "mode": "quick",
+                "total_checks": 2,
+                "passed": 0,
+                "failed": 2,
+                "first_failure": {
+                    "name": "test_flake8",
+                    "returncode": 1,
+                },
+                "checks": [
+                    {"name": "test_flake8", "command": ["python", "-m", "flake8", "."], "ok": False, "returncode": 1},
+                ],
+            }
+
+        original_fn2 = audit._run_subprocess_json
+        audit._run_subprocess_json = _mock_run_subprocess_no_cmd
+        try:
+            result, exit_code = audit.compute_operational_status(
+                include_git_status=False,
+                run_quick_checks=True,
+                verify_master_files=False,
+            )
+        finally:
+            audit._run_subprocess_json = original_fn2
+
+        if result.get("runner_quick") is None or result["runner_quick"].get("status") != "failed":
+            raise AssertionError(f"{label_cs}: runner_quick debe ser failed. Got: {result.get('runner_quick')}")
+        next_action = result.get("next_action") or {}
+        if next_action.get("decision") != "correct":
+            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'correct'. Got: {next_action}")
+        if next_action.get("tool") != "run_local_checks":
+            raise AssertionError(f"{label_cs}: next_action.tool debe ser 'run_local_checks'. Got: {next_action}")
+        cases.append({"label": label_cs, "ok": True, "result": result})
+
     # --- Tests for next_actions_for_run() ---
 
     # 12) next_actions missing: run_id no encontrado
