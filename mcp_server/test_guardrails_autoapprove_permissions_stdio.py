@@ -432,6 +432,38 @@ def main() -> None:
         if r11.get("guardrail_error") is not None:
             raise AssertionError(f"Caso 11 (duplicados): guardrail_error debe ser null. parsed={r11}")
 
+        # 12) Bloqueo por opencode.json
+        r12 = call_create_and_dispatch(
+            22,
+            {
+                **base_args,
+                "objective": "Bloqueo: allowed_files contiene opencode.json.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": ["opencode.json"],
+            },
+        )
+        if r12.get("status") != "blocked":
+            raise AssertionError(f"Caso 12: status esperado blocked. parsed={r12}")
+        assert_contains(str(r12.get("guardrail_error") or ""), "sensible/bloqueada", "Caso 12 guardrail_error")
+
+        # 13) Bloqueo por opencode.config.example.json
+        r13 = call_create_and_dispatch(
+            23,
+            {
+                **base_args,
+                "objective": "Bloqueo: allowed_files contiene opencode.config.example.json.",
+                "risk_level": "low",
+                "auto_approve_permissions": True,
+                "user_authorized_build": True,
+                "allowed_files": ["opencode.config.example.json"],
+            },
+        )
+        if r13.get("status") != "blocked":
+            raise AssertionError(f"Caso 13: status esperado blocked. parsed={r13}")
+        assert_contains(str(r13.get("guardrail_error") or ""), "sensible/bloqueada", "Caso 13 guardrail_error")
+
         # Reporte compacto para debugging local si algo falla.
         result = {
             "ok": True,
@@ -448,6 +480,8 @@ def main() -> None:
                 "dot_slash_normalization": {"status": r9.get("status"), "guardrail_error": r9.get("guardrail_error")},
                 "whitespace_normalization": {"status": r10.get("status"), "guardrail_error": r10.get("guardrail_error")},
                 "duplicates": {"status": r11.get("status"), "guardrail_error": r11.get("guardrail_error")},
+                "opencode_json_blocked": {"status": r12.get("status"), "guardrail_error": r12.get("guardrail_error")},
+                "opencode_config_example_blocked": {"status": r13.get("status"), "guardrail_error": r13.get("guardrail_error")},
             },
         }
 

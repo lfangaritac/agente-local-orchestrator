@@ -248,6 +248,8 @@ def _is_disallowed_allowed_file(path: str) -> bool:
         "migrations",
         "infra",
         "infrastructure",
+        "opencode.json",
+        "opencode.config.example.json",
     ]
     return any(p == pref or p.startswith(pref) for pref in disallowed_prefixes)
 
