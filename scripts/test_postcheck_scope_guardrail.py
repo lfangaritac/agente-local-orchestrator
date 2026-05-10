@@ -71,6 +71,15 @@ def main() -> None:
         expected_out=[],
     )
 
+    # 5) Normalización inversa: allowed_files con separadores Windows.
+    check(
+        "normalize_allowed_windows",
+        changed_files=["docs/foo.md"],
+        allowed_files=[r"docs\foo.md"],
+        expected_status="build_applied",
+        expected_out=[],
+    )
+
     print(json.dumps({"ok": True, "cases": cases}, ensure_ascii=True, indent=2))
 
 
