@@ -14,8 +14,23 @@ python .\scripts\check_env.py
 git status
 ```
 
+### Validación local recomendada (gate antes de Builds low-risk)
 
+Runner local reproducible:
 
+```powershell
+# Iteración rápida (sin side-effects)
+python .\scripts\run_local_checks.py --mode quick
+
+# Antes de Build low-risk o commit relevante (sin side-effects por defecto)
+python .\scripts\run_local_checks.py --mode full --include-git-status
+
+# Validación MCP ampliada (side-effects opt-in: puede crear runs/handoffs de prueba ignorados por Git)
+python .\scripts\run_local_checks.py --mode full --include-git-status --include-mcp-stdio-tests
+
+# Requerir working tree limpio
+python .\scripts\run_local_checks.py --mode full --include-git-status --require-clean
+```
 
 Cuando el orquestador se aplica a un proyecto externo, scripts/check_env.py se copia como plantilla inicial.
 
