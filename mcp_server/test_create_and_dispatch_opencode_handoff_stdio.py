@@ -151,7 +151,8 @@ def main() -> None:
                     "allowed_files": ["scripts/test.py"],
                     "validation_commands": ["python -m py_compile scripts/test.py"],
                     "auto_approve_permissions": False,
-                    "build_authorized": False
+                    "build_authorized": False,
+                    "user_authorized_build": False
                 }
             }
         },
@@ -173,7 +174,8 @@ def main() -> None:
                     "allowed_files": ["scripts/test.py"],
                     "validation_commands": ["python -m py_compile scripts/test.py"],
                     "auto_approve_permissions": False,
-                    "build_authorized": False
+                    "build_authorized": False,
+                    "user_authorized_build": False
                 }
             }
         }

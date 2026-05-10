@@ -534,6 +534,9 @@ def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None
     if arguments.get("build_authorized") is True:
         command.extend(["--build-authorized", "true"])
 
+    if arguments.get("user_authorized_build") is True:
+        command.extend(["--user-authorized-build", "true"])
+
     result = _run_python_script(command, timeout=60)
     parsed = _json_or_text(result.get("stdout", ""))
 

@@ -48,6 +48,12 @@ def main() -> None:
         default="false",
         help="Marcador explícito: el usuario autorizó modo Build para esta ejecución (requerido si auto_approve_permissions=true).",
     )
+    parser.add_argument(
+        "--user-authorized-build",
+        type=str,
+        default="false",
+        help="Señal explícita adicional: el usuario autorizó Build real con permisos autoaprobados (requerido si auto_approve_permissions=true).",
+    )
 
     args = parser.parse_args()
 
@@ -56,6 +62,7 @@ def main() -> None:
 
     auto_approve_permissions = args.auto_approve_permissions.lower() == "true"
     build_authorized = args.build_authorized.lower() == "true"
+    user_authorized_build = args.user_authorized_build.lower() == "true"
 
     run_id = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + os.urandom(4).hex()
 
@@ -98,6 +105,8 @@ def main() -> None:
     if auto_approve_permissions:
         if not build_authorized:
             guardrail_error = "auto_approve_permissions=true requiere build_authorized=true."
+        elif not user_authorized_build:
+            guardrail_error = "auto_approve_permissions=true requiere user_authorized_build=true."
         elif str(args.risk_level).lower().strip() != "low":
             guardrail_error = "auto_approve_permissions solo permitido con risk_level=low."
         elif not args.allowed_files:
@@ -126,6 +135,7 @@ def main() -> None:
         "authorization_granted": auth_granted,
         "auto_approve_permissions": auto_approve_permissions,
         "build_authorized": build_authorized,
+        "user_authorized_build": user_authorized_build,
         "status": "created",
         "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
         "guardrail_error": guardrail_error,
@@ -161,6 +171,7 @@ def main() -> None:
         "## Permissions (guardrails)\n\n"
         f"- auto_approve_permissions: `{auto_approve_permissions}`\n"
         f"- build_authorized: `{build_authorized}`\n"
+        f"- user_authorized_build: `{user_authorized_build}`\n"
         f"- guardrail_error: `{guardrail_error}`\n\n"
         "## Status\n\ncreated\n"
     )
@@ -180,6 +191,7 @@ def main() -> None:
         f"- authorization: {auth_status}\n"
         f"- auto_approve_permissions: {auto_approve_permissions}\n"
         f"- build_authorized: {build_authorized}\n"
+        f"- user_authorized_build: {user_authorized_build}\n"
         f"- guardrail_error: {guardrail_error}\n",
         encoding="utf-8",
     )
@@ -192,7 +204,8 @@ def main() -> None:
         f"- model: {args.model}\n"
         f"- authorization: {auth_status}\n"
         f"- auto_approve_permissions: {auto_approve_permissions}\n"
-        f"- build_authorized: {build_authorized}\n",
+        f"- build_authorized: {build_authorized}\n"
+        f"- user_authorized_build: {user_authorized_build}\n",
         encoding="utf-8",
     )
 
@@ -265,6 +278,7 @@ def main() -> None:
             "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "auto_approve_permissions": auto_approve_permissions,
             "build_authorized": build_authorized,
+            "user_authorized_build": user_authorized_build,
         }
         background_meta_path.write_text(json.dumps(meta, ensure_ascii=True, indent=2), encoding="utf-8")
 
@@ -283,6 +297,7 @@ def main() -> None:
         "next_tool": "check_opencode_run_status",
         "auto_approve_permissions": auto_approve_permissions,
         "build_authorized": build_authorized,
+        "user_authorized_build": user_authorized_build,
         "guardrail_error": guardrail_error,
         "user_message": f"Handoff '{run_id}' creado. Estado: {status}.",
     }

@@ -63,7 +63,7 @@ Referencia: `.continue/rules/continue-opencode-handoff.md`.
 
 Siempre confirmar el modo con el usuario:
 - **Plan:** análisis/diagnóstico/diseño/revisión/handoff. **No** modificar archivos ni ejecutar comandos.
-- **Build:** ejecutar **dentro del alcance autorizado**. No requiere microaprobaciones para acciones ordinarias dentro del alcance.
+- **Build:** ejecutar **dentro del alcance autorizado**. No requiere microaprobaciones para acciones ordinarias dentro del alcance. Evitar flujos de edición/diff interactivos que requieran múltiples aceptaciones manuales: aplicar cambios de forma directa y verificable, y consultar al usuario solo por umbral.
 
 Autorización humana explícita requerida (siempre, incluso en Build):
 - premium (por costo/criticidad), Replit/entorno externo;

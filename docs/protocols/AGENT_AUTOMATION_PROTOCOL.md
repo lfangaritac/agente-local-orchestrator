@@ -363,7 +363,9 @@ Esto no reemplaza `RUN_INDEX` y la evidencia archivada no es contexto base; se r
 - `show_latest_run`: solo bajo solicitud explícita y como detalle (*preview-only*; evitar uso por defecto).
 - `raw_outputs` y logs: consultar solo en Nivel 3/4 con autorización explícita.
 
-Nota (Build low-risk con OpenCode): en modo no interactivo, OpenCode puede requerir auto-aprobación de permisos para aplicar cambios. Esto solo debe habilitarse con un switch explícito + guardrails (risk_level=low + allowed_files acotado). Ver `mcp_server/README.md`.
+Nota (Build low-risk con OpenCode): en modo no interactivo, OpenCode puede requerir auto-aprobación de permisos para aplicar cambios. Esto solo debe habilitarse con switch explícito + guardrails (risk_level=low + allowed_files acotado) **y** señal explícita adicional `user_authorized_build=true`. Ver `mcp_server/README.md`.
+
+Principio operativo estable (Build): cuando el usuario autoriza **Build por alcance**, Continue debe ejecutar dentro de ese alcance **sin microaprobaciones interactivas** (p. ej. evitar depender de múltiples aceptaciones manuales de diffs/ediciones en VS Code). Preguntar solo cuando se cruce un umbral (alcance/riesgo/seguridad/costo/calidad/política/secrets/deployment/migraciones/infra/destructivo).
 
 **Relación con `.continueignore`:** es mitigación *best-effort*; esta política prevalece aunque la instalación de Continue no soporte ignores.
 

@@ -333,6 +333,10 @@ def main() -> None:
             safe_print("ERROR: auto_approve_permissions requiere build_authorized=true en el paquete.")
             sys.exit(2)
 
+        if package.get("user_authorized_build") is not True:
+            safe_print("ERROR: auto_approve_permissions requiere user_authorized_build=true en el paquete.")
+            sys.exit(2)
+
         if str(package.get("risk_level") or "").lower().strip() != "low":
             safe_print("ERROR: auto_approve_permissions solo permitido con risk_level=low.")
             sys.exit(2)

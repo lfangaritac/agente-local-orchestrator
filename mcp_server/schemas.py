@@ -272,6 +272,11 @@ TOOL_SCHEMAS = [
                     "description": "Marcador explícito: el usuario autorizó modo Build para esta ejecución (requerido si auto_approve_permissions=true).",
                     "default": False,
                 },
+                "user_authorized_build": {
+                    "type": "boolean",
+                    "description": "Señal explícita adicional: el usuario autorizó Build real con permisos autoaprobados (requerido si auto_approve_permissions=true).",
+                    "default": False,
+                },
             },
             "required": ["project_id", "objective", "target_agent", "model", "risk_level", "scenario"],
             "additionalProperties": False,

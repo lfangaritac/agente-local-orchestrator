@@ -43,6 +43,7 @@ En particular:
 - No cargar al chat artefactos voluminosos (`docs/agent_runs/**`, `docs/agent_queue/**`, `raw_outputs/**`, `TRACE.md`, `RUN_SUMMARY.md`, logs).
 - Usar `run_id` + rutas + conteos + previews cortos.
 - Si hay ambigüedad de objetivo/alcance o decisión de umbral (riesgo/costo/seguridad/calidad), preguntar al usuario antes de ejecutar.
+- En **Build autorizado**: evitar flujos interactivos que requieran múltiples aceptaciones manuales (p. ej. diffs en VS Code); ejecutar cambios dentro del alcance con validación y reporte.
 
 ## 4) Alertas críticas (recordatorio compacto)
 
