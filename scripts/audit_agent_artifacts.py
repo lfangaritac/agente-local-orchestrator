@@ -475,7 +475,9 @@ def compute_operational_status(
         "mode": "operational-status",
     }
 
-    warnings: list[str] = []
+    blockers: list[str] = []
+    attention: list[str] = []
+    next_action: dict[str, str] | None = None
     exit_code = 0
 
     # 1) git status
@@ -484,14 +486,16 @@ def compute_operational_status(
         git_info = git_dirty_porcelain()
         result["git"] = git_info
         if git_info.get("ok") is not True:
-            warnings.append("git status failed")
+            blockers.append("git_status_error")
+            next_action = {"decision": "stop", "tool": "git", "command": "git status --porcelain"}
             result["git_clean"] = None
             exit_code = max(exit_code, 2)
         else:
             dirty = bool(git_info.get("dirty"))
             result["git_clean"] = not dirty
             if dirty:
-                warnings.append("working tree dirty")
+                blockers.append("git_dirty")
+                next_action = {"decision": "correct", "tool": "git", "command": "git status --short"}
                 exit_code = max(exit_code, 1)
     else:
         result["git_clean"] = None
@@ -508,7 +512,9 @@ def compute_operational_status(
                 "status": "error",
                 "error": "failed to run or parse quick checks",
             }
-            warnings.append("quick checks execution failed")
+            blockers.append("quick_failed")
+            if next_action is None:
+                next_action = {"decision": "correct", "tool": "run_local_checks", "command": r"python .\scripts\run_local_checks.py --mode full --include-git-status"}
             exit_code = max(exit_code, 2)
         else:
             ok = bool(quick_data.get("ok"))
@@ -525,8 +531,11 @@ def compute_operational_status(
                 } if first_failure else None,
             }
             if not ok:
-                warnings.append(f"quick checks failed ({failed} failed)")
-                exit_code = max(exit_code, 1)
+                blockers.append("quick_failed")
+                if next_action is None:
+                    next_action = {"decision": "correct", "tool": "run_local_checks", "command": r"python .\scripts\run_local_checks.py --mode full --include-git-status"}
+                quick_failed_flag = runner_quick.get("status") == "failed"
+                exit_code = max(exit_code, 1 if quick_failed_flag else 2)
         result["runner_quick"] = runner_quick
     else:
         result["runner_quick"] = runner_quick
@@ -543,10 +552,11 @@ def compute_operational_status(
                 "status": "error",
                 "error": "failed to run or parse verify_master_files",
             }
-            warnings.append("verify_master_files execution failed")
+            blockers.append("master_files_missing")
+            if next_action is None:
+                next_action = {"decision": "verify", "tool": "verify_master_files", "command": r"python .\scripts\verify_master_files.py --compact"}
             exit_code = max(exit_code, 2)
         else:
-            # Modo compacto devuelve campos aplanados en la raíz (no bajo 'summary')
             all_ok = bool(vm_data.get("all_ok")) if isinstance(vm_data, dict) else False
             total_missing = int(vm_data.get("total_missing", 0)) if isinstance(vm_data, dict) else 0
             total_errors = int(vm_data.get("total_errors", 0)) if isinstance(vm_data, dict) else 0
@@ -558,8 +568,11 @@ def compute_operational_status(
                 "missing_files": missing_files[:10] if isinstance(missing_files, list) else [],
             }
             if not all_ok:
-                warnings.append(f"master files missing ({total_missing}) or errors ({total_errors})")
-                exit_code = max(exit_code, 1)
+                blockers.append("master_files_missing")
+                if next_action is None:
+                    next_action = {"decision": "verify", "tool": "verify_master_files", "command": r"python .\scripts\verify_master_files.py --compact"}
+                vm_missing_flag = verify_info.get("status") == "missing"
+                exit_code = max(exit_code, 1 if vm_missing_flag else 2)
         result["verify_master_files"] = verify_info
     else:
         result["verify_master_files"] = verify_info
@@ -577,44 +590,49 @@ def compute_operational_status(
         }
         hs = str(health.get("health_status") or "")
         if hs == "failed":
-            warnings.append(f"latest run failed: {latest_run_id}")
+            blockers.append("latest_run_failed")
+            next_action = {"decision": "stop", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check + check_opencode_run_status"}
             exit_code = max(exit_code, 2)
-        elif hs in ("stale", "partial"):
-            warnings.append(f"latest run {hs}: {latest_run_id}")
+        elif hs == "stale":
+            attention.append("latest_run_stale")
+            if next_action is None:
+                next_action = {"decision": "wait", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
             exit_code = max(exit_code, 1)
+        elif hs == "partial":
+            attention.append("latest_run_partial")
+            if next_action is None:
+                next_action = {"decision": "verify", "tool": "mcp:check_opencode_run_status", "command": "(MCP) check_opencode_run_status"}
+            exit_code = max(exit_code, 1)
+
+        # h) archive_suggested
+        next_actions_list = latest_run_info.get("next_actions") or []
+        if isinstance(next_actions_list, list) and any("Archivar" in str(a) for a in next_actions_list):
+            attention.append("archive_suggested")
+
     result["latest_run_relevant"] = latest_run_info
 
-    # 5) warnings
-    result["warnings"] = warnings
+    # i) default next_action
+    if next_action is None:
+        next_action = {"decision": "advance", "tool": "audit_agent_artifacts", "command": "avanzar a siguiente tarea o build"}
 
-    # 6) suggested_next_step
-    suggested = "avanzar a siguiente tarea o build"
-    if include_git_status and result.get("git_clean") is False:
-        suggested = "limpiar working tree (git status)"
-    elif run_quick_checks and runner_quick.get("status") == "failed":
-        suggested = "revisar checks fallidos"
-    elif verify_master_files and verify_info.get("status") == "missing":
-        suggested = "revisar archivos maestros"
-    elif latest_run_info:
-        hs = str(latest_run_info.get("health_status") or "")
-        if hs == "failed":
-            suggested = f"revisar run fallido: {latest_run_id}"
-        elif hs == "stale":
-            suggested = f"revisar run estancado: {latest_run_id}"
-        elif hs == "partial":
-            suggested = f"revisar run parcial: {latest_run_id}"
-    result["suggested_next_step"] = suggested
+    build_blocked = bool(blockers)
+    overall_status = "ok" if exit_code == 0 else ("warn" if exit_code == 1 else "error")
+    ready_to_advance = (overall_status == "ok" and not build_blocked)
 
-    # 7) overall_status
-    if exit_code == 2:
-        result["overall_status"] = "error"
-    elif exit_code == 1:
-        result["overall_status"] = "warn"
-    else:
-        result["overall_status"] = "ok"
+    suggested_next_step = f"{next_action['decision']}: {next_action['command']}"
 
+    warnings = list(blockers) + list(attention)
+
+    result["blockers"] = blockers
+    result["attention"] = attention
+    result["build_blocked"] = build_blocked
+    result["ready_to_advance"] = ready_to_advance
+    result["next_action"] = next_action
+    result["suggested_next_step"] = suggested_next_step
+    result["overall_status"] = overall_status
     result["ok"] = exit_code == 0
-    result["status"] = "ok" if exit_code == 0 else ("warn" if exit_code == 1 else "error")
+    result["status"] = overall_status
+    result["warnings"] = warnings
     result["elapsed_ms"] = int((time.perf_counter() - start) * 1000)
 
     return result, exit_code

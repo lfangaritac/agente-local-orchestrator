@@ -239,6 +239,12 @@ def main() -> None:
             raise AssertionError(f"{label_cs}: latest_run_relevant no debe ser None. Got: {result}")
         if (result.get("latest_run_relevant") or {}).get("health_status") != "failed":
             raise AssertionError(f"{label_cs}: latest_run health_status debe ser 'failed'. Got: {result}")
+        if result.get("build_blocked") is not True:
+            raise AssertionError(f"{label_cs}: build_blocked debe ser True. Got: {result}")
+        if "latest_run_failed" not in result.get("blockers", []):
+            raise AssertionError(f"{label_cs}: blockers debe contener 'latest_run_failed'. Got: {result}")
+        if (result.get("next_action") or {}).get("decision") != "stop":
+            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'stop'. Got: {result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
 
     # 11) compute_operational_status sin git/subprocess, sin runs -> overall_status=ok
@@ -260,6 +266,12 @@ def main() -> None:
             raise AssertionError(f"{label_cs}: exit_code debe ser 0. Got: {exit_code}")
         if result.get("latest_run_relevant") is not None:
             raise AssertionError(f"{label_cs}: latest_run_relevant debe ser None. Got: {result}")
+        if result.get("ready_to_advance") is not True:
+            raise AssertionError(f"{label_cs}: ready_to_advance debe ser True. Got: {result}")
+        if result.get("build_blocked") is not False:
+            raise AssertionError(f"{label_cs}: build_blocked debe ser False. Got: {result}")
+        if (result.get("next_action") or {}).get("decision") != "advance":
+            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'advance'. Got: {result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
 
     # --- Tests for next_actions_for_run() ---
