@@ -2,7 +2,7 @@
 
 ## Proposito
 
-Guia para que multiples equipos o miembros puedan clonar, rehidratar y validar el orquestador local `C:\Agente` en distintas maquinas, con rutas locales distintas, sin versionar configuracion personal ni secretos.
+Guia para que multiples equipos o miembros puedan clonar, rehidratar y validar el orquestador local (historicamente usado en `C:\Agente`, pero portable) en distintas maquinas, con rutas locales distintas, sin versionar configuracion personal ni secretos.
 
 ---
 
@@ -32,7 +32,7 @@ Todas las rutas en este documento usan `<AGENTE_ROOT>` como placeholder. Cada eq
 | Python | 3.10+ | `python --version` |
 | VS Code | 1.85+ | `code --version` |
 | Continue | ultima estable | Extension VS Code |
-| OpenCode CLI | segun docs oficiales | `opencode.cmd --version` |
+| OpenCode CLI | segun docs oficiales | En Windows suele existir `opencode.cmd` (ej: `opencode.cmd --version` o `where opencode.cmd`). |
 
 No se incluyen valores de secrets, tokens ni variables de entorno en esta guia. Cada equipo debe configurar sus propios valores en `.env` local (no versionado).
 
@@ -55,7 +55,7 @@ El servidor MCP se ejecuta con:
 python <AGENTE_ROOT>\mcp_server\server.py
 ```
 
-Agregar esta entrada en la configuracion de Continue (`.continue/config.json` o la UI de configuracion segun la version):
+Agregar esta entrada en la configuracion local de Continue (ubicacion/UI depende de la version; tipicamente fuera del repo en el perfil del usuario):
 
 ```json
 {
@@ -72,7 +72,7 @@ Agregar esta entrada en la configuracion de Continue (`.continue/config.json` o 
 
 Reemplazar `<AGENTE_ROOT>` por la ruta local real.
 
-> **Importante:** No versionar `.continue/config.json` ni ninguna configuracion personal de Continue. Cada miembro del equipo debe configurarlo localmente.
+> **Importante:** No versionar ninguna configuracion personal de Continue (archivos bajo el perfil del usuario). Cada miembro del equipo debe configurarlo localmente.
 
 ---
 
@@ -121,10 +121,11 @@ Reglas:
 
 1. **Usar placeholders en documentacion compartida:** `<AGENTE_ROOT>` en lugar de rutas absolutas.
 2. **No hardcodear rutas absolutas** en scripts de validacion o configuracion.
-3. **Los scripts del orquestador** (en `scripts/`) intentan detectar la raiz del repositorio automaticamente. Si fallan, usar `--root` flag:
+3. **Los scripts del orquestador** (en `scripts/`) intentan detectar la raiz del repositorio automaticamente. Si fallan, asegurar que estas ejecutando desde la raiz del repo:
 
 ```powershell
-python .\scripts\check_portability.py --output json --root <AGENTE_ROOT>
+cd <AGENTE_ROOT>
+python .\scripts\check_portability.py --output json
 ```
 
 4. **Configuracion de Continue MCP:** cada miembro debe ajustar la ruta en su configuracion local.
@@ -133,9 +134,9 @@ python .\scripts\check_portability.py --output json --root <AGENTE_ROOT>
 
 ## 6. Manejo de registries por maquina
 
-El archivo `PROJECT_REGISTRY.md` centraliza los proyectos del orquestador, pero **no debe versionarse** contenido generado localmente por maquina.
+`PROJECT_REGISTRY.md` es el registro maestro versionado del orquestador (en esta fase aun puede estar vacio/no poblado). Para pruebas locales por maquina o para registrar proyectos sin tocar el registro maestro, usar un registry separado **fuera del repo**.
 
-Para registros locales por maquina:
+Para registries locales por maquina:
 
 1. Crear un archivo fuera del repositorio:
 
@@ -166,12 +167,12 @@ Los siguientes archivos y directorios **no deben** incluirse en commits:
 | `.env` / `.env.*` | Secrets, tokens, credenciales |
 | `.continue/config.json` y `.continue/` personal | Config IDE local, API keys de modelos |
 | `.vscode/settings.json` personal | Preferencias de editor por maquina |
-| `opencode.json` / `opencode.config.example.json` | Config local de OpenCode |
+| Configuracion local de OpenCode fuera del repo | Puede incluir rutas o credenciales segun instalacion |
 | `docs/agent_runs/**` | Evidencia operacional generada por ejecuciones |
 | `docs/agent_queue/**` | Handoffs en cola (temporales) |
 | `raw_outputs/**` | Salidas crudas de modelos |
 
-Si se incluye alguno por error, usar `git rm --cached` y agregar a `.gitignore`.
+Si se incluye alguno por error, usar `git rm --cached` y ajustar el ignore a nivel usuario (global) o mantener el archivo fuera del repo.
 
 ---
 
