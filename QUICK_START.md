@@ -4,6 +4,12 @@
 
 Este repositorio contiene el nucleo base para activar el sistema operativo de agentes en proyectos locales, proyectos existentes y proyectos conectados a Replit.
 
+## Bootstrap multi-equipo
+
+Para clonar, rehidratar y validar este orquestador en distintas maquinas (multiples equipos/miembros), consultar:
+
+- `docs/BOOTSTRAP_MULTI_EQUIPO.md` — guia completa con prerequisitos, configuracion MCP, validaciones, manejo de rutas locales y registries por maquina.
+
 ## Comandos principales
 
 ### Activar o validar sistema de agentes
