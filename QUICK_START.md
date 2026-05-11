@@ -14,6 +14,12 @@ python .\scripts\check_env.py
 git status
 ```
 
+### Validación de portabilidad (rehidratación en otro entorno)
+
+```powershell
+python .\scripts\check_portability.py --output json
+```
+
 ### Validación local recomendada (gate antes de Builds low-risk)
 
 Runner local reproducible:
@@ -50,7 +56,7 @@ Este flujo no invoca modelos, no ejecuta agentes reales, no modifica código fun
 
 Ejecutar en PowerShell:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\run_diagnostic_flow.py
 
 ### Resultado esperado
@@ -94,7 +100,7 @@ Para diagnóstico rápido **sin dumps** y sin abrir artefactos completos, usar d
 
 Fallback (terminal, detalle excepcional):
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\show_latest_run.py
 
 ### Archivos generados por flujo
@@ -142,12 +148,12 @@ Esta integración permite tomar un paquete de handoff previamente generado en `d
 
 Ejecutar en PowerShell:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\run_opencode_from_handoff.py --run-id <run-id>
 
 Ejemplo validado:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\run_opencode_from_handoff.py --run-id 20260506_111238_8e48193b
 
 ### Alcance actual
@@ -215,7 +221,7 @@ Recomendado desde Continue (vía MCP), en este orden:
 
 Solo si hace falta detalle (y como **preview-only**), usar en terminal:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\show_latest_run.py
 
 ### Estado de automatización
@@ -256,7 +262,7 @@ El orquestador ya permite ejecutar un flujo diagnóstico completo con OpenCode r
 
 Ejecutar en PowerShell:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\run_diagnostic_flow.py --with-opencode
 
 ### Qué ejecuta este comando
@@ -330,7 +336,7 @@ Recomendado desde Continue (vía MCP), en este orden:
 
 Solo si hace falta detalle (y como **preview-only**), usar en terminal:
 
-    cd C:\Agente
+    cd <AGENTE_ROOT>/<repo-root>
     python .\scripts\show_latest_run.py
 
 ### Estado actual
