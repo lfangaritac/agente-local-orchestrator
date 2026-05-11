@@ -52,6 +52,14 @@ REGISTRY_KEYS = {
     "lecciones_locales",
     "\u00faltimo_an\u00e1lisis",
     "responsable",
+
+    # --- extended metadata (remote / replit-git) ---
+    # Nota: estos campos son opcionales y no afectan los fixtures existentes.
+    "environment_type",
+    "replit_workspace_path",
+    "replit_join_url",
+    "repo_url",
+    "local_path",
 }
 
 
@@ -98,12 +106,32 @@ def parse_registry(registry_path: Path) -> tuple[list[dict[str, Any]], list[str]
     return entries, warnings
 
 
+def _null_if_blank_or_nullish(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        v = value.strip()
+        if not v or v.lower() in {"null", "none", "n/a"}:
+            return None
+        return v
+    return str(value)
+
+
 def _resolve_entry(entry: dict) -> dict:
+    # Back-compat: mantener {id,name,path,aliases} como keys base.
+    # Extensión: preservar metadata útil para proyectos remotos (p.ej. Replit+Git).
     return {
         "id": entry.get("project_id", ""),
         "name": entry.get("nombre_can\u00f3nico", ""),
         "path": entry.get("ruta_local", ""),
         "aliases": entry.get("alias_permitidos", []),
+        "environment_type": _null_if_blank_or_nullish(entry.get("environment_type"))
+        or _null_if_blank_or_nullish(entry.get("origen")),
+        "replit_workspace_path": _null_if_blank_or_nullish(entry.get("replit_workspace_path")),
+        "replit_join_url": _null_if_blank_or_nullish(entry.get("replit_join_url")),
+        "repo_url": _null_if_blank_or_nullish(entry.get("repo_url"))
+        or _null_if_blank_or_nullish(entry.get("repositorio_remoto")),
+        "local_path": _null_if_blank_or_nullish(entry.get("local_path")),
     }
 
 

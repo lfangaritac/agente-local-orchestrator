@@ -233,6 +233,58 @@ def test_resolve_alias() -> None:
     print("[PASS] Case E: resolve-only por alias")
 
 
+def test_resolve_preserves_remote_metadata() -> None:
+    """Campos opcionales: deben preservarse en resolve-only cuando están en el registry."""
+
+    with tempfile.TemporaryDirectory() as tmp:
+        reg_path = Path(tmp) / "registry.md"
+
+        reg_path.write_text(
+            "\n".join(
+                [
+                    "project_id: remote-1",
+                    "nombre_canónico: Remote One",
+                    "alias_permitidos: r1",
+                    "ruta_local:",
+                    "environment_type: replit-git",
+                    "replit_workspace_path: /home/runner/workspace",
+                    "replit_join_url: https://replit.com/join/example",
+                    "repo_url: https://github.com/example/repo",
+                    "local_path: null",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        data = _run(
+            [
+                "--project",
+                "r1",
+                "--resolve-only",
+                "--registry-path",
+                str(reg_path),
+            ]
+        )
+
+        assert data["ok"] is True
+        assert data["project_found"] is True
+        assert data["matched_by"] == "alias"
+
+        proj = data["project"]
+        assert proj["id"] == "remote-1"
+        assert proj["name"] == "Remote One"
+        assert proj["path"] == "", "ruta_local vacía debe resolver a path vacío"
+
+        assert proj.get("environment_type") == "replit-git"
+        assert proj.get("replit_workspace_path") == "/home/runner/workspace"
+        assert proj.get("replit_join_url") == "https://replit.com/join/example"
+        assert proj.get("repo_url") == "https://github.com/example/repo"
+        assert proj.get("local_path") is None, "local_path: null debe normalizarse a None"
+
+    print("[PASS] Case E2: resolve-only preserva metadata remota")
+
+
 def test_ambiguity() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         reg_path = Path(tmp) / "registry.md"
@@ -287,6 +339,7 @@ def main() -> None:
         test_no_overwrite_skips_existing,
         test_resolve_project_id,
         test_resolve_alias,
+        test_resolve_preserves_remote_metadata,
         test_ambiguity,
     ]
 
