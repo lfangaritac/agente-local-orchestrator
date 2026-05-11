@@ -8,6 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Fase 6 — Cambio mínimo controlado (handoff 20260510_190034_a2de4ca5)
 
 HERE = Path(__file__).resolve().parent
 SCRIPT = HERE / "apply_to_project.py"
