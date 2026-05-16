@@ -451,6 +451,56 @@ TOOL_SCHEMAS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "run_general_instruction_flow",
+        "description": "Cierra el loop: instrucción general → plan → dispatch controlado (si es seguro) → seguimiento compact-first.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "instruction": {
+                    "type": "string",
+                    "description": "Instrucción general del usuario.",
+                },
+                "mode": {
+                    "type": "string",
+                    "description": "plan (no side-effects) o dispatch_if_safe (dispatch OpenCode Go solo si no requiere autorización).",
+                    "enum": ["plan", "dispatch_if_safe"],
+                    "default": "plan",
+                },
+                "project_query": {
+                    "type": "string",
+                    "description": "project_id/alias/nombre del proyecto objetivo. Si se omite, usar workspace_path.",
+                    "default": "",
+                },
+                "workspace_path": {
+                    "type": "string",
+                    "description": "Ruta local del workspace/repo actual para inferencia best-effort (read-only).",
+                    "default": "",
+                },
+                "projects_root": {
+                    "type": "string",
+                    "description": "Raíz local donde se esperan clones (solo para sugerir/ubicar suggested_local_path; read-only).",
+                },
+                "include_git": {
+                    "type": "boolean",
+                    "description": "Si true, intenta incluir un probe Git compacto cuando exista repo local.",
+                    "default": True,
+                },
+                "include_orchestrator_status": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta operational_status del orquestador (read-only).",
+                    "default": True,
+                },
+                "include_preflight": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta orchestrator_preflight.",
+                    "default": True,
+                },
+            },
+            "required": ["instruction"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 

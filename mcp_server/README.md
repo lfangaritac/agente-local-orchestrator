@@ -15,6 +15,7 @@ Fase v0.1. Implementación inicial segura.
 - `verify_master_files`
 - `resolve_target_project`
 - `plan_general_instruction`
+- `run_general_instruction_flow`
 - `select_agent_model`
 - `build_handoff_package`
 - `run_diagnostic_flow`

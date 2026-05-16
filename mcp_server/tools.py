@@ -43,6 +43,7 @@ ALLOWED_TOOLS = {
     "operational_status",
     "resolve_target_project",
     "plan_general_instruction",
+    "run_general_instruction_flow",
 }
 
 
@@ -1342,7 +1343,9 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
                 "build_blocked": orch_status.get("build_blocked"),
             }
 
-            if orch_status.get("operational_ok") is False or orch_status.get("overall_status") == "error":
+            # Bloquear solo por error real (no por warn). Los warnings se reflejan en ready_to_advance=false
+            # y deben impedir dispatch automático, pero no romper la planificación.
+            if orch_status.get("overall_status") == "error":
                 return {
                     "ok": True,
                     "status": "blocked",
@@ -1551,7 +1554,127 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "next_frontier": next_frontier,
         "next_question": next_question,
         "compact_message_for_continue": compact_message,
+        "followup_scheme_template": _build_followup_scheme(run_id=None),
     }
+
+
+def _build_followup_scheme(run_id: str | None) -> dict[str, Any]:
+    """Devuelve un esquema de seguimiento compact-first (no ejecuta nada)."""
+
+    rid = run_id or "<run_id>"
+
+    return {
+        "compact_first": True,
+        "run_id": run_id,
+        "notes": [
+            "Seguimiento recomendado (compact-first): run_health_check → check_opencode_run_status → get_run_status.",
+            "Usar show_latest_run solo como fallback (preview-only) porque puede ser verboso.",
+        ],
+        "polling": {
+            "initial_wait_seconds": 2,
+            "retry_seconds": 5,
+            "max_attempts": 12,
+        },
+        "steps": [
+            {"tool": "run_health_check", "arguments": {"run_id": rid}},
+            {"tool": "check_opencode_run_status", "arguments": {"run_id": rid}},
+            {"tool": "get_run_status", "arguments": {"run_id": rid}},
+        ],
+        "fallback": [
+            {
+                "tool": "show_latest_run",
+                "arguments": {"run_id": rid},
+                "note": "preview-only; evita dumps completos salvo que el usuario lo pida",
+            }
+        ],
+    }
+
+
+def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Cierra el loop: instrucción general → plan → dispatch controlado → seguimiento.
+
+    - mode='plan' (default): no crea artefactos ni despacha. Solo devuelve plan + esquema de seguimiento.
+    - mode='dispatch_if_safe': si la frontera es segura (sin premium/Replit/autorizaciones), ejecuta
+      create_and_dispatch_opencode_handoff y devuelve run_id + followup plan compact-first.
+
+    Restricciones:
+    - No usa Replit.
+    - No usa premium salvo que el usuario lo autorice explícitamente mediante flags.
+    - No habilita Build automático.
+    """
+
+    arguments = arguments or {}
+
+    mode = str(arguments.get("mode") or "plan").strip().lower()
+    if mode not in {"plan", "dispatch_if_safe"}:
+        mode = "plan"
+
+    plan = plan_general_instruction(arguments)
+
+    # Siempre devolver al menos el template de seguimiento.
+    base = {
+        "ok": True,
+        "status": "ok",
+        "mode": mode,
+        "plan": plan,
+        "followup_scheme_template": _build_followup_scheme(run_id=None),
+    }
+
+    if mode == "plan":
+        return base
+
+    # dispatch_if_safe
+    recommended = plan.get("recommended_next_tool_call") if isinstance(plan, dict) else None
+    authorizations_required = plan.get("authorizations_required") if isinstance(plan, dict) else None
+
+    # Si no hay next tool call seguro, no despachar.
+    if not isinstance(recommended, dict):
+        base["dispatch"] = {
+            "attempted": False,
+            "status": "not_safe_to_dispatch",
+            "reason": "No hay recommended_next_tool_call seguro (requiere autorización o frontera no lista).",
+            "authorizations_required": authorizations_required or [],
+        }
+        base["next_frontier"] = plan.get("next_frontier") if isinstance(plan, dict) else None
+        base["next_question"] = plan.get("next_question") if isinstance(plan, dict) else None
+        return base
+
+    # Defensa adicional: no despachar si el plan requiere premium o Replit.
+    auth_list = authorizations_required if isinstance(authorizations_required, list) else []
+    if any(x in {"premium", "replit"} for x in auth_list):
+        base["dispatch"] = {
+            "attempted": False,
+            "status": "authorization_required",
+            "authorizations_required": auth_list,
+            "reason": "Requiere autorización (premium y/o Replit).",
+        }
+        base["next_frontier"] = plan.get("next_frontier") if isinstance(plan, dict) else None
+        base["next_question"] = plan.get("next_question") if isinstance(plan, dict) else None
+        return base
+
+    # Intentar dispatch vía create_and_dispatch_opencode_handoff.
+    rec_args = recommended.get("arguments") if isinstance(recommended.get("arguments"), dict) else {}
+
+    dispatch_result = create_and_dispatch_opencode_handoff(rec_args)
+    parsed = dispatch_result.get("parsed") if isinstance(dispatch_result, dict) else None
+    parsed = parsed if isinstance(parsed, dict) else None
+
+    run_id = parsed.get("run_id") if parsed else None
+
+    base["dispatch"] = {
+        "attempted": True,
+        "tool": "create_and_dispatch_opencode_handoff",
+        "arguments": rec_args,
+        "result": parsed or dispatch_result,
+    }
+
+    if run_id:
+        base["run_id"] = run_id
+        base["followup_plan"] = _build_followup_scheme(run_id=str(run_id))
+        # Próximo tool call directo (compact-first)
+        base["recommended_next_tool_call"] = {"tool": "run_health_check", "arguments": {"run_id": str(run_id)}}
+
+    return base
 
 
 TOOL_HANDLERS = {
@@ -1570,6 +1693,7 @@ TOOL_HANDLERS = {
     "operational_status": operational_status,
     "resolve_target_project": resolve_target_project,
     "plan_general_instruction": plan_general_instruction,
+    "run_general_instruction_flow": run_general_instruction_flow,
 }
 
 
