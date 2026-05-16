@@ -501,6 +501,41 @@ TOOL_SCHEMAS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "get_active_project",
+        "description": "Devuelve el proyecto activo (sesión) si existe. Vive en .orchestrator_state/ (gitignored).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "set_active_project",
+        "description": "Establece el proyecto activo (sesión) para soportar 'retomar'/'volver'. Escribe solo en .orchestrator_state/ (gitignored).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "string", "description": "project_id del proyecto activo."},
+                "note": {"type": "string", "description": "Nota opcional (p.ej. por qué se activó).", "default": ""}
+            },
+            "required": ["project_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "init_project_onboarding_scaffold",
+        "description": "Crea (si falta) el scaffold documental mínimo en docs/projects/<project-id>/ (sin sobrescribir).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {"type": "string", "description": "project_id del proyecto a onboardear."},
+                "dry_run": {"type": "boolean", "description": "Si true, solo reporta qué crearía.", "default": False}
+            },
+            "required": ["project_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 

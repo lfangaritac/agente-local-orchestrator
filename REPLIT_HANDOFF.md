@@ -274,7 +274,21 @@ El objetivo es:
 
 Replit NO es un generador principal.
 
+### 2.1 Canal de transferencia de intención hacia el orquestador
+
+Si el usuario escribe en Replit: **"resolver con Orquestador"** (o equivalente), Replit debe comportarse como **canal de transferencia de intención** hacia el orquestador (Continue/MCP), no como ejecutor automático.
+
+Regla:
+- Replit **solo ejecuta** cuando el usuario lo invoca explícitamente como ejecutor, o cuando el orquestador lo recomienda por activador válido y el usuario autoriza.
+
+Salida sugerida (compacta, sin dumps):
+- intención del usuario (1 línea)
+- proyecto objetivo si está claro (si no: "Proyecto objetivo no confirmado")
+- qué espera del orquestador (p. ej. plan/diagnóstico/handoff)
+- siguiente acción: abrir Continue y usar `run_general_instruction_flow` / `plan_general_instruction`
+
 Replit es:
+
 
 - validador de planes
 - revisor tÃ©cnico

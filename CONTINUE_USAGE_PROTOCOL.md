@@ -88,6 +88,21 @@ El usuario define **objetivo**, **proyecto objetivo** (o confirma que no lo est�
 - “**Evalúa si requiere Replit o modelo premium**” → evaluar activadores (riesgo, volumen, runtime, seguridad, solicitud del usuario, costo de equivocarse) y devolver decisión + retorno esperado.
 - “**Procesa este retorno externo**” → normalizar retorno, clasificar estado y decidir `no_escalate` / `replit_needed` / `premium_needed` + `next_frontier` (ver template de returns).
 
+### Selección, salto y retoma de proyecto (con lenguaje natural)
+
+Objetivo: que el usuario pueda decir en Continue cosas como “cambia a dpm”, “salta a orchestrator” o “retoma el anterior” sin tener que recordar tool names.
+
+Soporte (MCP):
+- `plan_general_instruction` / `run_general_instruction_flow` intentan extraer `project_query` desde el propio texto (p. ej. "cambia a <alias>") y soportan “retoma/volver” usando sesión si existe.
+- Para habilitar “retomar”, el flujo debe haber fijado una vez el proyecto activo con:
+  - `set_active_project(project_id=...)`
+  - y se consulta con `get_active_project()`.
+
+Onboarding mínimo al vincular un proyecto:
+- Si `plan_general_instruction` devuelve `status=onboarding_required`, ejecutar:
+  - `init_project_onboarding_scaffold(project_id=..., dry_run=false)`
+  - y luego reintentar el plan/dispatch.
+
 ### Secuencia estándar interna (aplicar por defecto)
 1) Resolver/confirmar **proyecto objetivo** (si no está confirmado: operar en diagnóstico). Referencias: `PROJECT_REGISTRY.md`, `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`.
 2) Ejecutar **preflight** (fuentes mínimas, alertas, lecciones) y declarar suficiencia. Referencias: `TARGET_PROJECT_CONTEXT_CONTRACT.md`, `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`, `docs/lessons/GLOBAL_LESSONS_LEARNED.md`.

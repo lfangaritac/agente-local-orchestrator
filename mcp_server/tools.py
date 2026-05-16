@@ -23,8 +23,13 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Local, unversioned session state (used only when user opts-in via MCP tools).
+STATE_DIR = ROOT / ".orchestrator_state"
+ACTIVE_PROJECT_PATH = STATE_DIR / "active_project.json"
+
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
 
 
 ALLOWED_TOOLS = {
@@ -44,7 +49,11 @@ ALLOWED_TOOLS = {
     "resolve_target_project",
     "plan_general_instruction",
     "run_general_instruction_flow",
+    "get_active_project",
+    "set_active_project",
+    "init_project_onboarding_scaffold",
 }
+
 
 
 def _run_python_script(args: list[str], timeout: int = 180, max_output_chars: int = 24576) -> dict[str, Any]:
@@ -92,7 +101,87 @@ def _json_or_text(output: str) -> Any:
         return output
 
 
+def _now_iso() -> str:
+    # ISO-8601 without timezone math (good enough for local audit trails)
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _read_json_file(path: Path) -> dict[str, Any] | None:
+    try:
+        if not path.exists() or not path.is_file():
+            return None
+        if path.stat().st_size > 256_000:
+            return None
+        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return None
+
+
+def get_active_project(_: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Devuelve el proyecto activo (sesión) si existe.
+
+    Nota: esta memoria es local y efímera; vive en `.orchestrator_state/` (gitignored).
+    """
+
+    data = _read_json_file(ACTIVE_PROJECT_PATH)
+    if not data:
+        return {
+            "ok": True,
+            "status": "empty",
+            "active_project": None,
+            "path": str(ACTIVE_PROJECT_PATH),
+        }
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "active_project": {
+            "project_id": data.get("project_id"),
+            "set_at": data.get("set_at"),
+            "note": data.get("note"),
+        },
+        "path": str(ACTIVE_PROJECT_PATH),
+    }
+
+
+def set_active_project(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Establece el proyecto activo (sesión) para soportar 'retomar'/'volver'.
+
+    Restricciones:
+    - Solo escribe dentro de `.orchestrator_state/` (gitignored).
+    - No modifica proyectos externos.
+    """
+
+    arguments = arguments or {}
+    project_id = (arguments.get("project_id") or "").strip()
+    if not project_id:
+        return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
+
+    note = (arguments.get("note") or "").strip()
+
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "project_id": project_id,
+        "set_at": _now_iso(),
+        "note": note or None,
+    }
+
+    try:
+        ACTIVE_PROJECT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as exc:
+        return {"ok": False, "status": "error", "error": f"No se pudo escribir active_project.json: {exc}"}
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "active_project": payload,
+        "path": str(ACTIVE_PROJECT_PATH),
+    }
+
+
 def orchestrator_preflight(_: dict[str, Any] | None = None) -> dict[str, Any]:
+
     result = _run_python_script(["scripts/orchestrator_preflight.py"])
     return {
         **result,
@@ -1118,7 +1207,168 @@ def resolve_target_project(arguments: dict[str, Any] | None = None) -> dict[str,
     return result
 
 
+PROJECT_ONBOARDING_REQUIRED_FILES = [
+    "PROJECT_PROFILE.md",
+    "CONTEXT_INDEX.md",
+    "CODE_CONTEXT_MAP.md",
+    "DOCUMENTATION_AUDIT.md",
+    "CRITICAL_ALERTS.md",
+    "LESSONS_LOCAL.md",
+    "SYNC_STATUS.md",
+    "HANDOFF_LOG.md",
+]
+
+
+def _probe_project_onboarding(project_id: str) -> dict[str, Any]:
+    pid = (project_id or "").strip()
+    if not pid:
+        return {"ok": True, "status": "unknown", "project_id": None, "docs_dir": None, "missing": []}
+
+    if pid == "orchestrator":
+        return {"ok": True, "status": "not_applicable", "project_id": pid, "docs_dir": None, "missing": []}
+
+    docs_dir = ROOT / "docs" / "projects" / pid
+
+    missing = [name for name in PROJECT_ONBOARDING_REQUIRED_FILES if not (docs_dir / name).exists()]
+
+    if not docs_dir.exists():
+        return {
+            "ok": True,
+            "status": "missing",
+            "project_id": pid,
+            "docs_dir": str(docs_dir),
+            "missing": PROJECT_ONBOARDING_REQUIRED_FILES,
+        }
+
+    if missing:
+        return {
+            "ok": True,
+            "status": "partial",
+            "project_id": pid,
+            "docs_dir": str(docs_dir),
+            "missing": missing,
+        }
+
+    return {"ok": True, "status": "ready", "project_id": pid, "docs_dir": str(docs_dir), "missing": []}
+
+
+def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Crea (si falta) el scaffold documental mínimo en docs/projects/<project-id>/.
+
+    Objetivo: iniciar onboarding sin copiar chats completos ni volcar artefactos.
+
+    Restricciones:
+    - Solo escribe dentro del repo del orquestador (docs/projects/*).
+    - No lee ni modifica proyectos externos.
+    - No sobrescribe archivos existentes.
+    """
+
+    arguments = arguments or {}
+
+    project_id = (arguments.get("project_id") or "").strip()
+    if not project_id:
+        return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
+
+    dry_run = bool(arguments.get("dry_run", False))
+
+    docs_dir = ROOT / "docs" / "projects" / project_id
+
+    created: list[str] = []
+    skipped: list[str] = []
+
+    # Metadata best-effort desde registry (si existe)
+    registry_path = ROOT / "PROJECT_REGISTRY.md"
+    entries, _warnings = _parse_registry_entries(registry_path)
+    resolved = _resolve_by_query(project_id, entries) if entries else {"ok": False}
+    entry = resolved.get("entry") if isinstance(resolved, dict) else None
+
+    nombre = (entry.get("nombre_canónico") if isinstance(entry, dict) else None) or "unknown"
+    repo_url = (entry.get("repo_url") if isinstance(entry, dict) else None) or (entry.get("repositorio_remoto") if isinstance(entry, dict) else None) or ""
+    repo_url = _redact_remote_url(repo_url)
+
+    templates: dict[str, str] = {
+        "PROJECT_PROFILE.md": (
+            f"# PROJECT_PROFILE — {project_id}\n\n"
+            f"- project_id: `{project_id}`\n"
+            f"- nombre_canónico: `{nombre}`\n"
+            f"- repo_url: `{repo_url or 'unknown'}`\n\n"
+            "## Objetivo\n\n"
+            "(Completar: descripción corta del proyecto y su propósito.)\n\n"
+            "## Fuentes primarias (referencias)\n\n"
+            "- `PROJECT_REGISTRY.md` (entrada del proyecto)\n"
+            "- README/docs del proyecto objetivo (si existen)\n"
+        ),
+        "CONTEXT_INDEX.md": (
+            f"# CONTEXT_INDEX — {project_id}\n\n"
+            "Índice de contexto por referencias (ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`).\n\n"
+            "## Documentación encontrada\n\n- (pendiente)\n\n"
+            "## Decisiones relevantes\n\n- (pendiente)\n\n"
+            "## Runs / evidencia\n\n- (pendiente; referenciar por run_id + rutas)\n"
+        ),
+        "CODE_CONTEXT_MAP.md": (
+            f"# CODE_CONTEXT_MAP — {project_id}\n\n"
+            "Mapa inicial (estructura/entrypoints/rutas).\n\n"
+            "- Estructura: (pendiente)\n"
+            "- Entrypoints: (pendiente)\n"
+            "- Archivos sensibles: (pendiente)\n"
+        ),
+        "DOCUMENTATION_AUDIT.md": (
+            f"# DOCUMENTATION_AUDIT — {project_id}\n\n"
+            "Contraste documentación ↔ código (ver `docs/protocols/DOCUMENTATION_CODE_ALIGNMENT_PROTOCOL.md`).\n\n"
+            "## Documentos vigentes\n- (pendiente)\n\n"
+            "## Documentos obsoletos/incertos\n- (pendiente)\n"
+        ),
+        "CRITICAL_ALERTS.md": (
+            f"# CRITICAL_ALERTS — {project_id}\n\n"
+            "Alertas críticas locales del proyecto (ver `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`).\n\n"
+            "- (pendiente)\n"
+        ),
+        "LESSONS_LOCAL.md": (
+            f"# LESSONS_LOCAL — {project_id}\n\n"
+            "Lecciones locales (no confundir con `docs/lessons/GLOBAL_LESSONS_LEARNED.md`).\n\n"
+            "- (pendiente)\n"
+        ),
+        "SYNC_STATUS.md": (
+            f"# SYNC_STATUS — {project_id}\n\n"
+            "Estado de sincronización (local/remoto/Replit) — sin incluir secrets.\n\n"
+            f"- last_updated: `{_now_iso()}`\n"
+            "- status: `unknown`\n"
+        ),
+        "HANDOFF_LOG.md": (
+            f"# HANDOFF_LOG — {project_id}\n\n"
+            "Registro de handoffs por referencias (no pegar chats completos).\n\n"
+            "- (pendiente)\n"
+        ),
+    }
+
+    if not dry_run:
+        docs_dir.mkdir(parents=True, exist_ok=True)
+
+    for filename, content in templates.items():
+        path = docs_dir / filename
+        if path.exists():
+            skipped.append(str(path))
+            continue
+        if dry_run:
+            created.append(str(path))
+            continue
+        path.write_text(content, encoding="utf-8")
+        created.append(str(path))
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "project_id": project_id,
+        "dry_run": dry_run,
+        "docs_dir": str(docs_dir),
+        "created": created,
+        "skipped": skipped,
+        "next": "Revisar/llenar los stubs por referencias; luego ejecutar context-validator/planner según la tarea.",
+    }
+
+
 def operational_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+
     """Diagnóstico operativo compact-first vía scripts/audit_agent_artifacts.py --operational-status.
 
     Restricciones:
@@ -1190,6 +1440,38 @@ def _normalize_free_text(text: str) -> str:
     return raw
 
 
+def _extract_project_query_from_instruction(norm: str) -> str | None:
+    """Extrae un project_query simple desde la instrucción normalizada.
+
+    Objetivo: permitir comandos naturales como:
+    - "cambia a dpm"
+    - "salta a orchestrator"
+    - "trabaja en data-privacy-management-d"
+
+    Nota: esto NO confirma el proyecto; solo propone un query para resolve_target_project.
+    """
+
+    n = (norm or "").strip().lower()
+    if not n:
+        return None
+
+    patterns = [
+        r"(?:cambia|cambiar|salta|saltar|ir)\s+a\s+([a-z0-9._-]+)",
+        r"(?:trabaja|trabajar)\s+en\s+([a-z0-9._-]+)",
+        r"(?:proyecto|project)\s+([a-z0-9._-]+)",
+        r"(?:en)\s+([a-z0-9._-]+)\s*$",
+    ]
+
+    for pat in patterns:
+        m = re.search(pat, n)
+        if m:
+            candidate = (m.group(1) or "").strip()
+            if candidate and candidate not in {"este", "this"}:
+                return candidate
+
+    return None
+
+
 def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     """Heurística ligera para instrucciones generales.
 
@@ -1198,11 +1480,17 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
 
     norm = _normalize_free_text(instruction)
 
+    extracted_project_query = _extract_project_query_from_instruction(norm)
+    resume_requested = any(k in norm for k in ("retoma", "retomar", "reanuda", "reanud", "resume", "volver"))
+
     # Intent
     intent = "unknown"
     scenario = "context-validation"
 
-    if any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
+    if resume_requested and not extracted_project_query:
+        intent = "resume"
+        scenario = "context-validation"
+    elif any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
         intent = "diagnose"
         scenario = "context-validation"
     elif "siguiente frontera" in norm or norm.startswith("avanza") or "avanza con" in norm:
@@ -1277,7 +1565,10 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
         "volume": volume,
         "explicit_premium_request": explicit_premium_request,
         "replit_triggered": replit_triggered,
+        "extracted_project_query": extracted_project_query,
+        "resume_requested": resume_requested,
     }
+
 
 
 def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -1307,7 +1598,25 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     classified = _classify_general_instruction(instruction)
 
+    # Permitir selección de proyecto con lenguaje natural en el propio `instruction`.
+    # Precedencia: argumentos explícitos > extracción por heurística > retomar (sesión).
+    project_query_source = "arguments" if project_query else None
+
+    if not project_query:
+        extracted = (classified.get("extracted_project_query") or "").strip()
+        if extracted:
+            project_query = extracted
+            project_query_source = "instruction"
+
+    if not project_query and not workspace_path and classified.get("resume_requested") is True:
+        active = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+        active_pid = (active.get("project_id") or "").strip()
+        if active_pid:
+            project_query = active_pid
+            project_query_source = "active_project"
+
     tool_plan: list[dict[str, Any]] = []
+
 
     orchestrator_ready_to_advance = True
     orchestrator_summary: dict[str, Any] | None = None
@@ -1392,6 +1701,8 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
     project_id = resolution.get("project_id")
 
     # 3) Si requiere preparar workspace (clone), detenerse ahí.
+
+
     if resolution.get("clone_required") is True:
         return {
             "ok": True,
@@ -1410,7 +1721,8 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "next_question": "Workspace local no está listo (clone_required=true). ¿Autorizas preparar el workspace (sin clonar automáticamente) y/o quieres proporcionar local_path existente?",
         }
 
-    # 4) Git dirty del proyecto objetivo: bloquear antes de avanzar a ejecución.
+        # 4) Git dirty del proyecto objetivo: bloquear antes de avanzar a ejecución.
+
     if "working_tree_dirty" in (resolution.get("risks") or []):
         return {
             "ok": True,
@@ -1425,7 +1737,49 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "next_question": "El working tree del proyecto objetivo no está limpio. Limpia/commit manualmente y reintenta (no se aplican stashes automáticamente).",
         }
 
+    # 4.1) Onboarding documental/contextual (scaffold) — mínimo canónico.
+    # Si el proyecto objetivo no tiene scaffold en docs/projects/<project_id>/, iniciarlo antes
+    # de avanzar a ejecución o dispatch.
+    onboarding = _probe_project_onboarding(str(project_id or ""))
+    if onboarding.get("status") in {"missing", "partial"} and project_id and str(project_id) != "orchestrator":
+        recommended_next_tool_call = {
+            "tool": "init_project_onboarding_scaffold",
+            "arguments": {"project_id": str(project_id), "dry_run": False},
+        }
+        tool_plan.append(recommended_next_tool_call)
+
+        return {
+            "ok": True,
+            "status": "onboarding_required",
+            "instruction": instruction,
+            "classified": classified,
+            "project_id": project_id,
+            "project_query_source": project_query_source,
+            "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
+            "orchestrator": orchestrator_summary,
+            "orchestrator_ready_to_advance": orchestrator_ready_to_advance,
+            "resolution": {
+                "matched_by": resolution.get("matched_by"),
+                "environment_type": resolution.get("environment_type"),
+                "local_path": resolution.get("local_path"),
+                "git": resolution.get("git"),
+            },
+            "onboarding": onboarding,
+            "tool_plan": tool_plan,
+            "recommended_next_tool_call": recommended_next_tool_call,
+            "next_frontier": "init_onboarding_scaffold",
+            "next_question": None,
+            "compact_message_for_continue": {
+                "project_id": project_id,
+                "intent": classified.get("intent"),
+                "next_frontier": "init_onboarding_scaffold",
+                "note": "Proyecto confirmado pero sin scaffold completo en docs/projects/<project-id>/; iniciar onboarding mínimo.",
+            },
+            "followup_scheme_template": _build_followup_scheme(run_id=None),
+        }
+
     # 5) Routing: seleccionar agente/modelo a partir de escenario/riesgo/volumen
+
     selector = select_agent_model(
         {
             "scenario": classified["scenario"],
@@ -1514,7 +1868,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         blockers = ", ".join(authorizations_required) if authorizations_required else "autorización"
         next_question = f"Se requiere {blockers} antes de despachar ejecución. ¿Autorizas? (sin autorización: solo Plan/read-only)."
 
-    # Compact summary for Continue
+            # Compact summary for Continue
     compact_message = {
         "project_id": project_id,
         "intent": classified["intent"],
@@ -1527,12 +1881,19 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "next_frontier": next_frontier,
     }
 
+    onboarding = _probe_project_onboarding(str(project_id or ""))
+
+
     return {
         "ok": True,
+
         "status": "ok",
         "instruction": instruction,
         "classified": classified,
         "project_id": project_id,
+        "project_query_source": project_query_source,
+        "onboarding": onboarding,
+
         "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
         "orchestrator": orchestrator_summary,
         "orchestrator_ready_to_advance": orchestrator_ready_to_advance,
@@ -1694,7 +2055,11 @@ TOOL_HANDLERS = {
     "resolve_target_project": resolve_target_project,
     "plan_general_instruction": plan_general_instruction,
     "run_general_instruction_flow": run_general_instruction_flow,
+    "get_active_project": get_active_project,
+    "set_active_project": set_active_project,
+    "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
 }
+
 
 
 def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

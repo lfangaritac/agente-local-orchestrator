@@ -16,6 +16,9 @@ Fase v0.1. Implementación inicial segura.
 - `resolve_target_project`
 - `plan_general_instruction`
 - `run_general_instruction_flow`
+- `get_active_project`
+- `set_active_project`
+- `init_project_onboarding_scaffold`
 - `select_agent_model`
 - `build_handoff_package`
 - `run_diagnostic_flow`

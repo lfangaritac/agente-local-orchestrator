@@ -23,3 +23,7 @@ docs/agent_queue/inbox/
 # Generated activation reports
 docs/test_reports/activation_report_*.md
 
+# Local orchestrator session state (do not version)
+.orchestrator_state/
+
+
