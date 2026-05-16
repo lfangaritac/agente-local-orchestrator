@@ -707,18 +707,21 @@ El escalamiento debe ser:
 
 ## 7. DOCUMENTACIÃ“N VIVA
 
-Debe registrarse TODO:
+Debe registrarse **lo relevante** (no “todo”):
 
-- solicitudes
-- planes
-- validaciones
-- errores
-- pruebas
-- diffs
-- decisiones
-- feedback de Replit
-- ajustes
-- aprendizajes
+- solicitudes (cuando cambian objetivo/alcance)
+- planes (cuando habilitan ejecución o cambian ruta)
+- validaciones (checks ejecutados o pendientes)
+- errores (si afectan decisiones futuras)
+- pruebas (resultado y evidencia mínima)
+- diffs (referencia + resumen, no volcado completo)
+- decisiones (incluye escalamiento/no-escalamiento y umbrales)
+- feedback de Replit u otros agentes externos (retorno estructurado, sin secrets)
+- ajustes (cuando cambian riesgo/alcance/arquitectura)
+- aprendizajes (solo si son reutilizables)
+
+Regla: preservar trazabilidad **sin documentar ruido operativo**. Preferir referencias compactas (IDs/rutas/run_id) sobre volcado de artefactos completos (ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`).
+
 
 ---
 

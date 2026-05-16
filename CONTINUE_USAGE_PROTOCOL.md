@@ -62,7 +62,7 @@ Referencia: `.continue/rules/continue-opencode-handoff.md`.
 ## Modo operativo: Plan vs Build (resumen)
 
 Siempre confirmar el modo con el usuario:
-- **Plan:** análisis/diagnóstico/diseño/revisión/handoff. **No** modificar archivos ni ejecutar comandos.
+- **Plan:** análisis/diagnóstico/diseño/revisión/handoff. Puede ejecutar **herramientas diagnósticas** y comandos **read-only** necesarios para entender estado (p. ej. Git read-only, preflight MCP/scripts), siempre que no haya side-effects relevantes. **No** modificar archivos ni ejecutar acciones con efectos secundarios.
 - **Build:** ejecutar **dentro del alcance autorizado**. No requiere microaprobaciones para acciones ordinarias dentro del alcance. Evitar flujos de edición/diff interactivos que requieran múltiples aceptaciones manuales: el camino preferido es **Continue → MCP → OpenCode → MCP** (OpenCode aplica cambios) + validación Git; consultar al usuario solo por umbral.
 
 Autorización humana explícita requerida (siempre, incluso en Build):
@@ -73,6 +73,48 @@ Autorización humana explícita requerida (siempre, incluso en Build):
 - ampliar alcance.
 
 Política canónica: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` (sección 25).
+
+---
+
+## Operación por instrucciones generales (runbook mínimo)
+
+### Regla general
+El usuario define **objetivo**, **proyecto objetivo** (o confirma que no lo está) y la **frontera segura** deseada. El agente aplica internamente la secuencia estándar y **no exige checklists extensos** para tareas ordinarias; solo pide autorización cuando se cruza un umbral real.
+
+### Interpretación de instrucciones generales (ejemplos)
+- “**Diagnostica este proyecto**” → modo **Plan** con diagnóstico local (read-only). Si falta acceso local o se requiere entorno real, proponer escalamiento a Replit.
+- “**Avanza hasta la siguiente frontera segura**” → resolver proyecto → preflight → clasificar modo/riesgo/volumen → avanzar hasta el **máximo seguro**; detenerse en el primer umbral (autorización/ambigüedad/riesgo) y devolver `next_frontier`.
+- “**Prepara una operación low-risk**” → Plan (definir alcance/rollback/allowed_files) y, si el usuario autoriza Build, ejecutar dentro de ese alcance con validación Git.
+- “**Evalúa si requiere Replit o modelo premium**” → evaluar activadores (riesgo, volumen, runtime, seguridad, solicitud del usuario, costo de equivocarse) y devolver decisión + retorno esperado.
+- “**Procesa este retorno externo**” → normalizar retorno, clasificar estado y decidir `no_escalate` / `replit_needed` / `premium_needed` + `next_frontier` (ver template de returns).
+
+### Secuencia estándar interna (aplicar por defecto)
+1) Resolver/confirmar **proyecto objetivo** (si no está confirmado: operar en diagnóstico). Referencias: `PROJECT_REGISTRY.md`, `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`.
+2) Ejecutar **preflight** (fuentes mínimas, alertas, lecciones) y declarar suficiencia. Referencias: `TARGET_PROJECT_CONTEXT_CONTRACT.md`, `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`, `docs/lessons/GLOBAL_LESSONS_LEARNED.md`.
+3) Clasificar **modo** (Plan/Build) + **riesgo/volumen** + **alcance**.
+4) Decidir **executor**: Continue (contexto), OpenCode (validación/ejecución), Replit (entorno real), premium (seguridad/arquitectura/criticidad). Referencias: `MODEL_ROUTING.md`, `AGENT_ORCHESTRATION.md`.
+5) Identificar **autorizaciones requeridas** (premium/Replit/secrets/deployment/migraciones/destructivo/ampliación de alcance). Referencia: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
+6) Actuar solo dentro de la frontera segura; si se cruza umbral: **detenerse y preguntar**.
+7) Validar y cerrar con evidencia mínima + `next_frontier` (sin dumps; por referencias). Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+
+### Aclaración: Plan vs comandos diagnósticos/read-only
+La política canónica de Plan/Build vive en `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
+
+- En **Plan**, se permite ejecutar herramientas diagnósticas y comandos **read-only** cuando sean necesarios para entender estado y **no tengan side-effects relevantes**.
+  - Ejemplos típicos permitidos: `git status`, `git status -sb`, `git log -1`, `git remote -v`, lectura de manifiestos/config, scripts internos declarados como diagnóstico/read-only, herramientas MCP compact-first (`run_health_check`, `get_run_status`, etc.).
+- En **Plan**, NO se permite: modificar archivos, installs, migraciones/DB push, build/dev/test que cambie estado, commit/push, deployment, tocar secrets, ni comandos con efectos secundarios.
+- Cualquier transición a **Build** o a acciones sensibles requiere autorización humana explícita.
+
+### Replit y modelos premium (sin sesgo)
+Replit y premium **pueden usarse para cualquier tarea** si existe un activador válido, valor claro y autorización cuando aplique. No están prohibidos ni reservados a un tipo de remediación; simplemente **no son el default**. Todo uso externo/premium debe devolver retorno estructurado (ver `REPLIT_HANDOFF.md` y el schema/paquete canónico en `AGENT_ORCHESTRATION.md`).
+
+### Autonomía y umbrales
+- No pedir microaprobaciones para pasos read-only o acciones ordinarias dentro del alcance autorizado.
+- Detenerse por: ambigüedad, ampliación de alcance, riesgo alto/crítico, secrets, DB/migraciones, deployment, irreversibilidad, costo premium, Replit/entorno externo.
+
+### Anti-deriva
+- Decisiones/contexto de pilotos son **locales** salvo que se eleven explícitamente como política global.
+- No continuar un piloto solo por inercia cuando el objetivo de validación ya se cumplió.
 
 ---
 
