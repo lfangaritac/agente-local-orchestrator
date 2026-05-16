@@ -236,6 +236,21 @@ La respuesta de Replit debe indicar:
 - si requiere acción del usuario;
 - si requiere volver a OpenCode.
 
+### 13. External diagnostic returns
+
+Procedimiento mínimo para procesar retornos de diagnóstico (sin volver a consumir Replit):
+
+1) Verificar que el retorno incluya confirmación explícita: "No modifiqué archivos".
+2) Verificar comandos ejecutados (solo lectura) y estado Git (rama, remotes, último commit, working tree).
+3) Confirmar que el retorno NO contiene: secrets/tokens/credenciales, valores de env, join links u otros links sensibles.
+4) Clasificar estado del proyecto: `listo` / `parcialmente_listo` / `no_listo`.
+5) Extraer blockers y riesgos (priorizar `critical`, luego `medium`, luego `low`).
+6) Decidir escalamiento (según umbral existente): `no_escalate` / `replit_needed` / `premium_needed`.
+7) Definir una sola `next_frontier` (p.ej. `pause_pilot`, `local_analysis`, `plan_only`).
+8) No usar Replit para remediación amplia si el problema puede analizarse localmente (Plan) antes de cualquier ejecución.
+9) Registrar el retorno de forma compacta usando el template:
+   `templates/returns/external_diagnostic_return.md` (sin copiar chats completos).
+
 <!-- END: REPLIT_HANDOFF_GO_ZEN_PREMIUM_V0_2 -->
 
 # REPLIT_HANDOFF.md
