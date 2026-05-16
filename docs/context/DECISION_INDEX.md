@@ -21,3 +21,11 @@ Regla: no duplicar políticas largas; referenciar el documento canónico.
 | DEC-0010 | 2026-05-09 | Build autorizado ejecuta por alcance sin microaprobaciones interactivas; preguntar solo por umbral | active | `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25` | Evitar depender de múltiples aceptaciones manuales de diffs en VS Code durante Build; usar validación + cierre con git diff/stat/status |
 | DEC-0011 | 2026-05-09 | En Builds autorizados, el ejecutor principal de cambios es OpenCode vía MCP (Continue no aplica diffs interactivos) | active | `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25` | Patrón oficial: Continue orquesta/valida; MCP despacha; OpenCode ejecuta; Git verifica |
 | DEC-0012 | 2026-05-10 | `scripts/run_local_checks.py` es el gate local recomendado antes de Builds low-risk y commits relevantes | active | `scripts/run_local_checks.py` | `quick`/`full` no deben tener side-effects; `--include-mcp-stdio-tests` es opt-in y puede crear runs/handoffs de prueba ignorados por Git |
+
+## Escalation decisions (project-level)
+
+Registro liviano de decisiones de escalamiento/no escalamiento derivadas de retornos externos.
+
+| decision_id | date | target_project | decision | status_classification | external_return_ref | next_frontier | canonical_ref | notes |
+|---|---|---|---|---|---|---|---|---|
+| ESC-2026-05-16-DPM-REPLIT-NOESC | 2026-05-16 | data-privacy-management-d | no_escalate | parcialmente_listo | `docs/returns/data-privacy-management-d/2026-05-16_replit_diagnostic_return.md` | pause_pilot_or_local_plan | `docs/decisions/escalation/data-privacy-management-d/2026-05-16_no_escalate_replit.md` | Canal validado; no usar Replit para remediación TS amplia (~280 errores por imports versionados). |
