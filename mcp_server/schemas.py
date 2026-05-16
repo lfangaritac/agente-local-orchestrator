@@ -378,5 +378,35 @@ TOOL_SCHEMAS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "resolve_target_project",
+        "description": "Resuelve el proyecto objetivo (por project_id/alias o por workspace_path) y devuelve un preflight compacto read-only para operar con instrucciones generales.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_query": {
+                    "type": "string",
+                    "description": "project_id, alias o nombre canónico a resolver desde PROJECT_REGISTRY.md.",
+                    "default": "",
+                },
+                "workspace_path": {
+                    "type": "string",
+                    "description": "Ruta local del workspace/repo actual para inferencia best-effort (read-only).",
+                    "default": "",
+                },
+                "projects_root": {
+                    "type": "string",
+                    "description": "Raíz local donde se esperan clones (solo para sugerir/ubicar suggested_local_path; read-only).",
+                },
+                "include_git": {
+                    "type": "boolean",
+                    "description": "Si true, intenta incluir un probe Git compacto cuando exista repo local.",
+                    "default": True,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
+
 

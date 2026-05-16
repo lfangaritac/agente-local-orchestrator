@@ -40,6 +40,7 @@ ALLOWED_TOOLS = {
     "verify_master_files",
     "create_and_dispatch_opencode_handoff",
     "operational_status",
+    "resolve_target_project",
 }
 
 
@@ -616,6 +617,504 @@ def verify_master_files(arguments: dict[str, Any] | None = None) -> dict[str, An
     }
 
 
+def _redact_remote_url(url: str) -> str:
+    """Redacta userinfo/tokens embebidos en URLs remotas.
+
+    Ejemplos a proteger:
+    - https://<token>@github.com/org/repo.git
+    - https://user:pass@host/path
+    """
+
+    u = (url or "").strip()
+    if not u:
+        return ""
+
+    # Redactar userinfo en URLs tipo scheme://userinfo@host
+    u = re.sub(r"(https?://)([^/@\s]+)@", r"\1<redacted>@", u, flags=re.IGNORECASE)
+    return u
+
+
+def _normalize_repo_url(url: str) -> str:
+    u = _redact_remote_url(url).strip()
+    if u.endswith(".git"):
+        u = u[: -len(".git")]
+    return u.rstrip("/").lower()
+
+
+def _run_git(args: list[str], cwd: Path, timeout: int = 12) -> tuple[bool, str]:
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+        out = (completed.stdout or "").strip()
+        err = (completed.stderr or "").strip()
+        if completed.returncode != 0:
+            return False, (err or out)
+        return True, out
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _git_probe_repo(path: Path) -> dict[str, Any]:
+    """Devuelve info Git compacta (read-only)."""
+
+    info: dict[str, Any] = {
+        "ok": False,
+        "path": str(path),
+        "is_git_repo": False,
+        "branch": None,
+        "last_commit": None,
+        "working_tree": {"clean": None},
+        "remote_origin": None,
+        "errors": [],
+    }
+
+    git_dir = path / ".git"
+    if not (git_dir.exists() and git_dir.is_dir()):
+        info["errors"].append("no_git_dir")
+        return info
+
+    info["is_git_repo"] = True
+
+    ok, branch = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], path)
+    if ok:
+        info["branch"] = branch
+    else:
+        info["errors"].append(f"branch_error:{branch}")
+
+    ok, last_commit = _run_git(["log", "-1", "--oneline"], path)
+    if ok:
+        info["last_commit"] = last_commit
+    else:
+        info["errors"].append(f"log_error:{last_commit}")
+
+    ok, porcelain = _run_git(["status", "--porcelain"], path)
+    if ok:
+        info["working_tree"]["clean"] = (porcelain.strip() == "")
+    else:
+        info["errors"].append(f"status_error:{porcelain}")
+
+    ok, remote = _run_git(["remote", "get-url", "origin"], path)
+    if ok:
+        info["remote_origin"] = _redact_remote_url(remote)
+    else:
+        # No es error crítico: repos sin remote origin.
+        info["remote_origin"] = None
+
+    info["ok"] = True
+    return info
+
+
+def _parse_registry_entries(registry_path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    """Parse mínimo del PROJECT_REGISTRY.md.
+
+    Nota: evita dependencia/import de scripts/ porque no es un paquete Python.
+    """
+
+    if not registry_path.exists():
+        return [], [f"registry_not_found:{registry_path}"]
+
+    content = registry_path.read_text(encoding="utf-8", errors="replace")
+    entries: list[dict[str, Any]] = []
+    current: dict[str, Any] = {}
+    warnings: list[str] = []
+
+    for raw in content.splitlines():
+        stripped = raw.strip()
+        if not stripped:
+            if current:
+                entries.append(current)
+                current = {}
+            continue
+
+        if stripped.startswith("#") or stripped.startswith("|"):
+            continue
+
+        m = re.match(r"^-?\s*(.+?):\s*(.*)$", stripped)
+        if not m:
+            continue
+
+        key = m.group(1).strip()
+        value = m.group(2).strip()
+
+        # Parsear solo campos relevantes.
+        if key == "project_id":
+            current[key] = value
+        elif key == "nombre_canónico":
+            current[key] = value
+        elif key == "alias_permitidos":
+            current[key] = [a.strip() for a in value.split(",") if a.strip()]
+        elif key in {"repositorio_remoto", "repo_url", "local_path", "ruta_local", "environment_type", "origen"}:
+            current[key] = value
+
+    if current:
+        entries.append(current)
+
+    if not entries:
+        warnings.append("registry_empty")
+
+    return entries, warnings
+
+
+def _resolve_by_query(query: str, entries: list[dict[str, Any]]) -> dict[str, Any]:
+    q = (query or "").strip()
+    ql = q.lower()
+
+    # 1) project_id exact
+    for e in entries:
+        pid = (e.get("project_id") or "").strip()
+        if pid and pid.lower() == ql:
+            return {"ok": True, "project_found": True, "matched_by": "project_id", "entry": e, "candidates": []}
+
+    # 2) alias exact
+    alias_matches = []
+    for e in entries:
+        aliases = e.get("alias_permitidos") or []
+        if any(a.lower() == ql for a in aliases):
+            alias_matches.append(e)
+
+    if len(alias_matches) == 1:
+        return {"ok": True, "project_found": True, "matched_by": "alias", "entry": alias_matches[0], "candidates": []}
+
+    if len(alias_matches) > 1:
+        return {
+            "ok": False,
+            "project_found": False,
+            "matched_by": "alias",
+            "entry": None,
+            "candidates": alias_matches,
+            "error": f"ambiguous alias '{q}' matches {len(alias_matches)} projects",
+        }
+
+    # 3) nombre_canónico exact
+    for e in entries:
+        name = (e.get("nombre_canónico") or "").strip()
+        if name and name.lower() == ql:
+            return {"ok": True, "project_found": True, "matched_by": "nombre_canonico", "entry": e, "candidates": []}
+
+    return {"ok": False, "project_found": False, "matched_by": None, "entry": None, "candidates": [], "error": f"no match for '{q}'"}
+
+
+def _resolve_by_workspace_path(workspace_path: Path, entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Inferencia best-effort desde un workspace local (read-only)."""
+
+    # 0) Orquestador: si el workspace es el repo actual, es seguro confirmarlo.
+    try:
+        if workspace_path.resolve() == ROOT.resolve():
+            return {
+                "ok": True,
+                "project_found": True,
+                "matched_by": "workspace_path_orchestrator_root",
+                "entry": {
+                    "project_id": "orchestrator",
+                    "nombre_canónico": "agente-local-orchestrator",
+                    "alias_permitidos": ["orchestrator"],
+                    "repo_url": "",
+                    "environment_type": "local",
+                    "local_path": str(ROOT),
+                },
+                "candidates": [],
+            }
+    except Exception:
+        pass
+
+    # 1) Match directo por local_path/ruta_local si está en registry
+    try:
+        ws = workspace_path.expanduser().resolve()
+    except Exception:
+        ws = workspace_path
+
+    direct_matches = []
+    for e in entries:
+        for k in ("local_path", "ruta_local"):
+            raw = (e.get(k) or "").strip()
+            if not raw or raw.lower() in {"null", "none", "n/a"}:
+                continue
+            try:
+                if Path(raw).expanduser().resolve() == ws:
+                    direct_matches.append(e)
+            except Exception:
+                continue
+
+    if len(direct_matches) == 1:
+        return {"ok": True, "project_found": True, "matched_by": "local_path", "entry": direct_matches[0], "candidates": []}
+
+    if len(direct_matches) > 1:
+        return {
+            "ok": False,
+            "project_found": False,
+            "matched_by": "local_path",
+            "entry": None,
+            "candidates": direct_matches,
+            "error": f"ambiguous local_path matches {len(direct_matches)} projects",
+        }
+
+    # 2) Match por git remote origin
+    git_info = _git_probe_repo(ws)
+    origin = (git_info.get("remote_origin") or "").strip()
+    if origin:
+        origin_norm = _normalize_repo_url(origin)
+        remote_matches = []
+        for e in entries:
+            repo_url = (e.get("repo_url") or e.get("repositorio_remoto") or "").strip()
+            if not repo_url:
+                continue
+            if _normalize_repo_url(repo_url) == origin_norm:
+                remote_matches.append(e)
+
+        if len(remote_matches) == 1:
+            return {"ok": True, "project_found": True, "matched_by": "git_remote_repo_url", "entry": remote_matches[0], "candidates": []}
+
+        if len(remote_matches) > 1:
+            return {
+                "ok": False,
+                "project_found": False,
+                "matched_by": "git_remote_repo_url",
+                "entry": None,
+                "candidates": remote_matches,
+                "error": f"ambiguous repo_url matches {len(remote_matches)} projects",
+            }
+
+    # No se pudo inferir contra registry.
+    return {
+        "ok": True,
+        "project_found": False,
+        "matched_by": "workspace_path",
+        "entry": None,
+        "candidates": [],
+        "workspace_git": git_info,
+    }
+
+
+def resolve_target_project(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Resolver proyecto objetivo + preflight compacto (read-only, compact-first).
+
+    Diseñada para operar con instrucciones generales del usuario.
+
+    Entradas (todas opcionales):
+    - project_query: project_id/alias/nombre.
+    - workspace_path: ruta del workspace local para inferencia best-effort.
+    - projects_root: raíz para sugerir/ubicar clones locales (solo lectura).
+    - include_git: incluir probe Git compacto cuando exista repo local.
+
+    Restricciones:
+    - No clona.
+    - No modifica archivos.
+    - No instala dependencias.
+    - No usa Replit.
+    """
+
+    arguments = arguments or {}
+
+    project_query = (arguments.get("project_query") or "").strip()
+    workspace_path_raw = (arguments.get("workspace_path") or "").strip()
+    projects_root = arguments.get("projects_root")
+    include_git = bool(arguments.get("include_git", True))
+
+    registry_path = ROOT / "PROJECT_REGISTRY.md"
+    entries, reg_warnings = _parse_registry_entries(registry_path)
+
+    resolution: dict[str, Any]
+    workspace_git: dict[str, Any] | None = None
+
+    if project_query:
+        resolution = _resolve_by_query(project_query, entries)
+    elif workspace_path_raw:
+        ws_path = Path(workspace_path_raw).expanduser()
+        resolution = _resolve_by_workspace_path(ws_path, entries)
+        workspace_git = resolution.get("workspace_git") if isinstance(resolution, dict) else None
+    else:
+        resolution = {
+            "ok": True,
+            "project_found": False,
+            "matched_by": None,
+            "entry": None,
+            "candidates": [],
+        }
+
+    result: dict[str, Any] = {
+        "ok": True,
+        "status": "ok",
+        "project_confirmed": False,
+        "project_not_confirmed": False,
+        "project_id": None,
+        "matched_by": resolution.get("matched_by"),
+        "aliases": [],
+        "environment_type": None,
+        "repo_url": None,
+        "local_path": None,
+        "suggested_local_path": None,
+        "local_exists": False,
+        "git_repo_exists": False,
+        "clone_required": False,
+        "git": None,
+        "suggested_mode": "Plan",
+        "executor_recommended": None,
+        "risks": [],
+        "authorizations_required": [],
+        "escalation_decision": {
+            "replit": "not_required",
+            "premium": "not_required",
+        },
+        "next_frontier": None,
+        "next_question": None,
+        "warnings": reg_warnings,
+    }
+
+    # Errores de resolución: alias ambiguo o no encontrado.
+    if resolution.get("ok") is False:
+        candidates = resolution.get("candidates") or []
+
+        result["project_not_confirmed"] = True
+        result["status"] = "project_not_confirmed"
+        result["next_frontier"] = "confirm_project"
+        result["executor_recommended"] = "continue"
+
+        if candidates:
+            result["risks"].append("ambiguous_project")
+            result["next_question"] = (
+                "Proyecto objetivo no confirmado por ambigüedad. "
+                "Indica un único project_id/alias o la ruta workspace_path."
+            )
+            # Compact-first: devolver como IDs/nombres si existen.
+            result["candidates"] = [
+                {
+                    "project_id": (c.get("project_id") or "").strip(),
+                    "nombre_canónico": (c.get("nombre_canónico") or "").strip(),
+                }
+                for c in candidates
+            ][:10]
+        else:
+            result["risks"].append("project_not_found")
+            result["next_question"] = (
+                "Proyecto objetivo no confirmado: no coincide con PROJECT_REGISTRY.md. "
+                "Indica un project_id/alias válido o proporciona workspace_path."
+            )
+
+        # Sin sesgo anti-Replit: si el proyecto no está resuelto, Replit puede ser opcional.
+        result["escalation_decision"]["replit"] = "optional"
+
+        if workspace_git:
+            result["workspace_git"] = workspace_git
+
+        return result
+
+    entry = resolution.get("entry")
+
+    if not entry:
+        # No se encontró proyecto en registry. Si se pasó workspace_path, devolvemos git info como pista.
+        result["project_not_confirmed"] = True
+        result["status"] = "project_not_confirmed"
+        result["next_frontier"] = "confirm_project"
+
+        if workspace_git and workspace_git.get("is_git_repo"):
+            result["risks"].append("workspace_not_registered")
+            result["workspace_git"] = workspace_git
+            result["next_question"] = "Proyecto objetivo no confirmado. Indica project_id/alias del registro, o registra este repo en PROJECT_REGISTRY.md."
+        else:
+            result["risks"].append("missing_project_query")
+            result["next_question"] = "Proyecto objetivo no confirmado. Indica project_id/alias o proporciona workspace_path."
+
+        # Si no hay local, Replit es opcional (no sesgo anti-Replit).
+        result["escalation_decision"]["replit"] = "optional"
+        result["executor_recommended"] = "continue"
+        return result
+
+    # Tenemos entrada (confirmada)
+    project_id = (entry.get("project_id") or "").strip() or None
+    result["project_confirmed"] = True
+    result["project_id"] = project_id
+    result["aliases"] = entry.get("alias_permitidos") or []
+
+    env_type = (entry.get("environment_type") or entry.get("origen") or "").strip() or None
+    result["environment_type"] = env_type
+
+    repo_url = (entry.get("repo_url") or entry.get("repositorio_remoto") or "").strip() or None
+    result["repo_url"] = _redact_remote_url(repo_url or "") or None
+
+    # Determinar local_path preferido
+    local_path_raw = (entry.get("local_path") or entry.get("ruta_local") or "").strip()
+    local_path: Path | None = None
+    if local_path_raw and local_path_raw.lower() not in {"null", "none", "n/a"}:
+        try:
+            local_path = Path(local_path_raw).expanduser()
+            result["local_path"] = str(local_path)
+        except Exception:
+            local_path = None
+
+    # Si no hay local_path explícito, usar prepare_project_workspace para sugerir y detectar existencia.
+    if local_path is None and project_id:
+        cmd = [
+            "scripts/prepare_project_workspace.py",
+            "--project",
+            str(project_id),
+            "--output",
+            "json",
+        ]
+        if projects_root:
+            cmd.extend(["--projects-root", str(projects_root)])
+
+        pw = _run_python_script(cmd, timeout=30)
+        parsed = _json_or_text(pw.get("stdout", ""))
+        if isinstance(parsed, dict) and parsed.get("ok") is True:
+            result["suggested_local_path"] = parsed.get("suggested_local_path")
+            result["local_exists"] = bool(parsed.get("local_exists"))
+            result["git_repo_exists"] = bool(parsed.get("git_repo_exists"))
+            result["clone_required"] = bool(parsed.get("clone_required"))
+            if parsed.get("suggested_local_path"):
+                try:
+                    local_path = Path(str(parsed["suggested_local_path"]))
+                except Exception:
+                    local_path = None
+        else:
+            # Si falla, dejamos best-effort.
+            result["warnings"].append("prepare_project_workspace_failed")
+
+    # Si tenemos local_path y existe, actualizar flags y hacer git probe.
+    if local_path is not None:
+        try:
+            local_resolved = local_path.expanduser().resolve()
+            result["local_path"] = str(local_resolved)
+            result["local_exists"] = bool(local_resolved.exists() and local_resolved.is_dir())
+            result["git_repo_exists"] = bool((local_resolved / ".git").exists())
+            result["clone_required"] = bool(result["local_exists"] and not result["git_repo_exists"]) or (not result["local_exists"])
+        except Exception:
+            pass
+
+    if result["clone_required"] is True:
+        result["risks"].append("clone_required")
+        result["next_frontier"] = "prepare_workspace"
+        result["executor_recommended"] = "continue"
+        # No bloquear Replit: opcional como alternativa si aporta valor.
+        result["escalation_decision"]["replit"] = "optional"
+        return result
+
+    # Repo local existe y es git
+    if include_git and result.get("local_path") and result.get("git_repo_exists"):
+        git_info = _git_probe_repo(Path(str(result["local_path"])))
+        result["git"] = git_info
+        if git_info.get("working_tree", {}).get("clean") is False:
+            result["risks"].append("working_tree_dirty")
+
+    result["next_frontier"] = "local_diagnostic_ready"
+    result["executor_recommended"] = "opencode:context-validator"
+
+    # Escalamiento: por defecto no requerido; Replit/premium pueden ser opcionales según activadores.
+    # En esta fase (solo resolución), no inferimos necesidad de runtime/seguridad.
+    result["escalation_decision"] = {
+        "replit": "optional" if env_type and "replit" in env_type.lower() else "not_required",
+        "premium": "not_required",
+    }
+
+    return result
+
+
 def operational_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     """Diagnóstico operativo compact-first vía scripts/audit_agent_artifacts.py --operational-status.
 
@@ -683,6 +1182,7 @@ TOOL_HANDLERS = {
     "verify_master_files": verify_master_files,
     "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
     "operational_status": operational_status,
+    "resolve_target_project": resolve_target_project,
 }
 
 
