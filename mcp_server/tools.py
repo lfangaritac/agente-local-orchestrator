@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from typing import Any
 
 
@@ -41,6 +42,7 @@ ALLOWED_TOOLS = {
     "create_and_dispatch_opencode_handoff",
     "operational_status",
     "resolve_target_project",
+    "plan_general_instruction",
 }
 
 
@@ -1168,6 +1170,390 @@ def operational_status(arguments: dict[str, Any] | None = None) -> dict[str, Any
     }
 
 
+def _normalize_free_text(text: str) -> str:
+    """Normaliza texto libre (lower + strip + sin acentos) para heurísticas."""
+
+    raw = (text or "").strip().lower()
+    if not raw:
+        return ""
+    # Remover acentos: 'Evaluá' -> 'evalua'
+    try:
+        raw = (
+            unicodedata.normalize("NFKD", raw)
+            .encode("ascii", "ignore")
+            .decode("ascii", errors="ignore")
+        )
+    except Exception:
+        pass
+    raw = re.sub(r"\s+", " ", raw)
+    return raw
+
+
+def _classify_general_instruction(instruction: str) -> dict[str, Any]:
+    """Heurística ligera para instrucciones generales.
+
+    No invoca modelos: solo enruta hacia herramientas internas/OpenCode.
+    """
+
+    norm = _normalize_free_text(instruction)
+
+    # Intent
+    intent = "unknown"
+    scenario = "context-validation"
+
+    if any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
+        intent = "diagnose"
+        scenario = "context-validation"
+    elif "siguiente frontera" in norm or norm.startswith("avanza") or "avanza con" in norm:
+        intent = "advance"
+        scenario = "planning"
+    elif "prepara" in norm and ("low-risk" in norm or "bajo riesgo" in norm or "low risk" in norm):
+        intent = "prepare_low_risk"
+        scenario = "planning"
+    elif "evalua" in norm and ("replit" in norm or "premium" in norm):
+        intent = "evaluate_escalation"
+        scenario = "context-validation"
+
+    # Risk (very coarse)
+    risk = "medium"
+    if intent == "prepare_low_risk":
+        risk = "low"
+
+    high_triggers = (
+        "seguridad",
+        "security",
+        "auth",
+        "permisos",
+        "secrets",
+        "credenciales",
+        "token",
+        "pii",
+        "datos personales",
+        "migracion",
+        "migration",
+        "deploy",
+        "deployment",
+        "ci/cd",
+        "arquitectura",
+        "refactor transversal",
+    )
+    if any(k in norm for k in high_triggers):
+        risk = "high"
+
+    # Volume (very coarse)
+    volume = "medium"
+    if any(k in norm for k in ("end-to-end", "end to end", "punta a punta", "completo", "completa")):
+        volume = "high"
+
+    # Premium request (avoid confusing with "evaluate")
+    is_evaluate_mode = intent == "evaluate_escalation"
+    explicit_premium_request = False
+    if not is_evaluate_mode:
+        premium_patterns = ("usa premium", "use premium", "con premium", "modelo premium", "escala a premium")
+        if any(p in norm for p in premium_patterns):
+            explicit_premium_request = True
+
+    # Replit triggers
+    replit_trigger_keywords = (
+        "replit",
+        "runtime",
+        "preview",
+        "deploy",
+        "deployment",
+        "secrets",
+        "variables de entorno",
+        "env",
+        "integracion",
+        "integracion",
+    )
+    replit_triggered = any(k in norm for k in replit_trigger_keywords) and intent != "evaluate_escalation"
+
+    return {
+        "instruction_normalized": norm,
+        "intent": intent,
+        "scenario": scenario,
+        "risk": risk,
+        "volume": volume,
+        "explicit_premium_request": explicit_premium_request,
+        "replit_triggered": replit_triggered,
+    }
+
+
+def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Plan read-only para traducir una instrucción general a la siguiente frontera segura.
+
+    Encadena (sin ejecutar modelos por defecto):
+    - operational_status (orquestador)
+    - resolve_target_project
+    - select_agent_model
+
+    Output: compact-first con un `tool_plan` listo para que Continue lo ejecute.
+    """
+
+    arguments = arguments or {}
+
+    instruction = (arguments.get("instruction") or "").strip()
+    if not instruction:
+        return {"ok": False, "status": "error", "error": "instruction es obligatorio."}
+
+    project_query = (arguments.get("project_query") or "").strip()
+    workspace_path = (arguments.get("workspace_path") or "").strip()
+    projects_root = arguments.get("projects_root")
+    include_git = bool(arguments.get("include_git", True))
+
+    include_orchestrator_status = bool(arguments.get("include_orchestrator_status", True))
+    include_preflight = bool(arguments.get("include_preflight", True))
+
+    classified = _classify_general_instruction(instruction)
+
+    tool_plan: list[dict[str, Any]] = []
+
+    orchestrator_ready_to_advance = True
+    orchestrator_summary: dict[str, Any] | None = None
+
+    # 0) Preflight transversal (opcional)
+    preflight_parsed: dict[str, Any] | None = None
+    if include_preflight:
+        pf = orchestrator_preflight({})
+        preflight_parsed = pf.get("parsed") if isinstance(pf.get("parsed"), dict) else None
+        tool_plan.append({"tool": "orchestrator_preflight", "arguments": {}})
+
+    # 1) Estado del orquestador (evita avanzar si el repo está sucio o faltan master files)
+    orch_status: dict[str, Any] | None = None
+    if include_orchestrator_status:
+        orch_status = operational_status({"include_git_status": True, "run_quick_checks": False, "verify_master_files": True})
+        tool_plan.append({
+            "tool": "operational_status",
+            "arguments": {"include_git_status": True, "run_quick_checks": False, "verify_master_files": True},
+        })
+
+        # No bloquear todo el plan por warnings (p.ej. git dirty):
+        # - Hard-block solo si hay error real (master files / fallos internos).
+        # - Si no está listo para avanzar, simplemente NO sugerir dispatch automático.
+        if isinstance(orch_status, dict):
+            orchestrator_ready_to_advance = bool(orch_status.get("ready_to_advance", True))
+            orchestrator_summary = {
+                "overall_status": orch_status.get("overall_status"),
+                "git_clean": orch_status.get("git_clean"),
+                "blockers": orch_status.get("blockers"),
+                "attention": orch_status.get("attention"),
+                "suggested_next_step": orch_status.get("suggested_next_step"),
+                "ready_to_advance": orch_status.get("ready_to_advance"),
+                "build_blocked": orch_status.get("build_blocked"),
+            }
+
+            if orch_status.get("operational_ok") is False or orch_status.get("overall_status") == "error":
+                return {
+                    "ok": True,
+                    "status": "blocked",
+                    "blocked_by": "orchestrator_error",
+                    "instruction": instruction,
+                    "classified": classified,
+                    "orchestrator": orchestrator_summary,
+                    "tool_plan": tool_plan,
+                    "next_frontier": "fix_orchestrator",
+                    "next_question": "El orquestador reporta error operativo. Corrige y reintenta.",
+                }
+
+    # 2) Resolver proyecto objetivo
+    resolution_args: dict[str, Any] = {
+        "project_query": project_query,
+        "workspace_path": workspace_path,
+        "include_git": include_git,
+    }
+    if projects_root:
+        resolution_args["projects_root"] = str(projects_root)
+
+    resolution = resolve_target_project(resolution_args)
+    tool_plan.append({"tool": "resolve_target_project", "arguments": resolution_args})
+
+    # Si no está confirmado, devolver pregunta mínima.
+    if resolution.get("project_not_confirmed") is True or resolution.get("project_confirmed") is not True:
+        return {
+            "ok": True,
+            "status": "project_not_confirmed",
+            "instruction": instruction,
+            "classified": classified,
+            "resolution": {
+                "project_confirmed": resolution.get("project_confirmed"),
+                "project_not_confirmed": resolution.get("project_not_confirmed"),
+                "matched_by": resolution.get("matched_by"),
+                "candidates": resolution.get("candidates", []),
+                "workspace_git": resolution.get("workspace_git"),
+            },
+            "tool_plan": tool_plan,
+            "next_frontier": "confirm_project",
+            "next_question": resolution.get("next_question") or "Proyecto objetivo no confirmado.",
+        }
+
+    project_id = resolution.get("project_id")
+
+    # 3) Si requiere preparar workspace (clone), detenerse ahí.
+    if resolution.get("clone_required") is True:
+        return {
+            "ok": True,
+            "status": "workspace_not_ready",
+            "instruction": instruction,
+            "classified": classified,
+            "project_id": project_id,
+            "resolution": {
+                "local_exists": resolution.get("local_exists"),
+                "git_repo_exists": resolution.get("git_repo_exists"),
+                "suggested_local_path": resolution.get("suggested_local_path"),
+                "repo_url": resolution.get("repo_url"),
+            },
+            "tool_plan": tool_plan,
+            "next_frontier": "prepare_workspace",
+            "next_question": "Workspace local no está listo (clone_required=true). ¿Autorizas preparar el workspace (sin clonar automáticamente) y/o quieres proporcionar local_path existente?",
+        }
+
+    # 4) Git dirty del proyecto objetivo: bloquear antes de avanzar a ejecución.
+    if "working_tree_dirty" in (resolution.get("risks") or []):
+        return {
+            "ok": True,
+            "status": "blocked",
+            "blocked_by": "working_tree_dirty",
+            "instruction": instruction,
+            "classified": classified,
+            "project_id": project_id,
+            "resolution": {"git": resolution.get("git")},
+            "tool_plan": tool_plan,
+            "next_frontier": "clean_working_tree",
+            "next_question": "El working tree del proyecto objetivo no está limpio. Limpia/commit manualmente y reintenta (no se aplican stashes automáticamente).",
+        }
+
+    # 5) Routing: seleccionar agente/modelo a partir de escenario/riesgo/volumen
+    selector = select_agent_model(
+        {
+            "scenario": classified["scenario"],
+            "risk": classified["risk"],
+            "volume": classified["volume"],
+            "user_premium": bool(classified.get("explicit_premium_request")),
+        }
+    )
+    selector_parsed = selector.get("parsed") if isinstance(selector.get("parsed"), dict) else {}
+
+    tool_plan.append({
+        "tool": "select_agent_model",
+        "arguments": {
+            "scenario": classified["scenario"],
+            "risk": classified["risk"],
+            "volume": classified["volume"],
+            "user_premium": bool(classified.get("explicit_premium_request")),
+        },
+    })
+
+    recommended_agent = selector_parsed.get("recommended_agent")
+    recommended_model = selector_parsed.get("recommended_model")
+    requires_authorization = bool(selector_parsed.get("requires_authorization"))
+
+    escalation = {
+        "replit": "recommended" if classified.get("replit_triggered") else (resolution.get("escalation_decision") or {}).get("replit", "not_required"),
+        "premium": "required" if classified.get("explicit_premium_request") else "not_required",
+    }
+
+    authorizations_required: list[str] = []
+    if escalation.get("replit") in {"recommended", "required"}:
+        authorizations_required.append("replit")
+
+    if requires_authorization or escalation.get("premium") in {"required", "recommended"}:
+        authorizations_required.append("premium")
+
+    # 6) Próxima acción recomendada (tool call listo)
+    objective = instruction
+    handoff_body = (
+        "Instrucción general (normalizada por MCP):\n"
+        f"- instruction: {instruction}\n\n"
+        "Restricciones (recordatorio):\n"
+        "- Plan-only por defecto; no ejecutar comandos destructivos\n"
+        "- No secrets / .env\n"
+        "- No Replit/premium sin autorización\n"
+    )
+
+    # Solo sugerir dispatch automático si NO requiere autorización (no premium) y no pide Replit,
+    # y el orquestador está listo para avanzar.
+    safe_to_dispatch = (
+        "premium" not in authorizations_required
+        and "replit" not in authorizations_required
+        and orchestrator_ready_to_advance
+    )
+
+    recommended_next_tool_call: dict[str, Any] | None = None
+    if safe_to_dispatch and isinstance(recommended_agent, str) and isinstance(recommended_model, str):
+        recommended_next_tool_call = {
+            "tool": "create_and_dispatch_opencode_handoff",
+            "arguments": {
+                "project_id": project_id or "orchestrator",
+                "objective": objective,
+                "handoff_body": handoff_body,
+                "target_agent": recommended_agent,
+                "model": recommended_model,
+                "risk_level": classified["risk"],
+                "scenario": classified["scenario"],
+                "requires_authorization": False,
+                "authorization_granted": False,
+            },
+        }
+        tool_plan.append(recommended_next_tool_call)
+
+    next_question = None
+
+    if safe_to_dispatch:
+        next_frontier = "dispatch_opencode"
+    elif not orchestrator_ready_to_advance:
+        next_frontier = "fix_orchestrator"
+        next_question = (
+            "El orquestador no está listo para avanzar (p.ej. git dirty o bloqueos operativos). "
+            "Limpia/commit manualmente y reintenta, o llama plan_general_instruction con include_orchestrator_status=false."
+        )
+    else:
+        next_frontier = "request_authorization"
+        blockers = ", ".join(authorizations_required) if authorizations_required else "autorización"
+        next_question = f"Se requiere {blockers} antes de despachar ejecución. ¿Autorizas? (sin autorización: solo Plan/read-only)."
+
+    # Compact summary for Continue
+    compact_message = {
+        "project_id": project_id,
+        "intent": classified["intent"],
+        "scenario": classified["scenario"],
+        "risk": classified["risk"],
+        "volume": classified["volume"],
+        "recommended_agent": recommended_agent,
+        "recommended_model": recommended_model,
+        "authorizations_required": authorizations_required,
+        "next_frontier": next_frontier,
+    }
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "instruction": instruction,
+        "classified": classified,
+        "project_id": project_id,
+        "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
+        "orchestrator": orchestrator_summary,
+        "orchestrator_ready_to_advance": orchestrator_ready_to_advance,
+        "resolution": {
+            "matched_by": resolution.get("matched_by"),
+            "environment_type": resolution.get("environment_type"),
+            "local_path": resolution.get("local_path"),
+            "git": resolution.get("git"),
+        },
+        "routing": {
+            "recommended_agent": recommended_agent,
+            "recommended_model": recommended_model,
+            "requires_authorization": requires_authorization,
+        },
+        "escalation_decision": escalation,
+        "authorizations_required": authorizations_required,
+        "tool_plan": tool_plan,
+        "recommended_next_tool_call": recommended_next_tool_call,
+        "next_frontier": next_frontier,
+        "next_question": next_question,
+        "compact_message_for_continue": compact_message,
+    }
+
+
 TOOL_HANDLERS = {
     "orchestrator_preflight": orchestrator_preflight,
     "select_agent_model": select_agent_model,
@@ -1183,6 +1569,7 @@ TOOL_HANDLERS = {
     "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
     "operational_status": operational_status,
     "resolve_target_project": resolve_target_project,
+    "plan_general_instruction": plan_general_instruction,
 }
 
 

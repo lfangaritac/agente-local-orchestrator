@@ -11,16 +11,19 @@ Fase v0.1. Implementación inicial segura.
 ## Herramientas expuestas
 
 - `orchestrator_preflight`
+- `operational_status`
+- `verify_master_files`
+- `resolve_target_project`
+- `plan_general_instruction`
 - `select_agent_model`
 - `build_handoff_package`
 - `run_diagnostic_flow`
 - `show_latest_run`
+- `get_run_status`
+- `run_health_check`
+- `check_opencode_run_status`
 - `run_opencode_from_handoff`
 - `start_opencode_from_handoff_async`
-- `get_run_status`
-- `check_opencode_run_status`
-- `run_health_check`
-- `verify_master_files`
 - `create_and_dispatch_opencode_handoff`
 
 ## Restricciones

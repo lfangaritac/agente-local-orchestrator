@@ -407,6 +407,50 @@ TOOL_SCHEMAS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "plan_general_instruction",
+        "description": "Wrapper read-only que traduce una instrucción general en un plan compacto + siguiente frontera segura (encadena operational_status + resolve_target_project + select_agent_model).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "instruction": {
+                    "type": "string",
+                    "description": "Instrucción general del usuario (p.ej. 'Diagnostica este proyecto', 'Avanza hasta la siguiente frontera segura').",
+                },
+                "project_query": {
+                    "type": "string",
+                    "description": "project_id/alias/nombre del proyecto objetivo. Si se omite, usar workspace_path.",
+                    "default": "",
+                },
+                "workspace_path": {
+                    "type": "string",
+                    "description": "Ruta local del workspace/repo actual para inferencia best-effort (read-only).",
+                    "default": "",
+                },
+                "projects_root": {
+                    "type": "string",
+                    "description": "Raíz local donde se esperan clones (solo para sugerir/ubicar suggested_local_path; read-only).",
+                },
+                "include_git": {
+                    "type": "boolean",
+                    "description": "Si true, intenta incluir un probe Git compacto cuando exista repo local.",
+                    "default": True,
+                },
+                "include_orchestrator_status": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta operational_status del orquestador para bloquear avances con git/master-files en mal estado.",
+                    "default": True,
+                },
+                "include_preflight": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta orchestrator_preflight para verificar fuentes transversales mínimas.",
+                    "default": True,
+                },
+            },
+            "required": ["instruction"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
