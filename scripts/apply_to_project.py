@@ -40,6 +40,15 @@ DIRS_TO_CREATE = [
     "docs/test_reports",
 ]
 
+# Ignore snippet (target projects): evitar ensuciar el repo con handoffs generados por el bridge.
+# Nota: apply_to_project NO crea .gitignore si no existe; solo lo parchea si ya está presente.
+GITIGNORE_BRIDGE_SENTINEL = "orchestrator_transfer_"
+GITIGNORE_BRIDGE_SNIPPET = [
+    "# Orchestrator Bridge handoffs (generated)",
+    "docs/handoffs/orchestrator_transfer_*.md",
+    "docs/handoffs/orchestrator_transfer_*.json",
+]
+
 REGISTRY_KEYS = {
     "project_id",
     "nombre_can\u00f3nico",
@@ -272,12 +281,47 @@ def create_dir_if_missing(target: Path, created: list[str]) -> None:
         created.append(str(target))
 
 
+def patch_gitignore_for_bridge(target_root: Path, patched: list[str], skipped: list[str]) -> None:
+    """Append best-effort ignore rules for orchestrator bridge artifacts.
+
+    Rationale:
+    - El bridge genera handoffs operativos; no deberían ensuciar git status por defecto.
+    - Mantenerlo acotado a `orchestrator_transfer_*` para no interferir con docs/handoffs versionables.
+
+    Safety:
+    - No crea `.gitignore` si no existe.
+    - Solo agrega el bloque si no detecta el sentinel.
+    """
+
+    gitignore = target_root / ".gitignore"
+    if not gitignore.exists() or not gitignore.is_file():
+        skipped.append("[SKIP] .gitignore no existe; no se agregaron ignores del bridge")
+        return
+
+    try:
+        current = gitignore.read_text(encoding="utf-8", errors="replace")
+    except Exception as e:
+        skipped.append(f"[SKIP] no se pudo leer .gitignore: {e}")
+        return
+
+    if GITIGNORE_BRIDGE_SENTINEL in current:
+        skipped.append("[SKIP] .gitignore ya contiene ignores del bridge")
+        return
+
+    block = "\n".join(GITIGNORE_BRIDGE_SNIPPET)
+    new_text = current.rstrip("\n") + "\n\n" + block + "\n"
+
+    gitignore.write_text(new_text, encoding="utf-8")
+    patched.append(str(gitignore))
+
+
 def _build_result(
     target_root: Path,
     dry_run: bool,
     created: list[str],
     copied: list[str],
     skipped: list[str],
+    patched: list[str],
     resolved_project: dict | None = None,
 ) -> dict:
     next_steps = [
@@ -304,6 +348,7 @@ def _build_result(
         "dry_run": dry_run,
         "created_dirs": created,
         "copied_files": copied,
+        "patched_files": patched,
         "skipped": skipped,
         "notes": notes,
         "next_steps": next_steps,
@@ -338,6 +383,11 @@ def _output_text(result: dict) -> None:
     if result["copied_files"]:
         print("\nArchivos copiados:")
         for item in result["copied_files"]:
+            print(f"- {item}")
+
+    if result.get("patched_files"):
+        print("\nArchivos parcheados:")
+        for item in result["patched_files"]:
             print(f"- {item}")
 
     if result["skipped"]:
@@ -430,6 +480,7 @@ def main() -> None:
     copied: list[str] = []
     skipped: list[str] = []
     created: list[str] = []
+    patched: list[str] = []
 
     if args.dry_run:
         dry_actions: list[str] = []
@@ -455,6 +506,21 @@ def main() -> None:
             dry_actions,
             "archivo",
         )
+
+        # Best-effort: sugerir patch a .gitignore para evitar ruido por handoffs generados.
+        gi = target_root / ".gitignore"
+        if not gi.exists():
+            dry_actions.append("[SKIP] .gitignore no existe; no se agregan ignores del bridge")
+        else:
+            try:
+                gi_text = gi.read_text(encoding="utf-8", errors="replace")
+                if GITIGNORE_BRIDGE_SENTINEL in gi_text:
+                    dry_actions.append("[SKIP] .gitignore ya contiene ignores del bridge")
+                else:
+                    dry_actions.append("[PATCH] .gitignore: agregar ignores del bridge (orchestrator_transfer_*)")
+            except Exception as e:
+                dry_actions.append(f"[SKIP] no se pudo leer .gitignore para evaluar patch: {e}")
+
         skipped = dry_actions
     else:
         for directory in DIRS_TO_CREATE:
@@ -488,7 +554,10 @@ def main() -> None:
             skipped,
         )
 
-    result = _build_result(target_root, args.dry_run, created, copied, skipped, resolved_project)
+        # Best-effort: mantener el repo destino limpio al usar el bridge.
+        patch_gitignore_for_bridge(target_root, patched, skipped)
+
+    result = _build_result(target_root, args.dry_run, created, copied, skipped, patched, resolved_project)
 
     if args.output == "json":
         print(json.dumps(result, ensure_ascii=False, indent=None))
