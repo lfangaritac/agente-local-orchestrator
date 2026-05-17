@@ -29,6 +29,25 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE_DIR = ROOT / ".orchestrator_state"
 ACTIVE_PROJECT_PATH = STATE_DIR / "active_project.json"
 
+# Active project state schema (gitignored):
+# {
+#   "project_id": "...",
+#   "set_at": "...",
+#   "note": "...",
+#   "last_event": {
+#      "updated_at": "...",
+#      "source": "run_general_instruction_flow|ingest_orchestrator_transfer|set_active_project",
+#      "mode": "plan|dispatch_if_safe",
+#      "instruction": "...",
+#      "status": "...",
+#      "next_frontier": "...",
+#      "next_question": "...",
+#      "handoff_json_path": "...",
+#      "run_id": "..."
+#   }
+# }
+
+
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
@@ -120,6 +139,61 @@ def _read_json_file(path: Path) -> dict[str, Any] | None:
         return json.loads(path.read_text(encoding="utf-8", errors="replace"))
     except Exception:
         return None
+
+
+def _write_json_file(path: Path, payload: dict[str, Any]) -> tuple[bool, str | None]:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return True, None
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _update_active_project_state(*, project_id: str, note: str | None = None, last_event_patch: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Actualiza el estado del proyecto activo (gitignored) con merge best-effort.
+
+    Restricciones:
+    - Solo escribe dentro de `.orchestrator_state/`.
+    - Mantiene compatibilidad con el esquema anterior (project_id/set_at/note).
+    """
+
+    pid = (project_id or "").strip()
+    if not pid:
+        return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
+
+    current = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+    if not isinstance(current, dict):
+        current = {}
+
+    now = _now_iso()
+
+    # If project_id changes, reset set_at.
+    if str(current.get("project_id") or "").strip() != pid:
+        current["project_id"] = pid
+        current["set_at"] = now
+
+    if note is not None:
+        current["note"] = note or None
+
+    if last_event_patch is not None:
+        last_event = current.get("last_event")
+        if not isinstance(last_event, dict):
+            last_event = {}
+        # Always bump updated_at.
+        last_event["updated_at"] = now
+        for k, v in last_event_patch.items():
+            if v is None:
+                continue
+            last_event[k] = v
+        current["last_event"] = last_event
+
+    ok, err = _write_json_file(ACTIVE_PROJECT_PATH, current)
+    if not ok:
+        return {"ok": False, "status": "error", "error": f"No se pudo escribir active_project.json: {err}"}
+
+    return {"ok": True, "status": "ok", "active_project": current, "path": str(ACTIVE_PROJECT_PATH)}
+
 
 
 # --- Orchestrator Transfer (Shell Bridge) ingestion ---
@@ -472,7 +546,6 @@ def ingest_orchestrator_transfer(arguments: dict[str, Any] | None = None) -> dic
 
 
 def get_active_project(_: dict[str, Any] | None = None) -> dict[str, Any]:
-
     """Devuelve el proyecto activo (sesión) si existe.
 
     Nota: esta memoria es local y efímera; vive en `.orchestrator_state/` (gitignored).
@@ -487,16 +560,34 @@ def get_active_project(_: dict[str, Any] | None = None) -> dict[str, Any]:
             "path": str(ACTIVE_PROJECT_PATH),
         }
 
+    # Back-compat: exponer campos base + last_event si existe.
+    active_project = {
+        "project_id": data.get("project_id"),
+        "set_at": data.get("set_at"),
+        "note": data.get("note"),
+    }
+
+    last_event = data.get("last_event")
+    if isinstance(last_event, dict):
+        active_project["last_event"] = {
+            "updated_at": last_event.get("updated_at"),
+            "source": last_event.get("source"),
+            "mode": last_event.get("mode"),
+            "instruction_preview": _safe_preview_text(last_event.get("instruction"), limit=180),
+            "status": last_event.get("status"),
+            "next_frontier": last_event.get("next_frontier"),
+            "next_question_preview": _safe_preview_text(last_event.get("next_question"), limit=220),
+            "handoff_json_path": last_event.get("handoff_json_path"),
+            "run_id": last_event.get("run_id"),
+        }
+
     return {
         "ok": True,
         "status": "ok",
-        "active_project": {
-            "project_id": data.get("project_id"),
-            "set_at": data.get("set_at"),
-            "note": data.get("note"),
-        },
+        "active_project": active_project,
         "path": str(ACTIVE_PROJECT_PATH),
     }
+
 
 
 def set_active_project(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -512,27 +603,24 @@ def set_active_project(arguments: dict[str, Any] | None = None) -> dict[str, Any
     if not project_id:
         return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
 
-    note = (arguments.get("note") or "").strip()
+    note = (arguments.get("note") or "").strip() or None
 
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    # Registrar un last_event mínimo para apoyar 'retomar'.
+    return _update_active_project_state(
+        project_id=project_id,
+        note=note,
+        last_event_patch={
+            "source": "set_active_project",
+            "mode": None,
+            "instruction": None,
+            "status": None,
+            "next_frontier": None,
+            "next_question": None,
+            "handoff_json_path": None,
+            "run_id": None,
+        },
+    )
 
-    payload = {
-        "project_id": project_id,
-        "set_at": _now_iso(),
-        "note": note or None,
-    }
-
-    try:
-        ACTIVE_PROJECT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception as exc:
-        return {"ok": False, "status": "error", "error": f"No se pudo escribir active_project.json: {exc}"}
-
-    return {
-        "ok": True,
-        "status": "ok",
-        "active_project": payload,
-        "path": str(ACTIVE_PROJECT_PATH),
-    }
 
 
 def orchestrator_preflight(_: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -2475,6 +2563,39 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
 
         ingest = ingest_orchestrator_transfer(ingest_args)
 
+        # Best-effort: actualizar estado del proyecto activo con la última frontera.
+        pid = None
+        res = ingest.get("resolution") if isinstance(ingest, dict) else None
+        if isinstance(res, dict) and res.get("project_confirmed") is True:
+            pid = str(res.get("project_id") or "").strip() or None
+
+        if not pid:
+            aps = ingest.get("active_project_set") if isinstance(ingest, dict) else None
+            if isinstance(aps, dict):
+                ap = aps.get("active_project")
+                if isinstance(ap, dict):
+                    pid = str(ap.get("project_id") or "").strip() or None
+
+        active_state_updated = False
+        if pid:
+            handoff = ingest.get("handoff") if isinstance(ingest, dict) else None
+            handoff_path = handoff.get("handoff_json_path") if isinstance(handoff, dict) else None
+
+            upd = _update_active_project_state(
+                project_id=pid,
+                last_event_patch={
+                    "source": "run_general_instruction_flow:handsfree_bridge",
+                    "mode": "plan",
+                    "instruction": instruction,
+                    "status": str(ingest.get("status") or "ok"),
+                    "next_frontier": ingest.get("next_frontier"),
+                    "next_question": ingest.get("next_question"),
+                    "handoff_json_path": handoff_path,
+                    "run_id": None,
+                },
+            )
+            active_state_updated = bool(upd.get("ok"))
+
         return {
             "ok": True,
             "status": str(ingest.get("status") or "ok"),
@@ -2482,10 +2603,12 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
             "routed_to": "ingest_orchestrator_transfer",
             "instruction": instruction,
             "classified": classified,
+            "active_state_updated": active_state_updated,
             "ingest": ingest,
             "next_frontier": ingest.get("next_frontier"),
             "next_question": ingest.get("next_question"),
         }
+
 
     plan = plan_general_instruction(arguments)
 
@@ -2498,9 +2621,27 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         "followup_scheme_template": _build_followup_scheme(run_id=None),
     }
 
+    # Best-effort: consolidar "proyecto activo + última frontera" para operación diaria.
+    if isinstance(plan, dict):
+        pid = str(plan.get("project_id") or "").strip()
+        if pid:
+            _update_active_project_state(
+                project_id=pid,
+                last_event_patch={
+                    "source": "run_general_instruction_flow",
+                    "mode": mode,
+                    "instruction": instruction,
+                    "status": plan.get("status"),
+                    "next_frontier": plan.get("next_frontier"),
+                    "next_question": plan.get("next_question"),
+                    "handoff_json_path": None,
+                    "run_id": None,
+                },
+            )
 
     if mode == "plan":
         return base
+
 
     # dispatch_if_safe
     # 0) Soportar onboarding_required con autorización explícita.
