@@ -111,7 +111,7 @@ def main() -> None:
             },
         },
         # dispatch_if_safe: workspace_path=orquestador, include_git=false para no bloquear por working tree
-        {
+                {
             "jsonrpc": "2.0",
             "id": 4,
             "method": "tools/call",
@@ -122,6 +122,7 @@ def main() -> None:
                     "mode": "dispatch_if_safe",
                     "workspace_path": str(ROOT),
                     "include_git": False,
+                    "include_orchestrator_status": False,
                     "include_preflight": False,
                 },
             },

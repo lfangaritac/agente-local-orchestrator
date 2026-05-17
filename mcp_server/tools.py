@@ -1952,11 +1952,16 @@ def _build_followup_scheme(run_id: str | None) -> dict[str, Any]:
 
 
 def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Cierra el loop: instrucción general → plan → dispatch controlado → seguimiento.
+    """Cierra el loop: instrucción general → plan → (opcional) onboarding → dispatch controlado → seguimiento.
 
     - mode='plan' (default): no crea artefactos ni despacha. Solo devuelve plan + esquema de seguimiento.
     - mode='dispatch_if_safe': si la frontera es segura (sin premium/Replit/autorizaciones), ejecuta
       create_and_dispatch_opencode_handoff y devuelve run_id + followup plan compact-first.
+
+    Onboarding:
+    - Si plan_general_instruction devuelve status=onboarding_required, este flujo puede ejecutar
+      init_project_onboarding_scaffold **solo** con autorización explícita:
+        authorize_onboarding_scaffold_write=true
 
     Restricciones:
     - No usa Replit.
@@ -1970,10 +1975,12 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
     if mode not in {"plan", "dispatch_if_safe"}:
         mode = "plan"
 
+    authorize_onboarding_scaffold_write = bool(arguments.get("authorize_onboarding_scaffold_write", False))
+
     plan = plan_general_instruction(arguments)
 
     # Siempre devolver al menos el template de seguimiento.
-    base = {
+    base: dict[str, Any] = {
         "ok": True,
         "status": "ok",
         "mode": mode,
@@ -1985,6 +1992,69 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         return base
 
     # dispatch_if_safe
+    # 0) Soportar onboarding_required con autorización explícita.
+    if isinstance(plan, dict) and plan.get("status") == "onboarding_required":
+        if authorize_onboarding_scaffold_write is not True:
+            base["dispatch"] = {
+                "attempted": False,
+                "status": "onboarding_required",
+                "reason": "Falta autorización explícita para crear scaffold documental (docs/projects/<project-id>/).",
+            }
+            base["next_frontier"] = plan.get("next_frontier")
+            base["recommended_next_tool_call"] = plan.get("recommended_next_tool_call")
+            base["next_question"] = (
+                "Onboarding requerido. Para permitir que run_general_instruction_flow cree el scaffold mínimo en "
+                "docs/projects/<project-id>/, reintenta con authorize_onboarding_scaffold_write=true. "
+                "(Alternativa: llama init_project_onboarding_scaffold manualmente y luego reintenta)."
+            )
+            return base
+
+        project_id = (plan.get("project_id") or "").strip()
+        if not project_id or project_id == "orchestrator":
+            base["dispatch"] = {
+                "attempted": False,
+                "status": "onboarding_required",
+                "reason": "project_id inválido para onboarding (vacío o 'orchestrator').",
+            }
+            base["next_frontier"] = plan.get("next_frontier")
+            base["recommended_next_tool_call"] = plan.get("recommended_next_tool_call")
+            return base
+
+        scaffold_result = init_project_onboarding_scaffold({"project_id": project_id, "dry_run": False})
+        if scaffold_result.get("ok") is not True:
+            base["dispatch"] = {
+                "attempted": False,
+                "status": "onboarding_scaffold_failed",
+                "reason": "Falló init_project_onboarding_scaffold.",
+                "result": scaffold_result,
+            }
+            base["next_frontier"] = "init_onboarding_scaffold"
+            return base
+
+                # Compact-first: exponer solo lo necesario (conteos + ruta)
+        created = scaffold_result.get("created") if isinstance(scaffold_result, dict) else None
+        skipped = scaffold_result.get("skipped") if isinstance(scaffold_result, dict) else None
+        base["onboarding_scaffold"] = {
+            "project_id": project_id,
+            "docs_dir": scaffold_result.get("docs_dir"),
+            "created_count": len(created) if isinstance(created, list) else None,
+            "skipped_count": len(skipped) if isinstance(skipped, list) else None,
+        }
+
+
+        # Re-planificar después del scaffold, y continuar el flujo normal.
+        plan = plan_general_instruction(arguments)
+
+        base["plan"] = plan
+        base["plan_refresh_summary"] = {
+            "status": plan.get("status") if isinstance(plan, dict) else None,
+            "next_frontier": plan.get("next_frontier") if isinstance(plan, dict) else None,
+            "recommended_tool": (
+                ((plan.get("recommended_next_tool_call") or {}) if isinstance(plan, dict) else {}).get("tool")
+            ),
+        }
+
+
     recommended = plan.get("recommended_next_tool_call") if isinstance(plan, dict) else None
     authorizations_required = plan.get("authorizations_required") if isinstance(plan, dict) else None
 
@@ -2013,6 +2083,19 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         base["next_question"] = plan.get("next_question") if isinstance(plan, dict) else None
         return base
 
+    # En dispatch_if_safe, solo se soporta dispatch de OpenCode vía create_and_dispatch_opencode_handoff.
+    next_tool = (recommended.get("tool") or "").strip()
+    if next_tool != "create_and_dispatch_opencode_handoff":
+        base["dispatch"] = {
+            "attempted": False,
+            "status": "not_dispatchable",
+            "reason": f"recommended_next_tool_call.tool='{next_tool}' no es despachable por este flujo.",
+        }
+        base["next_frontier"] = plan.get("next_frontier") if isinstance(plan, dict) else None
+        base["recommended_next_tool_call"] = recommended
+        base["next_question"] = plan.get("next_question") if isinstance(plan, dict) else None
+        return base
+
     # Intentar dispatch vía create_and_dispatch_opencode_handoff.
     rec_args = recommended.get("arguments") if isinstance(recommended.get("arguments"), dict) else {}
 
@@ -2036,6 +2119,7 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         base["recommended_next_tool_call"] = {"tool": "run_health_check", "arguments": {"run_id": str(run_id)}}
 
     return base
+
 
 
 TOOL_HANDLERS = {

@@ -496,6 +496,11 @@ TOOL_SCHEMAS = [
                     "description": "Si true, ejecuta orchestrator_preflight.",
                     "default": True,
                 },
+                "authorize_onboarding_scaffold_write": {
+                    "type": "boolean",
+                    "description": "Autorización explícita para que run_general_instruction_flow cree el scaffold mínimo en docs/projects/<project-id>/ cuando el plan devuelva status=onboarding_required.",
+                    "default": False,
+                },
             },
             "required": ["instruction"],
             "additionalProperties": False,
