@@ -1651,7 +1651,13 @@ def resolve_target_project(arguments: dict[str, Any] | None = None) -> dict[str,
 
 
 PROJECT_ONBOARDING_REQUIRED_FILES = [
+    # Perfil + retoma (memoria operativa mínima, versionada)
     "PROJECT_PROFILE.md",
+    "PROJECT_RESUME.md",
+    "CURRENT_FRONTIER.md",
+    "ERRORS_AND_FIXES.md",
+
+    # Índices / auditoría / alertas (operación por referencias)
     "CONTEXT_INDEX.md",
     "CODE_CONTEXT_MAP.md",
     "DOCUMENTATION_AUDIT.md",
@@ -1660,6 +1666,7 @@ PROJECT_ONBOARDING_REQUIRED_FILES = [
     "SYNC_STATUS.md",
     "HANDOFF_LOG.md",
 ]
+
 
 
 def _probe_project_onboarding(project_id: str) -> dict[str, Any]:
@@ -1730,7 +1737,7 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
     repo_url = _redact_remote_url(repo_url)
 
     templates: dict[str, str] = {
-        "PROJECT_PROFILE.md": (
+                "PROJECT_PROFILE.md": (
             f"# PROJECT_PROFILE — {project_id}\n\n"
             f"- project_id: `{project_id}`\n"
             f"- nombre_canónico: `{nombre}`\n"
@@ -1741,7 +1748,88 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
             "- `PROJECT_REGISTRY.md` (entrada del proyecto)\n"
             "- README/docs del proyecto objetivo (si existen)\n"
         ),
+
+        "PROJECT_RESUME.md": (
+            f"# PROJECT_RESUME — {project_id}\n\n"
+            "Vista compacta para retomar el proyecto sin depender del chat ni de `.orchestrator_state/`.\n\n"
+            "Reglas:\n"
+            "- No pegar artefactos voluminosos (TRACE/RUN_SUMMARY/raw_outputs).\n"
+            "- Operar por referencias: run_id + rutas + conteos + previews cortos.\n"
+            "- Evidencia pesada es operacional y no se versiona por defecto (ver `.gitignore` y `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`).\n\n"
+            "## 1) Qué es este proyecto\n\n"
+            "- (1–3 líneas)\n\n"
+            "## 2) Dónde está el repo (local/remoto)\n\n"
+            "- repo_url: (referencia; no secrets)\n"
+            "- local_path: (si aplica; puede vivir en PROJECT_REGISTRY.md)\n"
+            "- branch: (última conocida)\n"
+            "- last_commit: (hash corto + mensaje)\n\n"
+            "## 3) Estado actual conocido\n\n"
+            "- status_classification: `unknown|listo|parcialmente_listo|no_listo`\n"
+            "- last_synced: (ver `SYNC_STATUS.md`)\n\n"
+            "## 4) Frontera actual\n\n"
+            "- Ver: `CURRENT_FRONTIER.md`\n\n"
+            "## 5) Última decisión relevante\n\n"
+            "- decision_ref: (ruta a `docs/decisions/**` o resumen 1 línea + referencia)\n\n"
+            "## 6) Riesgos/alertas aplicables\n\n"
+            "- Global: `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`\n"
+            "- Local: `CRITICAL_ALERTS.md`\n\n"
+            "## 7) Handoffs / runs / returns relevantes\n\n"
+            "- Handoffs: `HANDOFF_LOG.md`\n"
+            "- Runs: `docs/context/RUN_INDEX.md` + (entradas locales en `CONTEXT_INDEX.md`)\n"
+            "- Returns: `docs/returns/RETURN_INDEX.md` (y archivos referenciados)\n\n"
+            "## 8) Errores/fixes reutilizables\n\n"
+            "- Ver: `ERRORS_AND_FIXES.md`\n\n"
+            "## 9) Qué consultar antes de actuar\n\n"
+            "- `PROJECT_PROFILE.md`\n"
+            "- `CURRENT_FRONTIER.md`\n"
+            "- `CRITICAL_ALERTS.md`\n"
+            "- `LESSONS_LOCAL.md`\n"
+            "- `CONTEXT_INDEX.md` + `DOCUMENTATION_AUDIT.md` + `CODE_CONTEXT_MAP.md`\n\n"
+            "## 10) Qué no repetir\n\n"
+            "- (errores recurrentes + referencia a fixes/lecciones; 3–7 bullets)\n"
+        ),
+
+        "CURRENT_FRONTIER.md": (
+            f"# CURRENT_FRONTIER — {project_id}\n\n"
+            "Frontera actual (qué sigue) con justificación y criterios de cierre.\n\n"
+            "Reglas:\n"
+            "- No pegar dumps/logs; referenciar por run_id, rutas y commits.\n"
+            "- Registrar solo hitos reutilizables, no cada interacción.\n\n"
+            f"- last_updated: `{_now_iso()}`\n"
+            "- status: `unknown|planned|in_progress|blocked|done|superseded`\n\n"
+            "## Frontera\n\n"
+            "- frontier_id: (p.ej. FRONT-YYYYMMDD-001)\n"
+            "- objective: (1 línea)\n"
+            "- why_now: (1–3 bullets)\n\n"
+            "## Dependencias\n\n"
+            "- (p.ej. confirmar branch; alinear docs vs código; etc.)\n\n"
+            "## Criterios de finalización\n\n"
+            "- (3–7 bullets verificables)\n\n"
+            "## Próxima acción recomendada (única)\n\n"
+            "- next_action: (1 línea)\n"
+            "- suggested_agent: (p.ej. context-validator / planner)\n"
+            "- suggested_model_line: (p.ej. Go)\n\n"
+            "## Referencias\n\n"
+            "- decision_refs: (rutas a `docs/decisions/**`)\n"
+            "- run_refs: (run_id + rutas; ver `docs/context/RUN_INDEX.md`)\n"
+            "- handoff_refs: (rutas; ver `HANDOFF_LOG.md`)\n"
+            "- return_refs: (rutas; ver `docs/returns/RETURN_INDEX.md`)\n"
+        ),
+
+        "ERRORS_AND_FIXES.md": (
+            f"# ERRORS_AND_FIXES — {project_id}\n\n"
+            "Registro compacto de errores técnicos relevantes y su fix, para evitar repetición.\n\n"
+            "Reglas:\n"
+            "- No pegar logs completos. Guardar solo: síntoma → causa → fix → referencia.\n"
+            "- Referenciar por run_id, paths, commits y (si aplica) issue/PR.\n\n"
+            "## Tabla\n\n"
+            "| error_id | date | symptom | root_cause | fix_summary | refs (run_id/paths/commit) | prevention |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| ERR-0001 | YYYY-MM-DD | (1 línea) | (1 línea) | (1 línea) | (refs) | (1 línea) |\n"
+        ),
+
         "CONTEXT_INDEX.md": (
+
             f"# CONTEXT_INDEX — {project_id}\n\n"
             "Índice de contexto por referencias (ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`).\n\n"
             "## Documentación encontrada\n\n- (pendiente)\n\n"
