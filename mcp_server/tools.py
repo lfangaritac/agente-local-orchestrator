@@ -2238,13 +2238,24 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             project_query_source = "instruction"
 
     if not project_query and not workspace_path and classified.get("resume_requested") is True:
+
         active = _read_json_file(ACTIVE_PROJECT_PATH) or {}
         active_pid = (active.get("project_id") or "").strip()
         if active_pid:
             project_query = active_pid
             project_query_source = "active_project"
 
+    # Daily-use default (orchestrator-first): si no se especifica proyecto ni workspace,
+    # asumimos el repo del orquestador como proyecto objetivo.
+    # Esto reduce fricción para uso diario (instrucción general → acción) sin tener que
+    # pasar project_query/workspace_path cada vez.
+    if not project_query and not workspace_path:
+        workspace_path = str(ROOT)
+        project_query_source = project_query_source or "default_orchestrator_root"
+
     tool_plan: list[dict[str, Any]] = []
+
+
 
 
     orchestrator_ready_to_advance = True
@@ -2604,12 +2615,26 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
     if mode not in {"plan", "dispatch_if_safe"}:
         mode = "plan"
 
+
     authorize_onboarding_scaffold_write = bool(arguments.get("authorize_onboarding_scaffold_write", False))
 
     # Hands-free: si la instrucción pide procesar el último handoff del bridge,
     # enrutar internamente hacia ingest_orchestrator_transfer (Plan-only).
     instruction = str(arguments.get("instruction") or "").strip()
     classified = _classify_general_instruction(instruction)
+
+    # Modo implícito (reducción de fricción):
+    # - Si el usuario NO especifica mode, intentamos avanzar "en su integridad" sin pedir
+    #   micro-orquestación manual.
+    # - Mantiene Plan cuando el usuario lo marca explícitamente ("modo plan"/"solo plan").
+    if "mode" not in arguments:
+        norm = str(classified.get("instruction_normalized") or "")
+        plan_markers = ("modo plan", "solo plan", "plan-only", "plan only")
+        if any(m in norm for m in plan_markers):
+            mode = "plan"
+        elif classified.get("intent") in {"advance", "diagnose", "resume", "prepare_low_risk"}:
+            mode = "dispatch_if_safe"
+
 
     if classified.get("intent") == "ingest_bridge_handoff":
         active_pid = None
@@ -2863,11 +2888,45 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         "result": parsed or dispatch_result,
     }
 
+        
+
     if run_id:
         base["run_id"] = run_id
+
         base["followup_plan"] = _build_followup_scheme(run_id=str(run_id))
         # Próximo tool call directo (compact-first)
         base["recommended_next_tool_call"] = {"tool": "run_health_check", "arguments": {"run_id": str(run_id)}}
+
+        # Persistir continuidad para "retomar" sin micro-orquestación manual.
+        # Guardamos el run_id + referencia al handoff en el estado local (gitignored).
+        try:
+            pid = str((plan.get("project_id") if isinstance(plan, dict) else "") or "").strip()
+            handoff_json_path = (parsed or {}).get("handoff_json_path") if isinstance(parsed, dict) else None
+            if pid:
+                _update_active_project_state(
+                    project_id=pid,
+                    last_event_patch={
+                        "source": "run_general_instruction_flow",
+                        "mode": mode,
+                        "instruction": instruction,
+                        "status": "dispatched",
+                        "next_frontier": plan.get("next_frontier") if isinstance(plan, dict) else None,
+                        "next_question": plan.get("next_question") if isinstance(plan, dict) else None,
+                        "handoff_json_path": handoff_json_path,
+                        "run_id": str(run_id),
+                    },
+                )
+        except Exception:
+            pass
+
+        # Snapshot inmediato (compact-first) para reducir necesidad de llamadas MCP manuales.
+        try:
+            base["followup_snapshot"] = {
+                "opencode": check_opencode_run_status({"run_id": str(run_id)}),
+            }
+        except Exception:
+            base["followup_snapshot"] = None
+
 
     return base
 
