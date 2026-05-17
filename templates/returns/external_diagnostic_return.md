@@ -105,6 +105,8 @@ recommendations:
 escalation_decision: <no_escalate|replit_needed|premium_needed>
 escalation_reason: "<1-2 frases>"
 
+# Semántica: next_frontier se usa solo como cierre/continuidad/bloqueo justificado
+# (p.ej. falta autorización, riesgo, ambigüedad, falta de info mínima). No es una microfase.
 next_frontier: <pause_pilot|local_analysis|plan_only|other>
 next_frontier_reason: "<1-2 frases>"
 

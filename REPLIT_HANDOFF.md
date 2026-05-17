@@ -246,7 +246,7 @@ Procedimiento mínimo para procesar retornos de diagnóstico (sin volver a consu
 4) Clasificar estado del proyecto: `listo` / `parcialmente_listo` / `no_listo`.
 5) Extraer blockers y riesgos (priorizar `critical`, luego `medium`, luego `low`).
 6) Decidir escalamiento (según umbral existente): `no_escalate` / `replit_needed` / `premium_needed`.
-7) Definir una sola `next_frontier` (p.ej. `pause_pilot`, `local_analysis`, `plan_only`).
+7) Definir una sola `next_frontier` (p.ej. `pause_pilot`, `local_analysis`, `plan_only`). Semántica: `next_frontier` se emite como cierre/continuidad/bloqueo justificado (no como microfase ni detención prematura).
 8) No usar Replit para remediación amplia si el problema puede analizarse localmente (Plan) antes de cualquier ejecución.
 9) Registrar el retorno de forma compacta usando el template:
    `templates/returns/external_diagnostic_return.md` (sin copiar chats completos).

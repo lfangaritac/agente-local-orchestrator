@@ -83,7 +83,7 @@ El usuario define **objetivo**, **proyecto objetivo** (o confirma que no lo est�
 
 ### Interpretación de instrucciones generales (ejemplos)
 - “**Diagnostica este proyecto**” → modo **Plan** con diagnóstico local (read-only). Si falta acceso local o se requiere entorno real, proponer escalamiento a Replit.
-- “**Avanza hasta la siguiente frontera segura**” → resolver proyecto → preflight → clasificar modo/riesgo/volumen → avanzar hasta el **máximo seguro**; detenerse en el primer umbral (autorización/ambigüedad/riesgo) y devolver `next_frontier`.
+- “**Avanza hasta la siguiente frontera segura**” → resolver proyecto → preflight → clasificar modo/riesgo/volumen → **intentar cumplir la instrucción en su integridad**; avanzar hasta el **máximo seguro** y solo detenerse ante un umbral real (autorización/ambigüedad/riesgo/etc.). `next_frontier` se emite al cierre o al bloquearse por umbral (no como microfase).
 - “**Prepara una operación low-risk**” → Plan (definir alcance/rollback/allowed_files) y, si el usuario autoriza Build, ejecutar dentro de ese alcance con validación Git.
 - “**Evalúa si requiere Replit o modelo premium**” → evaluar activadores (riesgo, volumen, runtime, seguridad, solicitud del usuario, costo de equivocarse) y devolver decisión + retorno esperado.
 - “**Procesa este retorno externo**” → normalizar retorno, clasificar estado y decidir `no_escalate` / `replit_needed` / `premium_needed` + `next_frontier` (ver template de returns).
@@ -110,7 +110,7 @@ Onboarding mínimo al vincular un proyecto:
 4) Decidir **executor**: Continue (contexto), OpenCode (validación/ejecución), Replit (entorno real), premium (seguridad/arquitectura/criticidad). Referencias: `MODEL_ROUTING.md`, `AGENT_ORCHESTRATION.md`.
 5) Identificar **autorizaciones requeridas** (premium/Replit/secrets/deployment/migraciones/destructivo/ampliación de alcance). Referencia: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
 6) Actuar solo dentro de la frontera segura; si se cruza umbral: **detenerse y preguntar**.
-7) Validar y cerrar con evidencia mínima + `next_frontier` (sin dumps; por referencias). Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+7) Validar y cerrar con evidencia mínima + `next_frontier` **solo al final** (o al detectar bloqueo/umbral), sin dumps; por referencias. Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
 
 ### Aclaración: Plan vs comandos diagnósticos/read-only
 La política canónica de Plan/Build vive en `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
