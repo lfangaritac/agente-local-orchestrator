@@ -24,6 +24,9 @@ FILES_TO_COPY = [
     "SECRETS_MANIFEST.md",
     "QUICK_START.md",
     "activate-agents.bat",
+
+    # Replit/Shell bridge (opcional; no afecta proyectos locales si no se usa)
+    "orquestador",
 ]
 
 DIRS_TO_COPY = [
@@ -473,6 +476,14 @@ def main() -> None:
         copy_file_if_missing(
             ROOT / "scripts" / "check_env.py",
             target_root / "scripts" / "check_env.py",
+            copied,
+            skipped,
+        )
+
+        # Bridge Shell hacia Orquestador (no ejecuta Replit Agent; solo genera handoff)
+        copy_file_if_missing(
+            ROOT / "scripts" / "orchestrator_bridge.py",
+            target_root / "scripts" / "orchestrator_bridge.py",
             copied,
             skipped,
         )

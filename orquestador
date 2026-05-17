@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# orquestador
+# Wrapper ultra-simple para transferir intención al Orquestador sin activar Replit Agent.
+# Uso:
+#   ./orquestador "Avanza con este proyecto hasta la siguiente frontera segura"
+#   ./orquestador "volver a replit"
+#   ./orquestador --help
+
+set -euo pipefail
+
+PY=${PYTHON:-python3}
+exec "$PY" "$(dirname "$0")/scripts/orchestrator_bridge.py" "$@"

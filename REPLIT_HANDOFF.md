@@ -274,20 +274,60 @@ El objetivo es:
 
 Replit NO es un generador principal.
 
-### 2.1 Canal de transferencia de intención hacia el orquestador
+### 2.1 Canal de transferencia de intención hacia el orquestador (vía chat de Replit Agent)
 
-Si el usuario escribe en Replit: **"resolver con Orquestador"** (o equivalente), Replit debe comportarse como **canal de transferencia de intención** hacia el orquestador (Continue/MCP), no como ejecutor automático.
+Si el usuario escribe en el chat de Replit Agent: **"resolver con Orquestador"** (o equivalente: "pasar esto al Orquestador", "que lo maneje el Orquestador"), Replit debe comportarse como **canal de transferencia de intención** hacia el orquestador (Continue/MCP), no como ejecutor automático.
 
-Regla:
-- Replit **solo ejecuta** cuando el usuario lo invoca explícitamente como ejecutor, o cuando el orquestador lo recomienda por activador válido y el usuario autoriza.
+Comportamiento esperado:
+- No ejecutar cambios funcionales.
+- No iniciar dinámica propia de remediación/diagnóstico amplio salvo solicitud explícita.
+- Generar un bloque de handoff para Continue/Orquestador.
 
-Salida sugerida (compacta, sin dumps):
-- intención del usuario (1 línea)
-- proyecto objetivo si está claro (si no: "Proyecto objetivo no confirmado")
-- qué espera del orquestador (p. ej. plan/diagnóstico/handoff)
+Advertencia:
+- Esta ruta **sí** usa el chat de Replit Agent (puede implicar activación/costo del agente).
+
+Handoff mínimo recomendado (pegable en Continue):
+- mode: `orchestrator_transfer`
+- channel: `replit_agent_chat`
+- instruction: (texto original)
+- declaración: "ruta por chat; Replit Agent estuvo activo"
+- declaración: "no ejecuté cambios funcionales"
 - siguiente acción: abrir Continue y usar `run_general_instruction_flow` / `plan_general_instruction`
 
+### 2.2 Transferencia de intención hacia el orquestador (vía Shell / sin Replit Agent)
+
+Para evitar activar Replit Agent solo para transferir intención, usar la vía Shell.
+
+Si el proyecto tiene aplicado el sistema del orquestador (vía `scripts/apply_to_project.py`), debe existir el wrapper:
+
+- `./orquestador "<instrucción>"`
+
+Ejemplos:
+- `./orquestador "Avanza con este proyecto hasta la siguiente frontera segura"`
+- `./orquestador "volver a replit"`
+- `./orquestador --help`
+
+Esta ruta:
+- **No ejecuta Replit Agent**.
+- No modifica código funcional.
+- Solo genera un handoff compacto (MD+JSON) en `docs/handoffs/` del proyecto.
+
+Handoff mínimo garantizado por Shell bridge:
+- mode: `orchestrator_transfer`
+- channel: `shell_bridge`
+- timestamp
+- instruction
+- declaración: "No se ejecutó Replit Agent"
+- declaración: "No se modificaron archivos funcionales"
+- destino: Continue/Orquestador
+
+### 2.3 Volver manualmente a Replit Agent (ambas rutas)
+
+- Desde chat: el usuario debe ser explícito (p.ej. "que lo ejecute Replit Agent" / "usar Replit Agent para validar").
+- Desde Shell: `./orquestador "volver a replit"` o `./orquestador --return-to-replit` (genera intent=`return_to_replit`).
+
 Replit es:
+
 
 
 - validador de planes
