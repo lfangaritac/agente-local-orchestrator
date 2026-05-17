@@ -10,6 +10,7 @@ No permiten comandos arbitrarios.
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime
 import argparse
 import json
 import os
@@ -19,6 +20,7 @@ import sys
 import time
 import unicodedata
 from typing import Any
+
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,9 +52,11 @@ ALLOWED_TOOLS = {
     "plan_general_instruction",
     "run_general_instruction_flow",
     "get_active_project",
-    "set_active_project",
+        "set_active_project",
     "init_project_onboarding_scaffold",
+    "ingest_orchestrator_transfer",
 }
+
 
 
 
@@ -117,7 +121,357 @@ def _read_json_file(path: Path) -> dict[str, Any] | None:
         return None
 
 
+# --- Orchestrator Transfer (Shell Bridge) ingestion ---
+
+ORCHESTRATOR_TRANSFER_MODE = "orchestrator_transfer"
+ORCHESTRATOR_TRANSFER_JSON_GLOB = "orchestrator_transfer_*.json"
+ORCHESTRATOR_TRANSFER_ALLOWED_CHANNELS_DEFAULT = ["shell_bridge", "replit_agent_chat"]
+
+
+def _parse_iso_datetime(value: Any) -> datetime | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        # Supports '2026-05-17T01:22:36+00:00'
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def _safe_preview_text(value: Any, limit: int = 160) -> str:
+    txt = str(value or "").strip().replace("\r\n", "\n")
+    if len(txt) <= limit:
+        return txt
+    return txt[:limit] + "...<truncated>"
+
+
+def _validate_orchestrator_transfer_handoff(payload: dict[str, Any], *, allowed_channels: list[str]) -> tuple[bool, str | None]:
+    mode = str(payload.get("mode") or "").strip()
+    if mode != ORCHESTRATOR_TRANSFER_MODE:
+        return False, f"handoff.mode inválido: '{mode}'"
+
+    channel = str(payload.get("channel") or "").strip()
+    if channel not in allowed_channels:
+        return False, f"handoff.channel no permitido: '{channel}'"
+
+    ts = payload.get("timestamp")
+    if not isinstance(ts, str) or not ts.strip():
+        return False, "handoff.timestamp faltante o inválido"
+
+    instruction = payload.get("instruction")
+    if not isinstance(instruction, str) or not instruction.strip():
+        return False, "handoff.instruction faltante o inválido"
+
+    return True, None
+
+
+def _collect_orchestrator_transfer_candidates(
+    *,
+    handoff_dir: Path,
+    allowed_channels: list[str],
+    max_candidates: int,
+) -> list[dict[str, Any]]:
+    if not handoff_dir.exists() or not handoff_dir.is_dir():
+        return []
+
+    files = sorted(handoff_dir.glob(ORCHESTRATOR_TRANSFER_JSON_GLOB), key=lambda p: p.name)
+    if max_candidates > 0:
+        files = files[-max_candidates:]
+
+    candidates: list[dict[str, Any]] = []
+
+    for path in files:
+        data = _read_json_file(path)
+        if not isinstance(data, dict):
+            continue
+
+        ok, _err = _validate_orchestrator_transfer_handoff(data, allowed_channels=allowed_channels)
+        if not ok:
+            continue
+
+        ts_dt = _parse_iso_datetime(data.get("timestamp"))
+        mtime = path.stat().st_mtime
+        recency_epoch = ts_dt.timestamp() if ts_dt else float(mtime)
+        candidates.append(
+            {
+                "path": str(path),
+                "mtime": float(mtime),
+                "timestamp": str(data.get("timestamp") or ""),
+                "recency_epoch": float(recency_epoch),
+                "recency_basis": "timestamp" if ts_dt else "mtime",
+                "channel": str(data.get("channel") or ""),
+                "intent": str(data.get("intent") or ""),
+                "project_id": ((data.get("project") or {}) if isinstance(data.get("project"), dict) else {}).get("project_id"),
+                "workspace_path": ((data.get("workspace") or {}) if isinstance(data.get("workspace"), dict) else {}).get("path"),
+                "instruction_preview": _safe_preview_text(data.get("instruction")),
+            }
+        )
+
+    # Newest last in this sort order
+    candidates.sort(key=lambda c: (c.get("recency_epoch", 0.0), c.get("mtime", 0.0), str(c.get("path") or "")))
+    return candidates
+
+
+def ingest_orchestrator_transfer(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Ingesta un handoff `orchestrator_transfer_*.json` y lo convierte en un Plan interno.
+
+    Objetivo:
+    - Evitar copy/paste manual en Continue.
+    - Plan-only: NO despacha Build, NO activa Replit Agent.
+
+    Restricciones:
+    - Solo lectura sobre el proyecto objetivo (lee JSON del handoff).
+    - Puede escribir solo el estado de sesión local en `.orchestrator_state/` (gitignored) para soportar "retomar".
+    """
+
+    arguments = arguments or {}
+
+    # Inputs
+    handoff_json_path_raw = str(arguments.get("handoff_json_path") or "").strip()
+    handoff_dir_raw = str(arguments.get("handoff_dir") or "").strip()
+    workspace_path_raw = str(arguments.get("workspace_path") or "").strip()
+    project_query = str(arguments.get("project_query") or "").strip()
+
+    allowed_channels = arguments.get("allowed_channels")
+    if isinstance(allowed_channels, list) and all(isinstance(x, str) for x in allowed_channels):
+        allowed_channels_list = [x.strip() for x in allowed_channels if x.strip()]
+    else:
+        allowed_channels_list = ORCHESTRATOR_TRANSFER_ALLOWED_CHANNELS_DEFAULT
+
+    max_candidates = int(arguments.get("max_candidates") or 50)
+    max_candidates = max(1, min(max_candidates, 200))
+
+    set_active = bool(arguments.get("set_active_project", True))
+
+    # Forwarded flags to general flow
+    include_git = bool(arguments.get("include_git", True))
+    include_orchestrator_status = bool(arguments.get("include_orchestrator_status", True))
+    include_preflight = bool(arguments.get("include_preflight", True))
+
+    start = time.perf_counter()
+
+    # 1) Locate handoff JSON
+    selected_path: Path | None = None
+    candidates: list[dict[str, Any]] = []
+
+    if handoff_json_path_raw:
+        selected_path = Path(handoff_json_path_raw).expanduser()
+    else:
+        # Infer workspace_path if not provided
+        if not workspace_path_raw and project_query:
+            res = resolve_target_project({"project_query": project_query, "include_git": False})
+            if isinstance(res, dict) and res.get("project_confirmed") and res.get("local_path"):
+                workspace_path_raw = str(res.get("local_path") or "")
+
+        if not workspace_path_raw and not project_query:
+            active = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+            active_pid = str(active.get("project_id") or "").strip()
+            if active_pid:
+                project_query = active_pid
+                res = resolve_target_project({"project_query": project_query, "include_git": False})
+                if isinstance(res, dict) and res.get("project_confirmed") and res.get("local_path"):
+                    workspace_path_raw = str(res.get("local_path") or "")
+
+        if not workspace_path_raw and not handoff_dir_raw:
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            return {
+                "ok": True,
+                "status": "missing_inputs",
+                "error": "Se requiere handoff_json_path o (workspace_path/handoff_dir) para localizar el handoff.",
+                "next_frontier": "provide_handoff_path",
+                "next_question": "Indica handoff_json_path o workspace_path (del proyecto donde corriste ./orquestador).",
+                "elapsed_ms": elapsed_ms,
+            }
+
+        handoff_dir = Path(handoff_dir_raw).expanduser() if handoff_dir_raw else (Path(workspace_path_raw).expanduser() / "docs" / "handoffs")
+        candidates = _collect_orchestrator_transfer_candidates(
+            handoff_dir=handoff_dir,
+            allowed_channels=allowed_channels_list,
+            max_candidates=max_candidates,
+        )
+
+        if not candidates:
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            return {
+                "ok": True,
+                "status": "handoff_not_found",
+                "handoff_dir": str(handoff_dir),
+                "pattern": ORCHESTRATOR_TRANSFER_JSON_GLOB,
+                "allowed_channels": allowed_channels_list,
+                "candidates_count": 0,
+                "next_frontier": "generate_handoff",
+                "next_question": "No se encontró un handoff orchestrator_transfer válido. Ejecuta ./orquestador (o python scripts/orchestrator_bridge.py) en el proyecto objetivo y reintenta.",
+                "elapsed_ms": elapsed_ms,
+            }
+
+        # pick most recent, but if top key ties, treat as ambiguous and ask for explicit path
+        best = candidates[-1]
+        if len(candidates) >= 2:
+            prev = candidates[-2]
+            if (
+                float(best.get("recency_epoch") or 0.0) == float(prev.get("recency_epoch") or 0.0)
+                and float(best.get("mtime") or 0.0) == float(prev.get("mtime") or 0.0)
+            ):
+                elapsed_ms = int((time.perf_counter() - start) * 1000)
+                return {
+                    "ok": True,
+                    "status": "handoff_ambiguous",
+                    "handoff_dir": str(handoff_dir),
+                    "pattern": ORCHESTRATOR_TRANSFER_JSON_GLOB,
+                    "allowed_channels": allowed_channels_list,
+                    "candidates_count": len(candidates),
+                    "candidates_preview": candidates[-5:],
+                    "next_frontier": "select_handoff",
+                    "next_question": "Hay múltiples handoffs igualmente recientes. Indica handoff_json_path explícito.",
+                    "elapsed_ms": elapsed_ms,
+                }
+
+        selected_path = Path(str(best.get("path") or ""))
+
+    if selected_path is None:
+        elapsed_ms = int((time.perf_counter() - start) * 1000)
+        return {
+            "ok": True,
+            "status": "handoff_not_found",
+            "error": "No se pudo seleccionar handoff_json_path.",
+            "elapsed_ms": elapsed_ms,
+        }
+
+    payload = _read_json_file(selected_path)
+    if not isinstance(payload, dict):
+        elapsed_ms = int((time.perf_counter() - start) * 1000)
+        return {
+            "ok": True,
+            "status": "invalid_handoff",
+            "handoff_json_path": str(selected_path),
+            "error": "No se pudo leer/parsear el JSON del handoff (o excede límite de tamaño).",
+            "next_frontier": "regenerate_handoff",
+            "elapsed_ms": elapsed_ms,
+        }
+
+    ok, err = _validate_orchestrator_transfer_handoff(payload, allowed_channels=allowed_channels_list)
+    if not ok:
+        elapsed_ms = int((time.perf_counter() - start) * 1000)
+        return {
+            "ok": True,
+            "status": "invalid_handoff",
+            "handoff_json_path": str(selected_path),
+            "error": err or "handoff inválido",
+            "next_frontier": "regenerate_handoff",
+            "elapsed_ms": elapsed_ms,
+        }
+
+    instruction = str(payload.get("instruction") or "").strip()
+
+    # Project + workspace extraction (prefer payload)
+    payload_project_id = None
+    if isinstance(payload.get("project"), dict):
+        payload_project_id = (payload.get("project") or {}).get("project_id")
+
+    payload_workspace_path = None
+    if isinstance(payload.get("workspace"), dict):
+        payload_workspace_path = (payload.get("workspace") or {}).get("path")
+
+    project_query_from_handoff = str(payload_project_id or "").strip()
+    workspace_path_from_handoff = str(payload_workspace_path or "").strip()
+
+    effective_project_query = project_query_from_handoff or project_query
+    effective_workspace_path = workspace_path_from_handoff or workspace_path_raw
+
+    # 2) Resolve project (best-effort) and set active project
+    resolution = resolve_target_project(
+        {
+            "project_query": effective_project_query,
+            "workspace_path": effective_workspace_path,
+            "include_git": include_git,
+        }
+    )
+
+    active_project_set = None
+    if set_active and isinstance(resolution, dict) and resolution.get("project_confirmed") is True:
+        pid = str(resolution.get("project_id") or "").strip()
+        if pid:
+            active_project_set = set_active_project(
+                {
+                    "project_id": pid,
+                    "note": f"ingest_orchestrator_transfer:{selected_path.name}",
+                }
+            )
+
+    intent = str(payload.get("intent") or "orchestrator_transfer").strip()
+    channel = str(payload.get("channel") or "").strip()
+
+    # 3) If return_to_replit: do not activate Replit automatically; just recommend + require auth.
+    if intent == "return_to_replit":
+        elapsed_ms = int((time.perf_counter() - start) * 1000)
+        return {
+            "ok": True,
+            "status": "return_to_replit",
+            "handoff": {
+                "handoff_json_path": str(selected_path),
+                "timestamp": payload.get("timestamp"),
+                "channel": channel,
+                "intent": intent,
+                "instruction_preview": _safe_preview_text(instruction),
+            },
+            "resolution": resolution,
+            "active_project_set": active_project_set,
+            "instruction_normalized": instruction,
+            "suggested_mode": "Plan",
+            "executor_recommended": "continue",
+            "escalation_decision": {"replit": "recommended", "premium": "not_required"},
+            "authorizations_required": ["replit"],
+            "next_frontier": "request_replit_authorization",
+            "next_question": "El handoff pide volver a Replit. ¿Autorizas escalar a Replit Agent para validar/ejecutar? (No se activa automáticamente).",
+            "elapsed_ms": elapsed_ms,
+        }
+
+    # 4) Normal flow: mode Plan (no dispatch)
+    flow = run_general_instruction_flow(
+        {
+            "mode": "plan",
+            "instruction": instruction,
+            "project_query": effective_project_query,
+            "workspace_path": effective_workspace_path,
+            "include_git": include_git,
+            "include_orchestrator_status": include_orchestrator_status,
+            "include_preflight": include_preflight,
+        }
+    )
+
+    elapsed_ms = int((time.perf_counter() - start) * 1000)
+
+    plan = flow.get("plan") if isinstance(flow, dict) else None
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "handoff": {
+            "handoff_json_path": str(selected_path),
+            "timestamp": payload.get("timestamp"),
+            "channel": channel,
+            "intent": intent,
+            "instruction_preview": _safe_preview_text(instruction),
+        },
+        "candidates_count": len(candidates) if candidates else None,
+        "candidates_preview": candidates[-5:] if candidates else None,
+        "resolution": resolution,
+        "active_project_set": active_project_set,
+        "instruction_normalized": instruction,
+        "suggested_mode": "Plan",
+        "executor_recommended": (plan.get("routing") or {}).get("recommended_agent") if isinstance(plan, dict) else None,
+        "escalation_decision": plan.get("escalation_decision") if isinstance(plan, dict) else None,
+        "authorizations_required": plan.get("authorizations_required") if isinstance(plan, dict) else None,
+        "next_frontier": plan.get("next_frontier") if isinstance(plan, dict) else None,
+        "next_question": plan.get("next_question") if isinstance(plan, dict) else None,
+        "flow": flow,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
 def get_active_project(_: dict[str, Any] | None = None) -> dict[str, Any]:
+
     """Devuelve el proyecto activo (sesión) si existe.
 
     Nota: esta memoria es local y efímera; vive en `.orchestrator_state/` (gitignored).
@@ -2141,8 +2495,10 @@ TOOL_HANDLERS = {
     "run_general_instruction_flow": run_general_instruction_flow,
     "get_active_project": get_active_project,
     "set_active_project": set_active_project,
-    "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
+        "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
+    "ingest_orchestrator_transfer": ingest_orchestrator_transfer,
 }
+
 
 
 

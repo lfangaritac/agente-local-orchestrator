@@ -452,6 +452,66 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "ingest_orchestrator_transfer",
+        "description": "Ingiere el último handoff orchestrator_transfer_*.json (Shell bridge) y lo convierte en un Plan interno sin copy/paste (Plan-only; no activa Replit ni Build).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "handoff_json_path": {
+                    "type": "string",
+                    "description": "Ruta explícita al handoff JSON. Si se provee, se usa directamente.",
+                    "default": "",
+                },
+                "handoff_dir": {
+                    "type": "string",
+                    "description": "Directorio donde buscar orchestrator_transfer_*.json. Default: <workspace_path>/docs/handoffs.",
+                    "default": "",
+                },
+                "workspace_path": {
+                    "type": "string",
+                    "description": "Ruta local del workspace del proyecto donde se generó el handoff (read-only).",
+                    "default": "",
+                },
+                "project_query": {
+                    "type": "string",
+                    "description": "project_id/alias/nombre del proyecto objetivo (si el handoff no lo trae).",
+                    "default": "",
+                },
+                "allowed_channels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Canales permitidos (default: shell_bridge, replit_agent_chat).",
+                },
+                "max_candidates": {
+                    "type": "integer",
+                    "description": "Máximo de candidatos a considerar en handoff_dir (default 50).",
+                    "default": 50,
+                },
+                "set_active_project": {
+                    "type": "boolean",
+                    "description": "Si true, fija active_project (sesión) cuando el proyecto esté confirmado.",
+                    "default": True,
+                },
+                "include_git": {
+                    "type": "boolean",
+                    "description": "Si true, incluye probe Git (read-only) al resolver el proyecto.",
+                    "default": True,
+                },
+                "include_orchestrator_status": {
+                    "type": "boolean",
+                    "description": "Si true, incluye operational_status del orquestador en el plan.",
+                    "default": True,
+                },
+                "include_preflight": {
+                    "type": "boolean",
+                    "description": "Si true, incluye orchestrator_preflight en el plan.",
+                    "default": True,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "run_general_instruction_flow",
         "description": "Cierra el loop: instrucción general → plan → dispatch controlado (si es seguro) → seguimiento compact-first.",
         "inputSchema": {
