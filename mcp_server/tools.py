@@ -50,12 +50,13 @@ ALLOWED_TOOLS = {
     "operational_status",
     "resolve_target_project",
     "plan_general_instruction",
-    "run_general_instruction_flow",
+        "run_general_instruction_flow",
     "get_active_project",
-        "set_active_project",
+    "set_active_project",
     "init_project_onboarding_scaffold",
     "ingest_orchestrator_transfer",
 }
+
 
 
 
@@ -1826,7 +1827,76 @@ def _extract_project_query_from_instruction(norm: str) -> str | None:
     return None
 
 
+def _extract_project_query_for_bridge_handoff(norm: str) -> str | None:
+    """Extrae project_query desde instrucciones tipo "handoff del bridge de <alias>" (best-effort)."""
+
+    n = (norm or "").strip().lower()
+    if not n:
+        return None
+
+    patterns = [
+        r"handoff\s+del\s+bridge\s+de\s+([a-z0-9._-]+)",
+        r"handoff\s+del\s+bridge\s+en\s+([a-z0-9._-]+)",
+        r"bridge\s+de\s+([a-z0-9._-]+)",
+        r"handoff\s+de\s+([a-z0-9._-]+)",
+        r"en\s+([a-z0-9._-]+)\s+y\s+avanza",
+    ]
+
+    for pat in patterns:
+        m = re.search(pat, n)
+        if m:
+            candidate = (m.group(1) or "").strip()
+            if candidate and candidate not in {"este", "this", "proyecto", "bridge", "handoff"}:
+                return candidate
+
+    return None
+
+
+def _extract_orchestrator_transfer_json_path(norm: str) -> str | None:
+    """Extrae ruta a un orchestrator_transfer_*.json desde texto normalizado (best-effort)."""
+
+    n = (norm or "").strip()
+    if not n:
+        return None
+
+    win = re.search(r"([a-zA-Z]:\\[^\s\"']*orchestrator_transfer_[^\s\"']*\.json)", n)
+    if win:
+        return win.group(1).strip()
+
+    unix = re.search(r"(/[^\s\"']*orchestrator_transfer_[^\s\"']*\.json)", n)
+    if unix:
+        return unix.group(1).strip()
+
+    return None
+
+
+def _is_bridge_handoff_request(norm: str) -> bool:
+    n = (norm or "").strip().lower()
+    if not n:
+        return False
+
+    triggers = [
+        "procesa el ultimo handoff",
+        "procesa el ultimo handoff del bridge",
+        "procesa el ultimo handoff del proyecto activo",
+        "continua con el ultimo handoff",
+        "continua con el ultimo handoff del proyecto activo",
+        "toma el handoff",
+        "procesa este handoff",
+        "procesa el handoff",
+    ]
+
+    if any(t in n for t in triggers):
+        return True
+
+    if "handoff" in n and "bridge" in n:
+        return True
+
+    return False
+
+
 def _classify_general_instruction(instruction: str) -> dict[str, Any]:
+
     """Heurística ligera para instrucciones generales.
 
     No invoca modelos: solo enruta hacia herramientas internas/OpenCode.
@@ -1837,16 +1907,21 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     extracted_project_query = _extract_project_query_from_instruction(norm)
     resume_requested = any(k in norm for k in ("retoma", "retomar", "reanuda", "reanud", "resume", "volver"))
 
-    # Intent
+        # Intent
     intent = "unknown"
     scenario = "context-validation"
 
-    if resume_requested and not extracted_project_query:
+    if _is_bridge_handoff_request(norm):
+        intent = "ingest_bridge_handoff"
+        scenario = "context-validation"
+    elif resume_requested and not extracted_project_query:
+
         intent = "resume"
         scenario = "context-validation"
     elif any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
         intent = "diagnose"
         scenario = "context-validation"
+
     elif "siguiente frontera" in norm or norm.startswith("avanza") or "avanza con" in norm:
         intent = "advance"
         scenario = "planning"
@@ -1911,6 +1986,13 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     )
     replit_triggered = any(k in norm for k in replit_trigger_keywords) and intent != "evaluate_escalation"
 
+    bridge_project_query = _extract_project_query_for_bridge_handoff(norm)
+    # Importante: extraer ruta desde el instruction original para preservar casing/backslashes.
+    bridge_handoff_path = _extract_orchestrator_transfer_json_path(instruction)
+
+
+
+
     return {
         "instruction_normalized": norm,
         "intent": intent,
@@ -1921,7 +2003,13 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
         "replit_triggered": replit_triggered,
         "extracted_project_query": extracted_project_query,
         "resume_requested": resume_requested,
+
+        # Bridge handoff hints (best-effort)
+        "bridge_project_query": bridge_project_query,
+        "bridge_handoff_json_path": bridge_handoff_path,
+        "bridge_wants_active_project": ("proyecto activo" in norm) or ("active project" in norm),
     }
+
 
 
 
@@ -2331,6 +2419,74 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
 
     authorize_onboarding_scaffold_write = bool(arguments.get("authorize_onboarding_scaffold_write", False))
 
+    # Hands-free: si la instrucción pide procesar el último handoff del bridge,
+    # enrutar internamente hacia ingest_orchestrator_transfer (Plan-only).
+    instruction = str(arguments.get("instruction") or "").strip()
+    classified = _classify_general_instruction(instruction)
+
+    if classified.get("intent") == "ingest_bridge_handoff":
+        active_pid = None
+        if classified.get("bridge_wants_active_project") is True:
+            active = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+            active_pid = str(active.get("project_id") or "").strip() or None
+
+        ingest_args: dict[str, Any] = {
+
+            "handoff_json_path": str(classified.get("bridge_handoff_json_path") or "").strip(),
+            "project_query": (
+                str(classified.get("bridge_project_query") or "").strip()
+                or str(arguments.get("project_query") or "").strip()
+                or (active_pid or "")
+            ),
+            "workspace_path": str(arguments.get("workspace_path") or "").strip(),
+            "handoff_dir": str(arguments.get("handoff_dir") or "").strip(),
+            "include_git": bool(arguments.get("include_git", True)),
+            "include_orchestrator_status": bool(arguments.get("include_orchestrator_status", True)),
+            "include_preflight": bool(arguments.get("include_preflight", True)),
+            "set_active_project": True,
+        }
+
+        # Best-effort: si se dio project_query pero no ruta, intentar inferir workspace_path.
+        if (
+            not ingest_args["handoff_json_path"]
+            and not ingest_args["workspace_path"]
+            and not ingest_args["handoff_dir"]
+            and ingest_args["project_query"]
+        ):
+            rq = str(ingest_args["project_query"] or "").strip()
+            if rq == "orchestrator":
+                ingest_args["workspace_path"] = str(ROOT)
+            else:
+                res = resolve_target_project({"project_query": rq, "include_git": False})
+                if isinstance(res, dict) and res.get("project_confirmed") is True and res.get("local_path"):
+                    ingest_args["workspace_path"] = str(res.get("local_path") or "")
+
+        if not ingest_args["handoff_json_path"] and not ingest_args["workspace_path"] and not ingest_args["handoff_dir"] and not ingest_args["project_query"]:
+
+            return {
+                "ok": True,
+                "status": "missing_inputs",
+                "mode": "plan",
+                "instruction": instruction,
+                "classified": classified,
+                "next_frontier": "provide_handoff_path",
+                "next_question": "Indica el proyecto (alias/project_id) o la ruta workspace_path donde corriste ./orquestador.",
+            }
+
+        ingest = ingest_orchestrator_transfer(ingest_args)
+
+        return {
+            "ok": True,
+            "status": str(ingest.get("status") or "ok"),
+            "mode": "plan",
+            "routed_to": "ingest_orchestrator_transfer",
+            "instruction": instruction,
+            "classified": classified,
+            "ingest": ingest,
+            "next_frontier": ingest.get("next_frontier"),
+            "next_question": ingest.get("next_question"),
+        }
+
     plan = plan_general_instruction(arguments)
 
     # Siempre devolver al menos el template de seguimiento.
@@ -2341,6 +2497,7 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         "plan": plan,
         "followup_scheme_template": _build_followup_scheme(run_id=None),
     }
+
 
     if mode == "plan":
         return base
@@ -2494,10 +2651,11 @@ TOOL_HANDLERS = {
     "plan_general_instruction": plan_general_instruction,
     "run_general_instruction_flow": run_general_instruction_flow,
     "get_active_project": get_active_project,
-    "set_active_project": set_active_project,
-        "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
+        "set_active_project": set_active_project,
+    "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
     "ingest_orchestrator_transfer": ingest_orchestrator_transfer,
 }
+
 
 
 
