@@ -2340,10 +2340,12 @@ def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = No
     if not ok_gitignore:
         return {"ok": False, "status": "error", "error": gitignore_err}
 
-    # 1) Load active state
+        # 1) Load active state
     st = _load_active_project_state()
     ap = st.get("active_project")
+
     if not isinstance(ap, dict):
+
         return {
             "ok": True,
             "status": "missing_inputs",
@@ -2352,8 +2354,9 @@ def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = No
             "active_project_path": st.get("path"),
         }
 
-    pid = project_id_arg or str(ap.get("project_id") or "").strip() or None
-    if not pid:
+    active_pid = str(ap.get("project_id") or "").strip() or None
+    if not active_pid:
+
         return {
             "ok": True,
             "status": "missing_inputs",
@@ -2361,6 +2364,24 @@ def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = No
             "error": "project_id_missing",
             "active_project_path": st.get("path"),
         }
+
+    # Guardrail: evitar escritura cruzada si el caller pasa project_id distinto del activo.
+    if project_id_arg and project_id_arg != active_pid:
+        return {
+            "ok": False,
+            "status": "error",
+            "mode": mode,
+            "error": "project_id_mismatch: project_id no coincide con active_project.project_id",
+            "active_project": {"project_id": active_pid},
+            "requested_project_id": project_id_arg,
+            "next_action": {
+                "tool": "set_active_project",
+                "arguments": {"project_id": project_id_arg, "note": "sync_active_last_event_to_project_docs"},
+            },
+        }
+
+    pid = active_pid
+
 
     if pid == "orchestrator" and not allow_orchestrator:
         return {

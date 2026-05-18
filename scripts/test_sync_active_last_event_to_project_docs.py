@@ -106,7 +106,13 @@ def main() -> None:
         },
     )
 
-    # Case 2: dry_run
+    # Case 2: mismatch guardrail (requested project_id != active_project.project_id)
+    r_mismatch = tools.sync_active_last_event_to_project_docs({"dry_run": True, "apply": False, "project_id": "other-project"})
+    assert r_mismatch.get("ok") is False
+    assert r_mismatch.get("status") == "error"
+    assert "project_id_mismatch" in str(r_mismatch.get("error") or "")
+
+    # Case 3: dry_run
     r2 = tools.sync_active_last_event_to_project_docs({"dry_run": True, "apply": False})
     assert r2.get("status") == "dry_run_ready", f"expected dry_run_ready, got {r2}"
     assert r2.get("changed") is False
