@@ -2257,20 +2257,33 @@ def _patch_markdown_autoblock(*, path: Path, new_block: str, insertion_hint: str
             "reason": "would_replace" if (start_i != -1 and end_i != -1) else "would_insert",
         }
 
-    if changed:
-        try:
-            path.write_text(updated, encoding="utf-8")
-        except Exception as exc:
-            return {"ok": False, "status": "error", "path": str(path), "error": f"write_failed:{exc}"}
+
+    if not changed:
+        return {
+            "ok": True,
+            "status": "applied",
+            "path": str(path),
+            "changed": False,
+            "would_change": False,
+            "reason": "no_change",
+        }
+
+    try:
+        path.write_text(updated, encoding="utf-8")
+
+    except Exception as exc:
+        return {"ok": False, "status": "error", "path": str(path), "error": f"write_failed:{exc}"}
 
     return {
         "ok": True,
         "status": "applied",
         "path": str(path),
-        "changed": changed,
-        "would_change": changed,
-        "reason": "replaced" if (start_i != -1 and end_i != -1) else ("inserted" if changed else "no_change"),
+        "changed": True,
+        "would_change": True,
+        "reason": "replaced" if (start_i != -1 and end_i != -1) else "inserted",
     }
+
+
 
 
 def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = None) -> dict[str, Any]:

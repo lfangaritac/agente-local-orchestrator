@@ -43,6 +43,27 @@ Reglas:
 
 ## Referencias
 
+<!-- AUTO:last_event_refs:start -->
+### (AUTO) Puntero de sesión (referencias)
+
+Este bloque NO completa campos no inferibles; solo persiste referencias compactas.
+- derived_next_frontier: `dispatch_opencode`
+- derived_status: `dispatched`
+- run_refs: `docs/context/RUN_INDEX.md` + `20260518_162521_f1466f16` + `docs/agent_runs/20260518_162521_f1466f16/`
+- handoff_refs: `C:\Agente\docs\agent_queue\inbox\20260518_162521_f1466f16.json`
+- decision_refs: `docs/context/DECISION_INDEX.md` (ver IDs si aplican)
+- event_refs: `docs/context/ACTION_INDEX.md` (ver ACT-* si aplican)
+- return_refs: `docs/returns/RETURN_INDEX.md` (ver fila por project_id si existe)
+
+Rutas exactas:
+- `docs/context/ACTION_INDEX.md`
+- `docs/context/DECISION_INDEX.md`
+- `docs/context/RUN_INDEX.md`
+- `docs/returns/RETURN_INDEX.md`
+- decision_ids: `ESC-2026-05-16-DPM-REPLIT-NOESC`
+- return_files: `docs/returns/data-privacy-management-d/2026-05-16_replit_diagnostic_return.md`
+<!-- AUTO:last_event_refs:end -->
+
 - decision_refs: (rutas a `docs/decisions/**`)
 - run_refs: (run_id + rutas; ver `docs/context/RUN_INDEX.md`)
 - handoff_refs: (rutas; ver `HANDOFF_LOG.md`)

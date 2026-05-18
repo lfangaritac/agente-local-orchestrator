@@ -38,6 +38,36 @@ Reglas:
 
 ## 7) Handoffs / runs / returns relevantes
 
+<!-- AUTO:last_event_refs:start -->
+## (AUTO) Último evento de sesión (referencias)
+
+Este bloque sincroniza **referencias** desde `.orchestrator_state/active_project.json:last_event`.
+- La memoria de sesión es **efímera** (gitignored).
+- `PROJECT_RESUME.md` y `CURRENT_FRONTIER.md` son artefactos **versionados** de retoma.
+- Esta sincronización NO copia evidencia completa (TRACE/RUN_SUMMARY/raw_outputs/handoffs completos).
+
+- project_id: `data-privacy-management-d`
+- last_event.updated_at: `2026-05-18T16:25:22`
+- \1<truncated>
+- status: `dispatched`
+- next_frontier: `dispatch_opencode`
+- run_id: `20260518_162521_f1466f16`
+  - run_index: `docs/context/RUN_INDEX.md`
+  - run_dir: `docs/agent_runs/20260518_162521_f1466f16/`
+- handoff_json_path: `C:\Agente\docs\agent_queue\inbox\20260518_162521_f1466f16.json`
+
+### Índices globales (referencias)
+- action_index: `docs/context/ACTION_INDEX.md`
+- decision_index: `docs/context/DECISION_INDEX.md`
+- run_index: `docs/context/RUN_INDEX.md`
+- return_index: `docs/returns/RETURN_INDEX.md`
+
+### Matches determinísticos (si existen)
+- decision_ids: `ESC-2026-05-16-DPM-REPLIT-NOESC`
+- return_files: `docs/returns/data-privacy-management-d/2026-05-16_replit_diagnostic_return.md`
+- linked_decisions: `docs/decisions/escalation/data-privacy-management-d/2026-05-16_no_escalate_replit.md`
+<!-- AUTO:last_event_refs:end -->
+
 - Handoffs: `HANDOFF_LOG.md`
 - Runs: `docs/context/RUN_INDEX.md` + (entradas locales en `CONTEXT_INDEX.md`)
 - Returns: `docs/returns/RETURN_INDEX.md` (y archivos referenciados)
