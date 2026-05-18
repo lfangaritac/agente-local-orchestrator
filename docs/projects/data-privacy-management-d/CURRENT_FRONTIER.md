@@ -50,7 +50,7 @@ Este bloque NO completa campos no inferibles; solo persiste referencias compacta
 - derived_next_frontier: `dispatch_opencode`
 - derived_status: `dispatched`
 - run_refs: `docs/context/RUN_INDEX.md` + `20260518_162521_f1466f16` + `docs/agent_runs/20260518_162521_f1466f16/`
-- handoff_refs: `C:\Agente\docs\agent_queue\inbox\20260518_162521_f1466f16.json`
+- handoff_refs: `C:\\Agente\\docs\\agent_queue\\inbox\\20260518_162521_f1466f16.json`
 - decision_refs: `docs/context/DECISION_INDEX.md` (ver IDs si aplican)
 - event_refs: `docs/context/ACTION_INDEX.md` (ver ACT-* si aplican)
 - return_refs: `docs/returns/RETURN_INDEX.md` (ver fila por project_id si existe)

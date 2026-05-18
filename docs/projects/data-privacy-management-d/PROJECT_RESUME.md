@@ -48,13 +48,13 @@ Este bloque sincroniza **referencias** desde `.orchestrator_state/active_project
 
 - project_id: `data-privacy-management-d`
 - last_event.updated_at: `2026-05-18T16:25:22`
-- \1<truncated>
+- instruction_preview: <truncated>
 - status: `dispatched`
 - next_frontier: `dispatch_opencode`
 - run_id: `20260518_162521_f1466f16`
   - run_index: `docs/context/RUN_INDEX.md`
   - run_dir: `docs/agent_runs/20260518_162521_f1466f16/`
-- handoff_json_path: `C:\Agente\docs\agent_queue\inbox\20260518_162521_f1466f16.json`
+- handoff_json_path: `C:\\Agente\\docs\\agent_queue\\inbox\\20260518_162521_f1466f16.json`
 
 ### Índices globales (referencias)
 - action_index: `docs/context/ACTION_INDEX.md`

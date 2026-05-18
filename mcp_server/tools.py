@@ -2195,12 +2195,14 @@ def _render_last_event_reference_block(*, kind: str, refs: dict[str, Any]) -> st
 
     if len(block) > MAX_AUTO_BLOCK_CHARS:
         # As a last resort, truncate previews (keep refs)
-        block = re.sub(r"(instruction_preview: ).+", r"\\1<truncated>", block)
-        block = re.sub(r"(next_question_preview: ).+", r"\\1<truncated>", block)
+        block = re.sub(r"(instruction_preview: ).+", r"\1<truncated>", block)
+        block = re.sub(r"(next_question_preview: ).+", r"\1<truncated>", block)
+
         if len(block) > MAX_AUTO_BLOCK_CHARS:
             block = block[: MAX_AUTO_BLOCK_CHARS - 20].rstrip() + "\n...<truncated>\n" + AUTO_LAST_EVENT_END + "\n"
 
     return block
+
 
 
 def _patch_markdown_autoblock(*, path: Path, new_block: str, insertion_hint: str | None, apply: bool) -> dict[str, Any]:
