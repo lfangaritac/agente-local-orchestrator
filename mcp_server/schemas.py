@@ -589,6 +589,42 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "sync_active_last_event_to_project_docs",
+        "description": "Sincroniza referencias compactas desde .orchestrator_state/active_project.json:last_event hacia docs/projects/<project-id>/{PROJECT_RESUME.md,CURRENT_FRONTIER.md}. Dry-run por defecto; apply requiere autorización explícita.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "project_id opcional; si se omite, usa active_project.project_id.",
+                    "default": "",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Si true, no escribe; reporta qué cambiaría. Default true.",
+                    "default": True,
+                },
+                "apply": {
+                    "type": "boolean",
+                    "description": "Si true, escribe los bloques AUTO:last_event_refs (requiere dry_run=false).",
+                    "default": False,
+                },
+                "update_files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Archivos a sincronizar: PROJECT_RESUME y/o CURRENT_FRONTIER.",
+                    "default": ["PROJECT_RESUME", "CURRENT_FRONTIER"],
+                },
+                "allow_orchestrator": {
+                    "type": "boolean",
+                    "description": "Permite project_id=orchestrator (default false; no aplicable salvo justificación expresa).",
+                    "default": False,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "init_project_onboarding_scaffold",
         "description": "Crea (si falta) el scaffold documental mínimo en docs/projects/<project-id>/ (sin sobrescribir).",
         "inputSchema": {

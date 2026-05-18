@@ -73,8 +73,10 @@ ALLOWED_TOOLS = {
     "get_active_project",
     "set_active_project",
     "init_project_onboarding_scaffold",
+    "sync_active_last_event_to_project_docs",
     "ingest_orchestrator_transfer",
 }
+
 
 
 
@@ -1897,7 +1899,7 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
         path.write_text(content, encoding="utf-8")
         created.append(str(path))
 
-    return {
+        return {
         "ok": True,
         "status": "ok",
         "project_id": project_id,
@@ -1909,7 +1911,568 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
     }
 
 
+# --- Strategic resume sync (session last_event -> project docs) ---
+
+AUTO_LAST_EVENT_START = "<!-- AUTO:last_event_refs:start -->"
+AUTO_LAST_EVENT_END = "<!-- AUTO:last_event_refs:end -->"
+
+# Keep blocks small and reference-based.
+MAX_AUTO_BLOCK_CHARS = 1400
+
+
+def _redact_possible_secrets(text: str) -> str:
+    """Redacta patrones comunes de secrets en texto libre (best-effort)."""
+
+    t = str(text or "")
+    if not t:
+        return ""
+
+    # Common token formats
+    t = re.sub(r"\bghp_[A-Za-z0-9]{20,}\b", "ghp_<redacted>", t)
+    t = re.sub(r"\bsk-[A-Za-z0-9]{16,}\b", "sk-<redacted>", t)
+    t = re.sub(r"\bAIza[0-9A-Za-z\-_]{16,}\b", "AIza<redacted>", t)
+
+    # key=value like patterns
+    t = re.sub(
+        r"(?i)\b(token|api[_-]?key|secret|password)\s*[:=]\s*([^\s]+)",
+        lambda m: f"{m.group(1)}=<redacted>",
+        t,
+    )
+
+    return t
+
+
+def _load_active_project_state() -> dict[str, Any]:
+    """Carga el estado de sesión local (gitignored) sin side-effects."""
+
+    data = _read_json_file(ACTIVE_PROJECT_PATH)
+    return {
+        "ok": True,
+        "exists": bool(data),
+        "path": str(ACTIVE_PROJECT_PATH),
+        "active_project": data if isinstance(data, dict) else None,
+    }
+
+
+def _ensure_orchestrator_state_gitignored() -> tuple[bool, str | None]:
+    """Verifica que .orchestrator_state/ esté en .gitignore."""
+
+    try:
+        gi = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="replace")
+    except Exception as exc:
+        return False, f"No se pudo leer .gitignore: {exc}"
+
+    if ".orchestrator_state/" not in gi:
+        return False, ".orchestrator_state/ no está presente en .gitignore (guardrail)"
+
+    return True, None
+
+
+def _parse_table_rows(md: str) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for raw in (md or "").splitlines():
+        line = raw.strip()
+        if not (line.startswith("|") and line.endswith("|")):
+            continue
+        # Skip header/separator rows
+        if set(line.replace("|", "").strip()) <= {"-", " "}:
+            continue
+        parts = [p.strip() for p in line.strip("|").split("|")]
+        if parts:
+            rows.append(parts)
+    return rows
+
+
+def _extract_deterministic_index_matches(*, project_id: str) -> dict[str, Any]:
+    """Extrae matches determinísticos por project_id explícito en filas."""
+
+    pid = (project_id or "").strip()
+    out: dict[str, Any] = {
+        "project_id": pid,
+        "decision_ids": [],
+        "action_ids": [],
+        "return_files": [],
+        "linked_decisions": [],
+    }
+
+    if not pid:
+        return out
+
+    # DECISION_INDEX: detectar decisiones de escalamiento con columna target_project.
+    try:
+        dec = (ROOT / "docs" / "context" / "DECISION_INDEX.md").read_text(encoding="utf-8", errors="replace")
+        rows = _parse_table_rows(dec)
+        for r in rows:
+            if any(c.strip() == pid for c in r):
+                if r and r[0] and (r[0].startswith("DEC-") or r[0].startswith("ESC-")):
+                    out["decision_ids"].append(r[0])
+        out["decision_ids"] = out["decision_ids"][:5]
+    except Exception:
+        pass
+
+    # ACTION_INDEX: no tiene columna project_id; solo capturar si pid aparece explícitamente en una fila.
+    try:
+        act = (ROOT / "docs" / "context" / "ACTION_INDEX.md").read_text(encoding="utf-8", errors="replace")
+        rows = _parse_table_rows(act)
+        for r in rows:
+            if any(pid in c for c in r):
+                if r and re.match(r"^ACT-\d{4}$", r[0] or ""):
+                    out["action_ids"].append(r[0])
+        out["action_ids"] = out["action_ids"][:5]
+    except Exception:
+        pass
+
+    # RETURN_INDEX: tabla incluye target_project.
+    try:
+        ret = (ROOT / "docs" / "returns" / "RETURN_INDEX.md").read_text(encoding="utf-8", errors="replace")
+        rows = _parse_table_rows(ret)
+        for r in rows:
+            if len(r) >= 3 and r[1].strip() == pid:
+                return_file = (r[2] or "").strip()
+                if return_file:
+                    out["return_files"].append(return_file.strip("`"))
+                if len(r) >= 7:
+                    linked = (r[6] or "").strip()
+                    if linked:
+                        out["linked_decisions"].append(linked.strip("`"))
+        out["return_files"] = out["return_files"][:5]
+        out["linked_decisions"] = out["linked_decisions"][:5]
+    except Exception:
+        pass
+
+    return out
+
+
+def _extract_last_event_refs(*, active_project: dict[str, Any], project_id: str) -> dict[str, Any]:
+    last_event = active_project.get("last_event") if isinstance(active_project, dict) else None
+    last_event = last_event if isinstance(last_event, dict) else {}
+
+    instruction = _redact_possible_secrets(str(last_event.get("instruction") or "").strip())
+    next_q = _redact_possible_secrets(str(last_event.get("next_question") or "").strip())
+
+    run_id = str(last_event.get("run_id") or "").strip() or None
+    handoff_json_path = str(last_event.get("handoff_json_path") or "").strip() or None
+
+    idx_matches = _extract_deterministic_index_matches(project_id=project_id)
+
+    return {
+        "project_id": project_id,
+        "updated_at": str(last_event.get("updated_at") or "").strip() or None,
+        "source": str(last_event.get("source") or "").strip() or None,
+        "mode": str(last_event.get("mode") or "").strip() or None,
+        "instruction_preview": _safe_preview_text(instruction, limit=180) if instruction else None,
+        "status": str(last_event.get("status") or "").strip() or None,
+        "next_frontier": str(last_event.get("next_frontier") or "").strip() or None,
+        "next_question_preview": _safe_preview_text(next_q, limit=220) if next_q else None,
+        "run_id": run_id,
+        "handoff_json_path": handoff_json_path,
+        "global_indexes": {
+            "action_index": "docs/context/ACTION_INDEX.md",
+            "decision_index": "docs/context/DECISION_INDEX.md",
+            "run_index": "docs/context/RUN_INDEX.md",
+            "return_index": "docs/returns/RETURN_INDEX.md",
+        },
+        "deterministic_matches": idx_matches,
+    }
+
+
+def _render_last_event_reference_block(*, kind: str, refs: dict[str, Any]) -> str:
+    """Renderiza bloque AUTO:last_event_refs para PROJECT_RESUME o CURRENT_FRONTIER."""
+
+    pid = refs.get("project_id") or "unknown"
+    g = refs.get("global_indexes") or {}
+
+    lines: list[str] = [AUTO_LAST_EVENT_START]
+
+    if kind == "project_resume":
+        lines.extend(
+            [
+                "## (AUTO) Último evento de sesión (referencias)",
+                "",
+                "Este bloque sincroniza **referencias** desde `.orchestrator_state/active_project.json:last_event`.",
+                "- La memoria de sesión es **efímera** (gitignored).",
+                "- `PROJECT_RESUME.md` y `CURRENT_FRONTIER.md` son artefactos **versionados** de retoma.",
+                "- Esta sincronización NO copia evidencia completa (TRACE/RUN_SUMMARY/raw_outputs/handoffs completos).",
+                "",
+                f"- project_id: `{pid}`",
+            ]
+        )
+
+        if refs.get("updated_at"):
+            lines.append(f"- last_event.updated_at: `{refs['updated_at']}`")
+        if refs.get("instruction_preview"):
+            lines.append(f"- instruction_preview: {refs['instruction_preview']}")
+        if refs.get("status"):
+            lines.append(f"- status: `{refs['status']}`")
+        if refs.get("next_frontier"):
+            lines.append(f"- next_frontier: `{refs['next_frontier']}`")
+        if refs.get("next_question_preview"):
+            lines.append(f"- next_question_preview: {refs['next_question_preview']}")
+
+        if refs.get("run_id"):
+            rid = refs["run_id"]
+            lines.append(f"- run_id: `{rid}`")
+            lines.append(f"  - run_index: `{g.get('run_index')}`")
+            lines.append(f"  - run_dir: `docs/agent_runs/{rid}/`")
+
+        if refs.get("handoff_json_path"):
+            lines.append(f"- handoff_json_path: `{refs['handoff_json_path']}`")
+
+        lines.extend(
+            [
+                "",
+                "### Índices globales (referencias)",
+                f"- action_index: `{g.get('action_index')}`",
+                f"- decision_index: `{g.get('decision_index')}`",
+                f"- run_index: `{g.get('run_index')}`",
+                f"- return_index: `{g.get('return_index')}`",
+            ]
+        )
+
+        dm = refs.get("deterministic_matches") or {}
+        if (dm.get("decision_ids") or dm.get("action_ids") or dm.get("return_files") or dm.get("linked_decisions")):
+            lines.extend(["", "### Matches determinísticos (si existen)"])
+            if dm.get("decision_ids"):
+                lines.append(f"- decision_ids: {', '.join('`'+x+'`' for x in dm['decision_ids'])}")
+            if dm.get("action_ids"):
+                lines.append(f"- action_ids: {', '.join('`'+x+'`' for x in dm['action_ids'])}")
+            if dm.get("return_files"):
+                lines.append(f"- return_files: {', '.join('`'+x+'`' for x in dm['return_files'])}")
+            if dm.get("linked_decisions"):
+                lines.append(f"- linked_decisions: {', '.join('`'+x+'`' for x in dm['linked_decisions'])}")
+
+    elif kind == "current_frontier":
+        lines.extend(
+            [
+                "### (AUTO) Puntero de sesión (referencias)",
+                "",
+                "Este bloque NO completa campos no inferibles; solo persiste referencias compactas.",
+            ]
+        )
+
+        if refs.get("next_frontier"):
+            lines.append(f"- derived_next_frontier: `{refs['next_frontier']}`")
+        if refs.get("status"):
+            lines.append(f"- derived_status: `{refs['status']}`")
+        if refs.get("next_question_preview"):
+            lines.append(f"- next_question_preview: {refs['next_question_preview']}")
+
+        if refs.get("run_id"):
+            rid = refs["run_id"]
+            lines.append(f"- run_refs: `docs/context/RUN_INDEX.md` + `{rid}` + `docs/agent_runs/{rid}/`")
+
+        if refs.get("handoff_json_path"):
+            lines.append(f"- handoff_refs: `{refs['handoff_json_path']}`")
+
+        lines.extend(
+            [
+                "- decision_refs: `docs/context/DECISION_INDEX.md` (ver IDs si aplican)",
+                "- event_refs: `docs/context/ACTION_INDEX.md` (ver ACT-* si aplican)",
+                "- return_refs: `docs/returns/RETURN_INDEX.md` (ver fila por project_id si existe)",
+                "",
+                "Rutas exactas:",
+                "- `docs/context/ACTION_INDEX.md`",
+                "- `docs/context/DECISION_INDEX.md`",
+                "- `docs/context/RUN_INDEX.md`",
+                "- `docs/returns/RETURN_INDEX.md`",
+            ]
+        )
+
+        dm = refs.get("deterministic_matches") or {}
+        if dm.get("decision_ids"):
+            lines.append(f"- decision_ids: {', '.join('`'+x+'`' for x in dm['decision_ids'])}")
+        if dm.get("action_ids"):
+            lines.append(f"- event_action_ids: {', '.join('`'+x+'`' for x in dm['action_ids'])}")
+        if dm.get("return_files"):
+            lines.append(f"- return_files: {', '.join('`'+x+'`' for x in dm['return_files'])}")
+
+    else:
+        lines.append(f"(ERROR) unknown block kind: {kind}")
+
+    lines.append(AUTO_LAST_EVENT_END)
+
+    block = "\n".join(lines).rstrip() + "\n"
+
+    if len(block) > MAX_AUTO_BLOCK_CHARS:
+        # As a last resort, truncate previews (keep refs)
+        block = re.sub(r"(instruction_preview: ).+", r"\\1<truncated>", block)
+        block = re.sub(r"(next_question_preview: ).+", r"\\1<truncated>", block)
+        if len(block) > MAX_AUTO_BLOCK_CHARS:
+            block = block[: MAX_AUTO_BLOCK_CHARS - 20].rstrip() + "\n...<truncated>\n" + AUTO_LAST_EVENT_END + "\n"
+
+    return block
+
+
+def _patch_markdown_autoblock(*, path: Path, new_block: str, insertion_hint: str | None, apply: bool) -> dict[str, Any]:
+    """Reemplaza/inyecta el bloque AUTO:last_event_refs de forma idempotente."""
+
+    if not path.exists() or not path.is_file():
+        return {"ok": False, "status": "missing_file", "path": str(path), "error": "file_not_found"}
+
+    try:
+        original = path.read_text(encoding="utf-8", errors="replace")
+    except Exception as exc:
+        return {"ok": False, "status": "error", "path": str(path), "error": f"read_failed:{exc}"}
+
+    start_i = original.find(AUTO_LAST_EVENT_START)
+    end_i = original.find(AUTO_LAST_EVENT_END)
+
+    updated = original
+    changed = False
+
+    if start_i != -1 and end_i != -1 and end_i > start_i:
+        end_j = original.find("\n", end_i)
+        if end_j == -1:
+            end_j = len(original)
+        else:
+            end_j = end_j + 1
+        updated = original[:start_i] + new_block + original[end_j:]
+        changed = (updated != original)
+    else:
+        insert_at = None
+        if insertion_hint:
+            m = re.search(re.escape(insertion_hint), original)
+            if m:
+                line_end = original.find("\n", m.end())
+                insert_at = len(original) if line_end == -1 else line_end + 1
+
+        if insert_at is None:
+            insert_at = len(original)
+            updated = original
+            if not updated.endswith("\n"):
+                updated += "\n"
+            updated += "\n" + new_block
+        else:
+            updated = original[:insert_at] + "\n" + new_block + original[insert_at:]
+
+        changed = (updated != original)
+
+    if not apply:
+        return {
+            "ok": True,
+            "status": "dry_run",
+            "path": str(path),
+            "changed": False,
+            "would_change": changed,
+            "reason": "would_replace" if (start_i != -1 and end_i != -1) else "would_insert",
+        }
+
+    if changed:
+        try:
+            path.write_text(updated, encoding="utf-8")
+        except Exception as exc:
+            return {"ok": False, "status": "error", "path": str(path), "error": f"write_failed:{exc}"}
+
+    return {
+        "ok": True,
+        "status": "applied",
+        "path": str(path),
+        "changed": changed,
+        "would_change": changed,
+        "reason": "replaced" if (start_i != -1 and end_i != -1) else ("inserted" if changed else "no_change"),
+    }
+
+
+def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Sincroniza referencias compactas desde active_project.last_event hacia docs/projects/<project-id>.
+
+    Principios:
+    - Compact-first y reference-based (no evidencia completa).
+    - Idempotente (bloques auto-gestionados por markers).
+    - Dry-run por defecto; apply requiere autorización explícita.
+
+    Restricciones:
+    - No crea scaffold automáticamente.
+    - No toca proyectos externos.
+    """
+
+    arguments = arguments or {}
+
+    project_id_arg = str(arguments.get("project_id") or "").strip() or None
+
+    dry_run = bool(arguments.get("dry_run", True))
+    apply = bool(arguments.get("apply", False))
+
+    # Guardrail against contradictory flags.
+    if apply and dry_run:
+        return {
+            "ok": False,
+            "status": "error",
+            "error": "flags_ambiguous: apply=true y dry_run=true (elige uno)",
+        }
+
+    if (not apply) and (dry_run is False):
+        return {
+            "ok": False,
+            "status": "error",
+            "error": "flags_ambiguous: dry_run=false requiere apply=true",
+        }
+
+    mode = "apply" if apply else "dry_run"
+
+    update_files = arguments.get("update_files")
+    if not isinstance(update_files, list) or not update_files:
+        update_files_list = ["PROJECT_RESUME", "CURRENT_FRONTIER"]
+    else:
+        update_files_list = [str(x).strip().upper() for x in update_files if str(x).strip()]
+        allowed = {"PROJECT_RESUME", "CURRENT_FRONTIER"}
+        update_files_list = [x for x in update_files_list if x in allowed]
+        if not update_files_list:
+            update_files_list = ["PROJECT_RESUME", "CURRENT_FRONTIER"]
+
+    allow_orchestrator = bool(arguments.get("allow_orchestrator", False))
+
+    # 0) Ensure .orchestrator_state is gitignored
+    ok_gitignore, gitignore_err = _ensure_orchestrator_state_gitignored()
+    if not ok_gitignore:
+        return {"ok": False, "status": "error", "error": gitignore_err}
+
+    # 1) Load active state
+    st = _load_active_project_state()
+    ap = st.get("active_project")
+    if not isinstance(ap, dict):
+        return {
+            "ok": True,
+            "status": "missing_inputs",
+            "mode": mode,
+            "error": "active_project_missing",
+            "active_project_path": st.get("path"),
+        }
+
+    pid = project_id_arg or str(ap.get("project_id") or "").strip() or None
+    if not pid:
+        return {
+            "ok": True,
+            "status": "missing_inputs",
+            "mode": mode,
+            "error": "project_id_missing",
+            "active_project_path": st.get("path"),
+        }
+
+    if pid == "orchestrator" and not allow_orchestrator:
+        return {
+            "ok": True,
+            "status": "not_applicable",
+            "mode": mode,
+            "project_id": pid,
+            "reason": "project_id=orchestrator requiere allow_orchestrator=true",
+        }
+
+    last_event = ap.get("last_event")
+    if not isinstance(last_event, dict) or not last_event:
+        return {
+            "ok": True,
+            "status": "missing_inputs",
+            "mode": mode,
+            "project_id": pid,
+            "error": "last_event_missing",
+        }
+
+    # 2) Validate project docs exist
+    docs_dir = ROOT / "docs" / "projects" / pid
+    resume_path = docs_dir / "PROJECT_RESUME.md"
+    frontier_path = docs_dir / "CURRENT_FRONTIER.md"
+
+    if not docs_dir.exists() or not docs_dir.is_dir():
+        return {
+            "ok": True,
+            "status": "onboarding_required",
+            "mode": mode,
+            "project_id": pid,
+            "docs_dir": str(docs_dir),
+            "missing": ["docs/projects/<project-id>/"],
+            "recommended_next_tool_call": {
+                "tool": "init_project_onboarding_scaffold",
+                "arguments": {"project_id": pid, "dry_run": False},
+            },
+        }
+
+    missing_files = []
+    if not resume_path.exists():
+        missing_files.append(str(resume_path))
+    if not frontier_path.exists():
+        missing_files.append(str(frontier_path))
+
+    if missing_files:
+        return {
+            "ok": True,
+            "status": "onboarding_required",
+            "mode": mode,
+            "project_id": pid,
+            "docs_dir": str(docs_dir),
+            "missing": missing_files,
+            "recommended_next_tool_call": {
+                "tool": "init_project_onboarding_scaffold",
+                "arguments": {"project_id": pid, "dry_run": False},
+            },
+        }
+
+    refs = _extract_last_event_refs(active_project=ap, project_id=pid)
+
+    results: dict[str, Any] = {
+        "ok": True,
+        "status": "dry_run_ready" if not apply else "applied",
+        "mode": mode,
+        "project_id": pid,
+        "active_project_path": st.get("path"),
+        "docs_dir": str(docs_dir),
+        "update_files": update_files_list,
+        "guardrails": {
+            "compact_first": True,
+            "reference_based": True,
+            "auto_block_markers": [AUTO_LAST_EVENT_START, AUTO_LAST_EVENT_END],
+            "max_auto_block_chars": MAX_AUTO_BLOCK_CHARS,
+            "orchestrator_state_gitignored": True,
+        },
+        "refs": {
+            "last_event": {
+                "updated_at": refs.get("updated_at"),
+                "instruction_preview": refs.get("instruction_preview"),
+                "status": refs.get("status"),
+                "next_frontier": refs.get("next_frontier"),
+                "next_question_preview": refs.get("next_question_preview"),
+                "run_id": refs.get("run_id"),
+                "handoff_json_path": refs.get("handoff_json_path"),
+            },
+            "global_indexes": refs.get("global_indexes"),
+            "deterministic_matches": refs.get("deterministic_matches"),
+        },
+        "files": {},
+    }
+
+    if "PROJECT_RESUME" in update_files_list:
+        block = _render_last_event_reference_block(kind="project_resume", refs=refs)
+        results["files"]["PROJECT_RESUME"] = _patch_markdown_autoblock(
+            path=resume_path,
+            new_block=block,
+            insertion_hint="## 7) Handoffs / runs / returns relevantes",
+            apply=apply,
+        )
+
+    if "CURRENT_FRONTIER" in update_files_list:
+        block = _render_last_event_reference_block(kind="current_frontier", refs=refs)
+        results["files"]["CURRENT_FRONTIER"] = _patch_markdown_autoblock(
+            path=frontier_path,
+            new_block=block,
+            insertion_hint="## Referencias",
+            apply=apply,
+        )
+
+    would_change = False
+    changed = False
+    for v in (results.get("files") or {}).values():
+        if isinstance(v, dict):
+            would_change = would_change or bool(v.get("would_change"))
+            changed = changed or bool(v.get("changed"))
+
+    results["would_change"] = would_change
+    results["changed"] = changed
+
+    return results
+
+
 def operational_status(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+
 
     """Diagnóstico operativo compact-first vía scripts/audit_agent_artifacts.py --operational-status.
 
@@ -2952,8 +3515,10 @@ TOOL_HANDLERS = {
     "get_active_project": get_active_project,
         "set_active_project": set_active_project,
     "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
+    "sync_active_last_event_to_project_docs": sync_active_last_event_to_project_docs,
     "ingest_orchestrator_transfer": ingest_orchestrator_transfer,
 }
+
 
 
 
