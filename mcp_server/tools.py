@@ -2346,6 +2346,211 @@ def _probe_project_onboarding(project_id: str) -> dict[str, Any]:
     return {"ok": True, "status": "ready", "project_id": pid, "docs_dir": str(docs_dir), "missing": []}
 
 
+def _extract_markdown_heading_ids(*, path: Path, prefix: str, max_ids: int = 8, max_chars: int = 24000) -> list[str]:
+    """Extrae IDs desde headings tipo '### ALERT-...' de un Markdown (best-effort)."""
+
+    txt = _read_text_prefix(path, max_chars=max_chars)
+    if not txt:
+        return []
+
+    ids: list[str] = []
+    # Soporta '### ALERT-GLOBAL-001 — ...'
+    pat = re.compile(r"^###\s+([A-Z0-9_-]+)", flags=re.MULTILINE)
+    for m in pat.finditer(txt):
+        cand = (m.group(1) or "").strip()
+        if cand.startswith(prefix) and cand not in ids:
+            ids.append(cand)
+        if len(ids) >= max_ids:
+            break
+
+    return ids
+
+
+def _build_standard_project_context_pack(
+    *,
+    project_id: str,
+    level: int,
+    preview_chars: int = 900,
+) -> dict[str, Any]:
+    """Construye un context pack estándar (reference-based) por niveles.
+
+    Nota: no carga evidencia pesada (runs/TRACE/raw_outputs), solo referencias + previews cortos.
+    """
+
+    pid = (project_id or "").strip()
+    if not pid:
+        return {"ok": True, "status": "missing_inputs", "error": "project_id_missing"}
+
+    # Nivel permitido: 0..3 (alineado a Bloque 3). Clampear por seguridad.
+    try:
+        lvl = int(level)
+    except Exception:
+        lvl = 1
+    lvl = max(0, min(lvl, 3))
+
+    onboarding = _probe_project_onboarding(pid)
+    if onboarding.get("status") in {"missing", "partial"}:
+        missing = onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else []
+        return {
+            "ok": True,
+            "status": "onboarding_required",
+            "project_id": pid,
+            "level": lvl,
+            "onboarding": onboarding,
+            "missing_files": missing,
+            "recommended_next_tool_call": {
+                "tool": "init_project_onboarding_scaffold",
+                "arguments": {"project_id": pid, "dry_run": False},
+            },
+        }
+
+    # Session last_event (efímero, gitignored) si coincide con proyecto activo.
+    session_last_event: dict[str, Any] | None = None
+    st = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+    if isinstance(st, dict) and str(st.get("project_id") or "").strip() == pid:
+        le = st.get("last_event")
+        if isinstance(le, dict):
+            session_last_event = {
+                "updated_at": le.get("updated_at"),
+                "source": le.get("source"),
+                "mode": le.get("mode"),
+                "status": le.get("status"),
+                "next_frontier": le.get("next_frontier"),
+                "run_id": le.get("run_id"),
+                "handoff_json_path": le.get("handoff_json_path"),
+                "instruction_preview": _safe_preview_text(le.get("instruction"), limit=180),
+                "next_question_preview": _safe_preview_text(le.get("next_question"), limit=220),
+            }
+
+    global_alerts_path = ROOT / "docs" / "alerts" / "GLOBAL_CRITICAL_ALERTS.md"
+    global_alert_ids = _extract_markdown_heading_ids(path=global_alerts_path, prefix="ALERT-", max_ids=8)
+
+    exclusions = [
+        "docs/agent_runs/**",
+        "docs/agent_queue/**",
+        "raw_outputs/**",
+        "TRACE.md (full)",
+        "RUN_SUMMARY.md (full)",
+        "handoffs completos (*.md)",
+    ]
+
+    # Proyecto orquestador: no aplica carpeta docs/projects/<pid>/ como contrato de objetivo.
+    if pid == "orchestrator":
+        return {
+            "ok": True,
+            "status": "ok",
+            "project_id": pid,
+            "level": lvl,
+            "reference_based": True,
+            "onboarding": onboarding,
+            "session_last_event": session_last_event,
+            "alerts": {
+                "global": {
+                    "path": str(global_alerts_path),
+                    "exists": bool(global_alerts_path.exists()),
+                    "alert_ids_preview": global_alert_ids,
+                }
+            },
+            "refs": [
+                {"role": "reference_map", "path": "docs/context/REFERENCE_MAP.md"},
+                {"role": "routing", "path": "MODEL_ROUTING.md"},
+                {"role": "orchestration", "path": "AGENT_ORCHESTRATION.md"},
+                {"role": "continue_usage", "path": "CONTINUE_USAGE_PROTOCOL.md"},
+            ],
+            "exclusions": exclusions,
+        }
+
+    docs_dir = ROOT / "docs" / "projects" / pid
+
+    def _file_ref(*, name: str, role: str, include_preview: bool) -> dict[str, Any]:
+        path = docs_dir / name
+        preview = None
+        if include_preview:
+            preview = _read_text_prefix(path, max_chars=preview_chars)
+            if preview:
+                preview = preview.replace("\r\n", "\n").strip()
+        return {
+            "role": role,
+            "path": str(path),
+            "exists": bool(path.exists()),
+            "preview": preview,
+            "preview_truncated": bool(preview and len(preview) >= preview_chars),
+        }
+
+    refs: list[dict[str, Any]] = []
+
+    # Nivel 0: retoma rápida
+    if lvl >= 0:
+        refs.extend(
+            [
+                _file_ref(name="PROJECT_RESUME.md", role="project_resume", include_preview=True),
+                _file_ref(name="CURRENT_FRONTIER.md", role="current_frontier", include_preview=True),
+            ]
+        )
+
+    # Nivel 1: contexto operativo default
+    if lvl >= 1:
+        refs.extend(
+            [
+                _file_ref(name="ERRORS_AND_FIXES.md", role="errors_and_fixes", include_preview=True),
+                _file_ref(name="CRITICAL_ALERTS.md", role="critical_alerts_local", include_preview=True),
+                _file_ref(name="LESSONS_LOCAL.md", role="lessons_local", include_preview=True),
+                _file_ref(name="HANDOFF_LOG.md", role="handoff_log", include_preview=True),
+                _file_ref(name="SYNC_STATUS.md", role="sync_status", include_preview=True),
+            ]
+        )
+
+    # Nivel 2: evidencia referenciada (índices por proyecto + global indexes)
+    if lvl >= 2:
+        refs.extend(
+            [
+                _file_ref(name="CONTEXT_INDEX.md", role="context_index", include_preview=True),
+                _file_ref(name="CODE_CONTEXT_MAP.md", role="code_context_map", include_preview=True),
+                _file_ref(name="DOCUMENTATION_AUDIT.md", role="documentation_audit", include_preview=True),
+            ]
+        )
+
+    indexes = {
+        "reference_map": "docs/context/REFERENCE_MAP.md",
+        "action_index": "docs/context/ACTION_INDEX.md",
+        "decision_index": "docs/context/DECISION_INDEX.md",
+        "run_index": "docs/context/RUN_INDEX.md",
+        "return_index": "docs/returns/RETURN_INDEX.md",
+    }
+
+    local_alerts_path = docs_dir / "CRITICAL_ALERTS.md"
+    local_alert_ids = _extract_markdown_heading_ids(path=local_alerts_path, prefix="ALERT-", max_ids=6) if local_alerts_path.exists() else []
+
+    return {
+        "ok": True,
+        "status": "ok",
+        "project_id": pid,
+        "level": lvl,
+        "reference_based": True,
+        "onboarding": onboarding,
+        "session_last_event": session_last_event,
+        "alerts": {
+            "global": {
+                "path": str(global_alerts_path),
+                "exists": bool(global_alerts_path.exists()),
+                "alert_ids_preview": global_alert_ids,
+            },
+            "local": {
+                "path": str(local_alerts_path),
+                "exists": bool(local_alerts_path.exists()),
+                "alert_ids_preview": local_alert_ids,
+            },
+        },
+        "refs": refs,
+        "global_indexes": indexes,
+        "exclusions": exclusions,
+        "level_3_note": (
+            "Nivel 3 implica investigación profunda bajo necesidad explícita; "
+            "usar compact-first y elevar a fragmentos específicos antes de abrir evidencia amplia."
+        ),
+    }
+
+
 def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     """Crea (si falta) el scaffold documental mínimo en docs/projects/<project-id>/.
 
@@ -4248,7 +4453,12 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
     onboarding = _probe_project_onboarding(str(project_id or ""))
 
     # Nivel 0: retoma rápida / mínimo operativo. Nivel 1: default operativo.
-    context_pack_level = 0 if classified.get("intent") in {"resume", "advance"} else 1
+    context_level_arg = arguments.get("context_level")
+    default_context_pack_level = 0 if classified.get("intent") in {"resume", "advance"} else 1
+    try:
+        context_pack_level = int(context_level_arg) if context_level_arg is not None else default_context_pack_level
+    except Exception:
+        context_pack_level = default_context_pack_level
 
     versioned_memory = None
     if project_id and str(project_id) != "orchestrator":

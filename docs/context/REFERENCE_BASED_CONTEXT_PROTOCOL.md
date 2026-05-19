@@ -119,6 +119,35 @@ Autorización requerida:
 
 ---
 
+## 6.1 Context pack estándar por proyecto (operativo)
+
+Este orquestador define un *context pack* estándar **por referencias** para operar con instrucciones generales, retomar trabajo y preparar handoffs sin depender del historial conversacional.
+
+- Fuente operativa del mínimo por proyecto: `mcp_server/tools.py:PROJECT_ONBOARDING_REQUIRED_FILES`.
+- Regla: si falta cualquier archivo del mínimo, el flujo debe degradar a `onboarding_required` y recomendar `init_project_onboarding_scaffold`.
+
+Niveles (mapeo operativo, sin dumps):
+
+- **Nivel 0 — Retoma rápida:**
+  - proyecto activo + `last_event` (si existe; efímero en `.orchestrator_state/`),
+  - `docs/projects/<project-id>/PROJECT_RESUME.md`,
+  - `docs/projects/<project-id>/CURRENT_FRONTIER.md`,
+  - alertas críticas (referencias a `docs/alerts/GLOBAL_CRITICAL_ALERTS.md` + `docs/projects/<project-id>/CRITICAL_ALERTS.md`).
+
+- **Nivel 1 — Contexto operativo default:** Nivel 0 +
+  - `ERRORS_AND_FIXES.md`, `LESSONS_LOCAL.md`, `HANDOFF_LOG.md`, `SYNC_STATUS.md`,
+  - índices globales por referencia: `docs/context/{ACTION_INDEX,DECISION_INDEX,RUN_INDEX}.md` + `docs/returns/RETURN_INDEX.md`.
+
+- **Nivel 2 — Evidencia referenciada:** Nivel 1 +
+  - `CONTEXT_INDEX.md`, `CODE_CONTEXT_MAP.md`, `DOCUMENTATION_AUDIT.md`,
+  - solo previews/fragmentos pequeños (no `TRACE`/`RUN_SUMMARY` completos).
+
+- **Nivel 3 — Investigación profunda:**
+  - solo bajo necesidad explícita o umbral;
+  - mantener compact-first y elevar de a fragmentos específicos antes de abrir evidencia amplia.
+
+---
+
 ## 7. Matriz de selección de contexto (guía rápida)
 
 | Tipo de tarea | Nivel recomendado | Contexto a incluir | Evitar |

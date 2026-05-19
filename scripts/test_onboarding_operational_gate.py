@@ -135,6 +135,14 @@ def main() -> None:
             onboarding2 = plan2.get("onboarding")
             assert isinstance(onboarding2, dict) and onboarding2.get("status") == "ready", f"onboarding esperado ready, got {onboarding2}"
 
+            # Context pack estándar (Nivel 1 por default para 'diagnostica')
+            cp = plan2.get("context_pack")
+            assert isinstance(cp, dict) and cp.get("status") == "ok", f"context_pack esperado ok, got {cp}"
+            assert int(cp.get("level")) == 1, f"context_pack.level esperado 1, got {cp.get('level')}"
+            refs = cp.get("refs")
+            assert isinstance(refs, list) and refs, "context_pack.refs faltante"
+            assert any(isinstance(r, dict) and str(r.get("path") or "").endswith("PROJECT_RESUME.md") for r in refs), "PROJECT_RESUME.md no referenciado"
+
             flow2 = tools.run_general_instruction_flow(
                 {
                     "instruction": "Diagnostica este proyecto.",
