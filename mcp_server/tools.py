@@ -1035,10 +1035,31 @@ def create_and_dispatch_opencode_handoff(arguments: dict[str, Any] | None = None
             "stderr": "model es obligatorio.",
         }
 
+    project_id = str(arguments.get("project_id", "orchestrator")).strip() or "orchestrator"
+
+    # Guardrail operativo: no despachar handoffs de ejecución si falta el onboarding canónico.
+    # (No crea scaffold automáticamente; solo recomienda la acción.)
+    if project_id != "orchestrator":
+        onboarding = _probe_project_onboarding(project_id)
+        if onboarding.get("status") in {"missing", "partial"}:
+            missing_files = onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else []
+            return {
+                "ok": True,
+                "status": "onboarding_required",
+                "project_id": project_id,
+                "missing_files": missing_files,
+                "onboarding": onboarding,
+                "recommended_next_tool_call": {
+                    "tool": "init_project_onboarding_scaffold",
+                    "arguments": {"project_id": project_id, "dry_run": False},
+                },
+                "next_frontier": "init_onboarding_scaffold",
+            }
+
     command = [
         "scripts/create_and_dispatch_opencode_handoff.py",
         "--project-id",
-        str(arguments.get("project_id", "orchestrator")),
+        project_id,
         "--objective",
         str(objective),
         "--target-agent",
@@ -1648,6 +1669,9 @@ def resolve_target_project(arguments: dict[str, Any] | None = None) -> dict[str,
         "replit": "optional" if env_type and "replit" in env_type.lower() else "not_required",
         "premium": "not_required",
     }
+
+    if project_id:
+        result["onboarding"] = _probe_project_onboarding(str(project_id))
 
     return result
 
@@ -2434,6 +2458,7 @@ def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = No
             "project_id": pid,
             "docs_dir": str(docs_dir),
             "missing": ["docs/projects/<project-id>/"],
+            "missing_files": ["docs/projects/<project-id>/"],
             "recommended_next_tool_call": {
                 "tool": "init_project_onboarding_scaffold",
                 "arguments": {"project_id": pid, "dry_run": False},
@@ -2454,6 +2479,7 @@ def sync_active_last_event_to_project_docs(arguments: dict[str, Any] | None = No
             "project_id": pid,
             "docs_dir": str(docs_dir),
             "missing": missing_files,
+            "missing_files": missing_files,
             "recommended_next_tool_call": {
                 "tool": "init_project_onboarding_scaffold",
                 "arguments": {"project_id": pid, "dry_run": False},
@@ -3021,6 +3047,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
                 "git": resolution.get("git"),
             },
             "onboarding": onboarding,
+            "missing_files": onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else [],
             "tool_plan": tool_plan,
             "recommended_next_tool_call": recommended_next_tool_call,
             "next_frontier": "init_onboarding_scaffold",
@@ -3355,11 +3382,22 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
     # Siempre devolver al menos el template de seguimiento.
     base: dict[str, Any] = {
         "ok": True,
-        "status": "ok",
+        "status": (plan.get("status") if isinstance(plan, dict) else "ok"),
         "mode": mode,
         "plan": plan,
         "followup_scheme_template": _build_followup_scheme(run_id=None),
     }
+
+    if isinstance(plan, dict) and plan.get("status") == "onboarding_required":
+        mf = plan.get("missing_files")
+        if not isinstance(mf, list):
+            onboarding = plan.get("onboarding") if isinstance(plan.get("onboarding"), dict) else {}
+            mf = onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else []
+        base["project_id"] = plan.get("project_id")
+        base["missing_files"] = mf
+        base["recommended_next_tool_call"] = plan.get("recommended_next_tool_call")
+        base["next_frontier"] = plan.get("next_frontier")
+        base["next_question"] = plan.get("next_question")
 
     # Best-effort: consolidar "proyecto activo + última frontera" para operación diaria.
     if isinstance(plan, dict):
