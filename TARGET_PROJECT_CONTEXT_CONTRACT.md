@@ -417,9 +417,16 @@ Al cierre de tareas relevantes, los agentes deben evaluar:
 
 La centralización debe ser funcional, no sustitutiva.
 
-El orquestador puede crear, por cada proyecto objetivo, archivos como:
+El orquestador puede crear, por cada proyecto objetivo, artefactos versionados de retoma e índices consultables.
+
+El set mínimo canónico por proyecto está definido por `mcp_server/tools.py:PROJECT_ONBOARDING_REQUIRED_FILES` y se crea (idempotente, sin overwrite) vía `init_project_onboarding_scaffold` en `docs/projects/<project-id>/`.
+
+Ejemplos típicos:
 
 - `PROJECT_PROFILE.md`;
+- `PROJECT_RESUME.md`;
+- `CURRENT_FRONTIER.md`;
+- `ERRORS_AND_FIXES.md`;
 - `CONTEXT_INDEX.md`;
 - `CODE_CONTEXT_MAP.md`;
 - `DOCUMENTATION_AUDIT.md`;

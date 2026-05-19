@@ -34,6 +34,9 @@ Este protocolo aplica a:
 Por cada proyecto objetivo, deben mantenerse actualizados, cuando existan:
 
 - `docs/projects/<project-id>/PROJECT_PROFILE.md`;
+- `docs/projects/<project-id>/PROJECT_RESUME.md`;
+- `docs/projects/<project-id>/CURRENT_FRONTIER.md`;
+- `docs/projects/<project-id>/ERRORS_AND_FIXES.md`;
 - `docs/projects/<project-id>/CONTEXT_INDEX.md`;
 - `docs/projects/<project-id>/CODE_CONTEXT_MAP.md`;
 - `docs/projects/<project-id>/DOCUMENTATION_AUDIT.md`;

@@ -123,18 +123,11 @@ Por cada proyecto objetivo debe crearse una carpeta:
 
 `docs/projects/<project-id>/`
 
-Con estos archivos mínimos:
+Con el scaffold mínimo canónico definido por `mcp_server/tools.py:PROJECT_ONBOARDING_REQUIRED_FILES` (fuente única) y materializado por la tool `init_project_onboarding_scaffold`.
 
-- `PROJECT_PROFILE.md`
-- `CONTEXT_INDEX.md`
-- `CODE_CONTEXT_MAP.md`
-- `DOCUMENTATION_AUDIT.md`
-- `CRITICAL_ALERTS.md`
-- `LESSONS_LOCAL.md`
-- `SYNC_STATUS.md`
-- `HANDOFF_LOG.md`
+Estos archivos son índices, perfiles y síntesis curadas (operación por referencias). No reemplazan automáticamente las fuentes originales del proyecto objetivo.
 
-Estos archivos son índices, perfiles y síntesis curadas. No reemplazan automáticamente las fuentes originales del proyecto objetivo.
+Nota: no se crean `DECISION_LOG.md` ni `EVENT_LOG.md` como requisito del scaffold mínimo; la arquitectura opera con índices globales (`docs/context/*`) + referencias por `run_id`/rutas.
 
 ## 8. Fase 4 — Indagación de documentación explícita
 
@@ -450,14 +443,7 @@ Un proyecto objetivo se considera habilitado cuando existen:
 
 - registro en `PROJECT_REGISTRY.md`;
 - carpeta en `docs/projects/<project-id>/`;
-- `PROJECT_PROFILE.md`;
-- `CONTEXT_INDEX.md`;
-- `CODE_CONTEXT_MAP.md`;
-- `DOCUMENTATION_AUDIT.md`;
-- `CRITICAL_ALERTS.md`;
-- `LESSONS_LOCAL.md`;
-- `SYNC_STATUS.md`;
-- `HANDOFF_LOG.md`;
+- todos los archivos del scaffold mínimo canónico (`mcp_server/tools.py:PROJECT_ONBOARDING_REQUIRED_FILES`);
 - identificación de stack;
 - documentación explícita indagada;
 - contexto embebido preliminar indagado;

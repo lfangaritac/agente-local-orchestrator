@@ -1888,7 +1888,23 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
     if not dry_run:
         docs_dir.mkdir(parents=True, exist_ok=True)
 
-    for filename, content in templates.items():
+
+    # Guardrail: evitar deriva entre la lista canónica y los templates.
+    missing_templates = [name for name in PROJECT_ONBOARDING_REQUIRED_FILES if name not in templates]
+    extra_templates = [name for name in templates.keys() if name not in PROJECT_ONBOARDING_REQUIRED_FILES]
+    if missing_templates or extra_templates:
+        return {
+            "ok": False,
+            "status": "error",
+            "error": "scaffold_template_mismatch",
+            "project_id": project_id,
+            "missing_templates": missing_templates,
+            "extra_templates": extra_templates,
+        }
+
+    # Crear en orden canónico, para estabilidad y trazabilidad.
+    for filename in PROJECT_ONBOARDING_REQUIRED_FILES:
+        content = templates[filename]
         path = docs_dir / filename
         if path.exists():
             skipped.append(str(path))
@@ -1899,7 +1915,7 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
         path.write_text(content, encoding="utf-8")
         created.append(str(path))
 
-        return {
+    return {
         "ok": True,
         "status": "ok",
         "project_id": project_id,
@@ -1909,6 +1925,7 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
         "skipped": skipped,
         "next": "Revisar/llenar los stubs por referencias; luego ejecutar context-validator/planner según la tarea.",
     }
+
 
 
 # --- Strategic resume sync (session last_event -> project docs) ---
