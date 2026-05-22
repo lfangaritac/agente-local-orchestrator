@@ -2842,6 +2842,163 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
 
 
 
+
+
+# --- Context pack (Bloque 3 operativo) ---------------------------------------
+
+# Default exclusions for reference-based context packs.
+# Principle: avoid dumping bulky artifacts into MCP responses by default.
+CONTEXT_PACK_EXCLUSIONS_DEFAULT: dict[str, Any] = {
+    "paths_or_globs": [
+        "docs/agent_runs/**",
+        "docs/agent_queue/**",
+        "raw_outputs/**",
+        "TRACE.md",
+        "RUN_SUMMARY.md",
+        "handoffs/**",
+        "**/handoff_*.md",
+        "**/handoff_*.json",
+        "**/*.chat.json",
+        "**/*.chat.md",
+    ],
+    "notes": [
+        "Exclusión por defecto: artefactos voluminosos y chats completos. Usar referencias: run_id + rutas + conteos + previews mínimos.",
+    ],
+}
+
+
+def _compact_git_ref(git_info: Any) -> dict[str, Any] | None:
+    if not isinstance(git_info, dict):
+        return None
+
+    wt = git_info.get("working_tree") if isinstance(git_info.get("working_tree"), dict) else {}
+
+    out = {
+        "branch": git_info.get("branch"),
+        "last_commit": git_info.get("last_commit"),
+        "remote_origin": git_info.get("remote_origin"),
+        "working_tree_clean": wt.get("clean"),
+    }
+
+    # Drop empty
+    if not any(v is not None and v != "" for v in out.values()):
+        return None
+    return out
+
+
+def _build_standard_context_pack(
+    *,
+    level: int,
+    instruction: str,
+    mode: str,
+    classified: dict[str, Any] | None,
+    project_id: str | None,
+    project_query_source: str | None,
+    resolution: dict[str, Any] | None,
+    onboarding: dict[str, Any] | None,
+    missing_files: list[str] | None,
+    preflight_status: str | None,
+    orchestrator_summary: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Construye un context_pack estándar (reference-based, compact-first).
+
+    Niveles materializados en esta fase:
+    - 0: mínimo operativo.
+    - 1: default operativo.
+
+    Nota: no lee artefactos voluminosos; solo referencia rutas/IDs/conteos.
+    """
+
+    try:
+        lvl = int(level)
+    except Exception:
+        lvl = 0
+
+    # Guardrail: por ahora solo materializamos 0/1 (2/3 quedan controlados).
+    lvl = 0 if lvl < 0 else lvl
+    lvl = 1 if lvl > 1 else lvl
+
+    # Compact resolution
+    resolution_compact: dict[str, Any] | None = None
+    if isinstance(resolution, dict):
+        git_ref = _compact_git_ref(resolution.get("git"))
+        resolution_compact = {
+            "matched_by": resolution.get("matched_by"),
+            "environment_type": resolution.get("environment_type"),
+            "local_path": resolution.get("local_path"),
+            "git_ref": git_ref,
+        }
+
+    # Compact onboarding
+    onboarding_compact: dict[str, Any] | None = None
+    mf: list[str] = []
+    if isinstance(missing_files, list):
+        mf = [str(x) for x in missing_files if str(x).strip()]
+    elif isinstance(onboarding, dict) and isinstance(onboarding.get("missing"), list):
+        mf = [str(x) for x in (onboarding.get("missing") or []) if str(x).strip()]
+
+    if isinstance(onboarding, dict) or mf:
+        onboarding_compact = {
+            "status": onboarding.get("status") if isinstance(onboarding, dict) else None,
+            "docs_dir": onboarding.get("docs_dir") if isinstance(onboarding, dict) else None,
+            "missing_files_count": len(mf),
+            "missing_files": mf[:20],
+        }
+
+    orchestrator_compact: dict[str, Any] | None = None
+    if preflight_status or orchestrator_summary:
+        orchestrator_compact = {
+            "preflight_status": preflight_status,
+            "summary": orchestrator_summary,
+        }
+
+    # Stable references (paths only)
+    orchestrator_files = [
+        "AGENT_RULES.md",
+        "PROJECT_CONTEXT.md",
+        "MODEL_ROUTING.md",
+        "SECURITY_POLICY.md",
+        "CONTINUE_USAGE_PROTOCOL.md",
+        "AGENT_ORCHESTRATION.md",
+        "docs/AGENT_ORCHESTRATION.md",
+        "docs/alerts/GLOBAL_CRITICAL_ALERTS.md",
+        "docs/lessons/GLOBAL_LESSONS_LEARNED.md",
+    ]
+
+    pack: dict[str, Any] = {
+        "level": lvl,
+        "protocol": "reference-based",
+        "generated_at": _now_iso(),
+        "mode": mode,
+        "instruction_preview": _safe_preview_text(instruction, limit=220),
+        "target": {
+            "project_id": project_id,
+            "project_query_source": project_query_source,
+        },
+        "resolution": resolution_compact,
+        "onboarding": onboarding_compact,
+        "orchestrator": orchestrator_compact,
+        "references": {
+            "orchestrator_root": str(ROOT),
+            "orchestrator_files": orchestrator_files,
+            "run_index": "docs/context/RUN_INDEX.md",
+            "decision_index": "docs/context/DECISION_INDEX.md",
+            "action_index": "docs/context/ACTION_INDEX.md",
+            "return_index": "docs/returns/RETURN_INDEX.md",
+            "project_docs_dir": (f"docs/projects/{project_id}/" if project_id and project_id != "orchestrator" else None),
+        },
+        "exclusions": CONTEXT_PACK_EXCLUSIONS_DEFAULT,
+        "notes": [],
+    }
+
+    # Minimal note about intent/risk if available.
+    if isinstance(classified, dict):
+        intent = classified.get("intent")
+        risk = classified.get("risk")
+        if intent or risk:
+            pack["notes"].append(f"intent={intent or 'unknown'}; risk={risk or 'unknown'}")
+
+    return pack
 def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     """Plan read-only para traducir una instrucción general a la siguiente frontera segura.
 
@@ -3030,6 +3187,21 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         }
         tool_plan.append(recommended_next_tool_call)
 
+        context_pack_level = 0
+        context_pack = _build_standard_context_pack(
+            level=context_pack_level,
+            instruction=instruction,
+            mode="Plan",
+            classified=classified,
+            project_id=str(project_id) if project_id else None,
+            project_query_source=project_query_source,
+            resolution=(resolution if isinstance(resolution, dict) else None),
+            onboarding=(onboarding if isinstance(onboarding, dict) else None),
+            missing_files=onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else [],
+            preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
+            orchestrator_summary=orchestrator_summary,
+        )
+
         return {
             "ok": True,
             "status": "onboarding_required",
@@ -3037,6 +3209,8 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "classified": classified,
             "project_id": project_id,
             "project_query_source": project_query_source,
+            "context_pack_level": context_pack_level,
+            "context_pack": context_pack,
             "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
             "orchestrator": orchestrator_summary,
             "orchestrator_ready_to_advance": orchestrator_ready_to_advance,
@@ -3166,6 +3340,21 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     onboarding = _probe_project_onboarding(str(project_id or ""))
 
+    context_pack_level = 1
+    context_pack = _build_standard_context_pack(
+        level=context_pack_level,
+        instruction=instruction,
+        mode="Plan",
+        classified=classified,
+        project_id=str(project_id) if project_id else None,
+        project_query_source=project_query_source,
+        resolution=(resolution if isinstance(resolution, dict) else None),
+        onboarding=(onboarding if isinstance(onboarding, dict) else None),
+        missing_files=None,
+        preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
+        orchestrator_summary=orchestrator_summary,
+    )
+
 
     return {
         "ok": True,
@@ -3175,6 +3364,8 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "classified": classified,
         "project_id": project_id,
         "project_query_source": project_query_source,
+        "context_pack_level": context_pack_level,
+        "context_pack": context_pack,
         "onboarding": onboarding,
 
         "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
@@ -3387,6 +3578,11 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
         "plan": plan,
         "followup_scheme_template": _build_followup_scheme(run_id=None),
     }
+
+    # Propagar context_pack/context_pack_level del plan (si existe).
+    if isinstance(plan, dict):
+        base["context_pack_level"] = plan.get("context_pack_level")
+        base["context_pack"] = plan.get("context_pack")
 
     if isinstance(plan, dict) and plan.get("status") == "onboarding_required":
         mf = plan.get("missing_files")
