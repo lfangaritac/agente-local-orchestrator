@@ -2642,18 +2642,20 @@ def _extract_project_query_from_instruction(norm: str) -> str | None:
     patterns = [
         r"(?:cambia|cambiar|salta|saltar|ir)\s+a\s+([a-z0-9._-]+)",
         r"(?:trabaja|trabajar)\s+en\s+([a-z0-9._-]+)",
-        r"(?:proyecto|project)\s+([a-z0-9._-]+)",
+                r"(?:proyecto|project)\s+([a-z0-9._-]+)",
         r"(?:en)\s+([a-z0-9._-]+)\s*$",
     ]
 
     for pat in patterns:
         m = re.search(pat, n)
+
         if m:
             candidate = (m.group(1) or "").strip()
-            if candidate and candidate not in {"este", "this"}:
+            if candidate and candidate not in {"este", "this", "activo", "active"}:
                 return candidate
 
     return None
+
 
 
 def _extract_project_query_for_bridge_handoff(norm: str) -> str | None:
@@ -2734,17 +2736,39 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     norm = _normalize_free_text(instruction)
 
     extracted_project_query = _extract_project_query_from_instruction(norm)
-    resume_requested = any(k in norm for k in ("retoma", "retomar", "reanuda", "reanud", "resume", "volver"))
 
-        # Intent
+
+
+
+    # Señales de “retoma/continuidad” (sin depender del historial conversacional).
+    # Nota: `norm` ya viene normalizado (lower + sin acentos).
+    resume_requested = any(
+        k in norm
+        for k in (
+            "retoma",
+            "retomar",
+            "reanuda",
+            "reanud",
+            "resume",
+            "volver",
+            "continua",
+            "continu",
+            "sigue",
+            "seguir",
+            "donde quedamos",
+            "where we left",
+            "left off",
+        )
+    )
+
+    # Intent
     intent = "unknown"
     scenario = "context-validation"
 
     if _is_bridge_handoff_request(norm):
         intent = "ingest_bridge_handoff"
         scenario = "context-validation"
-    elif resume_requested and not extracted_project_query:
-
+    elif resume_requested:
         intent = "resume"
         scenario = "context-validation"
     elif any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
@@ -2896,9 +2920,11 @@ def _build_standard_context_pack(
     project_query_source: str | None,
     resolution: dict[str, Any] | None,
     onboarding: dict[str, Any] | None,
-    missing_files: list[str] | None,
+        missing_files: list[str] | None,
     preflight_status: str | None,
     orchestrator_summary: dict[str, Any] | None,
+    versioned_memory: dict[str, Any] | None,
+    session_memory: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Construye un context_pack estándar (reference-based, compact-first).
 
@@ -2965,8 +2991,10 @@ def _build_standard_context_pack(
         "docs/lessons/GLOBAL_LESSONS_LEARNED.md",
     ]
 
+        
     pack: dict[str, Any] = {
         "level": lvl,
+
         "protocol": "reference-based",
         "generated_at": _now_iso(),
         "mode": mode,
@@ -2991,7 +3019,15 @@ def _build_standard_context_pack(
         "notes": [],
     }
 
+    # Memoria versionada (docs/projects/<project-id>/...) y memoria de sesión (gitignored):
+    # incluir solo por referencias + extractos compactos.
+    if isinstance(versioned_memory, dict) and versioned_memory:
+        pack["versioned_memory"] = versioned_memory
+    if isinstance(session_memory, dict) and session_memory:
+        pack["session_memory"] = session_memory
+
     # Minimal note about intent/risk if available.
+
     if isinstance(classified, dict):
         intent = classified.get("intent")
         risk = classified.get("risk")
@@ -2999,6 +3035,165 @@ def _build_standard_context_pack(
             pack["notes"].append(f"intent={intent or 'unknown'}; risk={risk or 'unknown'}")
 
     return pack
+
+
+def _stat_file_ref(path: Path) -> dict[str, Any]:
+    """Metadata compacta para referencias (sin dumps)."""
+
+    try:
+        st = path.stat()
+        return {
+            "path": str(path),
+            "exists": True,
+            "size_bytes": int(st.st_size),
+            "mtime": float(st.st_mtime),
+        }
+    except Exception:
+        return {"path": str(path), "exists": False}
+
+
+def _extract_frontier_fields(prefix: str) -> dict[str, Any]:
+    """Extrae campos clave de CURRENT_FRONTIER.md sin parseo rígido."""
+
+    p = str(prefix or "")
+
+    def _grab(key: str) -> str | None:
+        # soporta:
+        # - key: `value`
+        # - key: value
+        m = re.search(rf"^\s*-\s*{re.escape(key)}\s*:\s*(.+)\s*$", p, flags=re.IGNORECASE | re.MULTILINE)
+        if not m:
+            return None
+        raw = (m.group(1) or "").strip().strip("`")
+        return raw or None
+
+    return {
+        "status": _grab("status"),
+        "blocking_threshold": _grab("blocking_threshold"),
+        "next_action": _grab("next_action"),
+        "requires_user_action": _grab("requires_user_action"),
+    }
+
+
+def _extract_project_resume_fields(prefix: str) -> dict[str, Any]:
+    """Extrae campos útiles de PROJECT_RESUME.md (best-effort)."""
+
+    p = str(prefix or "")
+
+    def _grab(key: str) -> str | None:
+        m = re.search(rf"^\s*-\s*{re.escape(key)}\s*:\s*(.+)\s*$", p, flags=re.IGNORECASE | re.MULTILINE)
+        if not m:
+            return None
+        raw = (m.group(1) or "").strip().strip("`")
+        return raw or None
+
+    # Buscar run_id en bloques auto-sync si existe.
+    run_id = None
+    m = re.search(r"\brun_id\s*:\s*`([^`]+)`", p, flags=re.IGNORECASE)
+    if m:
+        run_id = (m.group(1) or "").strip() or None
+
+    return {
+        "status_classification": _grab("status_classification"),
+        "branch": _grab("branch"),
+        "last_commit": _grab("last_commit"),
+        "run_id": run_id,
+    }
+
+
+def _collect_project_versioned_memory(*, project_id: str, level: int) -> dict[str, Any] | None:
+    """Construye un bloque reference-based para memoria versionada (docs/projects/<pid>/...).
+
+    - No asume scaffold si onboarding no está listo.
+    - Lee solo prefijos pequeños para extraer 2–4 campos (sin dumps).
+    """
+
+    pid = (project_id or "").strip()
+    if not pid or pid == "orchestrator":
+        return None
+
+    onboarding = _probe_project_onboarding(pid)
+    if onboarding.get("status") not in {"ready"}:
+        return {
+            "project_id": pid,
+            "status": "onboarding_not_ready",
+            "docs_dir": onboarding.get("docs_dir"),
+            "missing_files": onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else [],
+        }
+
+    docs_dir = ROOT / "docs" / "projects" / pid
+
+    files = {
+        name: _stat_file_ref(docs_dir / name)
+        for name in (
+            "PROJECT_RESUME.md",
+            "CURRENT_FRONTIER.md",
+            "ERRORS_AND_FIXES.md",
+            "CRITICAL_ALERTS.md",
+            "LESSONS_LOCAL.md",
+            "HANDOFF_LOG.md",
+            "SYNC_STATUS.md",
+        )
+    }
+
+    extracts: dict[str, Any] = {}
+
+    frontier_path = docs_dir / "CURRENT_FRONTIER.md"
+    frontier_prefix = _read_text_prefix(frontier_path, max_chars=7000) if frontier_path.exists() else ""
+    frontier_fields = _extract_frontier_fields(frontier_prefix)
+    if any(v for v in frontier_fields.values()):
+        extracts["current_frontier"] = frontier_fields
+
+    resume_path = docs_dir / "PROJECT_RESUME.md"
+    resume_prefix = _read_text_prefix(resume_path, max_chars=9000) if resume_path.exists() else ""
+    resume_fields = _extract_project_resume_fields(resume_prefix)
+    if any(v for v in resume_fields.values()):
+        extracts["project_resume"] = resume_fields
+
+    previews: dict[str, Any] | None = None
+    if int(level) >= 1:
+        previews = {
+            "current_frontier_preview": _safe_preview_text(frontier_prefix, limit=420) if frontier_prefix else None,
+            "project_resume_preview": _safe_preview_text(resume_prefix, limit=420) if resume_prefix else None,
+        }
+
+    out: dict[str, Any] = {
+        "project_id": pid,
+        "status": "ready",
+        "docs_dir": str(docs_dir),
+        "files": files,
+        "extracts": extracts,
+    }
+
+    if previews:
+        out["previews"] = previews
+
+    return out
+
+
+def _extract_active_last_event_compact(active_state: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Extrae last_event de `.orchestrator_state/active_project.json` (sin leer índices)."""
+
+    if not isinstance(active_state, dict):
+        return None
+
+    le = active_state.get("last_event")
+    if not isinstance(le, dict) or not le:
+        return None
+
+    return {
+        "updated_at": le.get("updated_at"),
+        "source": le.get("source"),
+        "mode": le.get("mode"),
+        "status": le.get("status"),
+        "next_frontier": le.get("next_frontier"),
+        "instruction_preview": _safe_preview_text(_redact_possible_secrets(le.get("instruction")), limit=180) if le.get("instruction") else None,
+        "next_question_preview": _safe_preview_text(_redact_possible_secrets(le.get("next_question")), limit=220) if le.get("next_question") else None,
+        "handoff_json_path": le.get("handoff_json_path"),
+        "run_id": le.get("run_id"),
+    }
+
+
 def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
     """Plan read-only para traducir una instrucción general a la siguiente frontera segura.
 
@@ -3014,17 +3209,27 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     instruction = (arguments.get("instruction") or "").strip()
     if not instruction:
+
         return {"ok": False, "status": "error", "error": "instruction es obligatorio."}
 
     project_query = (arguments.get("project_query") or "").strip()
     workspace_path = (arguments.get("workspace_path") or "").strip()
+
     projects_root = arguments.get("projects_root")
+
     include_git = bool(arguments.get("include_git", True))
 
     include_orchestrator_status = bool(arguments.get("include_orchestrator_status", True))
     include_preflight = bool(arguments.get("include_preflight", True))
 
+
     classified = _classify_general_instruction(instruction)
+
+    # Memoria de sesión local (gitignored): útil para “proyecto activo/retoma”, pero no sustituye
+    # la memoria versionada (docs/projects/<project-id>/...).
+    active_state = _read_json_file(ACTIVE_PROJECT_PATH) or {}
+    active_pid = (active_state.get("project_id") or "").strip() if isinstance(active_state, dict) else ""
+
 
     # Permitir selección de proyecto con lenguaje natural en el propio `instruction`.
     # Precedencia: argumentos explícitos > extracción por heurística > retomar (sesión).
@@ -3036,13 +3241,14 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             project_query = extracted
             project_query_source = "instruction"
 
-    if not project_query and not workspace_path and classified.get("resume_requested") is True:
-
-        active = _read_json_file(ACTIVE_PROJECT_PATH) or {}
-        active_pid = (active.get("project_id") or "").strip()
+        # Retomar por “proyecto activo” cuando el usuario lo pide (retoma/continúa/avanza) y no dio project/workspace.
+    if not project_query and not workspace_path and (
+        classified.get("resume_requested") is True or classified.get("bridge_wants_active_project") is True
+    ):
         if active_pid:
             project_query = active_pid
             project_query_source = "active_project"
+
 
     # Daily-use default (orchestrator-first): si no se especifica proyecto ni workspace,
     # asumimos el repo del orquestador como proyecto objetivo.
@@ -3188,6 +3394,16 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         tool_plan.append(recommended_next_tool_call)
 
         context_pack_level = 0
+
+        session_memory = None
+
+        if active_pid:
+            session_memory = {
+                "active_project_path": str(ACTIVE_PROJECT_PATH),
+                "active_project_id": active_pid,
+                "last_event": _extract_active_last_event_compact(active_state),
+            }
+
         context_pack = _build_standard_context_pack(
             level=context_pack_level,
             instruction=instruction,
@@ -3200,7 +3416,10 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             missing_files=onboarding.get("missing") if isinstance(onboarding.get("missing"), list) else [],
             preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
             orchestrator_summary=orchestrator_summary,
+            versioned_memory=None,
+            session_memory=session_memory,
         )
+
 
         return {
             "ok": True,
@@ -3340,7 +3559,22 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     onboarding = _probe_project_onboarding(str(project_id or ""))
 
-    context_pack_level = 1
+    # Nivel 0: retoma rápida / mínimo operativo. Nivel 1: default operativo.
+    context_pack_level = 0 if classified.get("intent") in {"resume", "advance"} else 1
+
+    versioned_memory = None
+    if project_id and str(project_id) != "orchestrator":
+        versioned_memory = _collect_project_versioned_memory(project_id=str(project_id), level=context_pack_level)
+
+    session_memory = None
+    # Incluir last_event solo si es relevante (coincide con proyecto actual o fue la fuente de selección).
+    if active_pid and (project_query_source == "active_project" or active_pid == str(project_id)):
+        session_memory = {
+            "active_project_path": str(ACTIVE_PROJECT_PATH),
+            "active_project_id": active_pid,
+            "last_event": _extract_active_last_event_compact(active_state),
+        }
+
     context_pack = _build_standard_context_pack(
         level=context_pack_level,
         instruction=instruction,
@@ -3353,7 +3587,10 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         missing_files=None,
         preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
         orchestrator_summary=orchestrator_summary,
+        versioned_memory=versioned_memory,
+        session_memory=session_memory,
     )
+
 
 
     return {
