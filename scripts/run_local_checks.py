@@ -135,14 +135,16 @@ def _build_checks(mode: str, *, include_mcp_stdio_tests: bool) -> list[tuple[str
     if not include_mcp_stdio_tests:
         return quick + full_extra
 
-    # Opcional (side-effects): tests stdio MCP que crean artefactos operativos ignorados por Git.
+        # Opcional (side-effects): tests stdio MCP que crean artefactos operativos ignorados por Git.
     mcp_stdio_tests: list[tuple[str, list[str]]] = [
         _py_run(r".\mcp_server\test_guardrails_autoapprove_permissions_stdio.py"),
         _py_run(r".\mcp_server\test_create_and_dispatch_opencode_handoff_stdio.py"),
         _py_run(r".\mcp_server\test_run_health_check_stdio.py"),
+        _py_run(r".\mcp_server\test_enable_target_project_stdio.py"),
     ]
 
     return quick + full_extra + mcp_stdio_tests
+
 
 
 def main() -> None:

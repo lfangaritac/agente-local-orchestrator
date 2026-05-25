@@ -376,10 +376,11 @@ TOOL_SCHEMAS = [
                 },
             },
             "additionalProperties": False,
-        },
+                },
     },
     {
         "name": "resolve_target_project",
+
         "description": "Resuelve el proyecto objetivo (por project_id/alias o por workspace_path) y devuelve un preflight compacto read-only para operar con instrucciones generales.",
         "inputSchema": {
             "type": "object",
@@ -408,7 +409,89 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "enable_target_project",
+        "description": "Plan-first → Apply confirmado para habilitar proyectos nuevos/no registrados: valida inputs, detecta colisiones, propone/actualiza PROJECT_REGISTRY.md y crea scaffold en docs/projects/<project-id>/ (sin sobrescribir).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["plan", "apply"],
+                    "default": "plan"
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "description": "Confirmación explícita requerida para Apply.",
+                    "default": False
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "ID canónico (a-z0-9._-; recomendado kebab-case)."
+                },
+                "nombre_canónico": {
+                    "type": "string",
+                    "description": "Nombre canónico (opcional).",
+                    "default": ""
+                },
+                "aliases": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Aliases permitidos (opcional).",
+                    "default": []
+                },
+                "repo_url": {
+                    "type": "string",
+                    "description": "URL del repo remoto (opcional).",
+                    "default": ""
+                },
+                "local_path": {
+                    "type": "string",
+                    "description": "Ruta local del repo/workspace (opcional; no clona).",
+                    "default": ""
+                },
+                "workspace_path": {
+                    "type": "string",
+                    "description": "Alias de local_path (opcional).",
+                    "default": ""
+                },
+                "environment_type": {
+                    "type": "string",
+                    "description": "Tipo de entorno (local, replit-git, etc).",
+                    "default": ""
+                },
+                "origen": {
+                    "type": "string",
+                    "description": "Origen (local|replit|github|importado|nuevo|unknown).",
+                    "default": ""
+                },
+                "set_active_project": {
+                    "type": "boolean",
+                    "description": "Si true, fija active_project (sesión) tras Apply.",
+                    "default": False
+                },
+                "test_mode": {
+                    "type": "boolean",
+                    "description": "Solo para tests internos: permite overrides dentro de .orchestrator_state/.",
+                    "default": False
+                },
+                "registry_path": {
+                    "type": "string",
+                    "description": "(test_mode) Ruta a registry alterno dentro de .orchestrator_state/.",
+                    "default": ""
+                                },
+                "docs_projects_root": {
+
+                    "type": "string",
+                    "description": "(test_mode) Root alterno para docs/projects dentro de .orchestrator_state/.",
+                    "default": ""
+                }
+            },
+            "additionalProperties": False
+        }
+    },
+    {
         "name": "plan_general_instruction",
+
         "description": "Wrapper read-only que traduce una instrucción general en un plan compacto + siguiente frontera segura (encadena operational_status + resolve_target_project + select_agent_model).",
         "inputSchema": {
             "type": "object",

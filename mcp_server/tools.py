@@ -64,13 +64,15 @@ ALLOWED_TOOLS = {
     "get_run_status",
     "check_opencode_run_status",
     "run_health_check",
-    "verify_master_files",
+        "verify_master_files",
     "create_and_dispatch_opencode_handoff",
     "operational_status",
     "resolve_target_project",
+    "enable_target_project",
     "plan_general_instruction",
-        "run_general_instruction_flow",
+    "run_general_instruction_flow",
     "get_active_project",
+
     "set_active_project",
     "init_project_onboarding_scaffold",
     "sync_active_last_event_to_project_docs",
@@ -1676,6 +1678,556 @@ def resolve_target_project(arguments: dict[str, Any] | None = None) -> dict[str,
     return result
 
 
+# --- Project enablement (Plan-first -> Apply confirmado) ---
+
+# Canon de campos versionados en PROJECT_REGISTRY.md.
+# Nota: mantener valores en 1 línea (parsing simple).
+REGISTRY_FIELD_ORDER = [
+    "project_id",
+    "nombre_canónico",
+    "alias_permitidos",
+    "ruta_local",
+    "repositorio_remoto",
+    "origen",
+    "environment_type",
+    "repo_url",
+    "replit_workspace_path",
+    "replit_join_url",
+    "local_path",
+    "stack_detectado",
+    "documentación_principal",
+    "código_fuente_relevante",
+    "estado_sincronización",
+    "alertas_críticas",
+    "lecciones_locales",
+    "último_análisis",
+    "responsable",
+]
+
+
+def _is_nullish(value: Any) -> bool:
+    if value is None:
+        return True
+    v = str(value).strip()
+    if not v:
+        return True
+    return v.lower() in {"null", "none", "n/a", "unknown"}
+
+
+def _coerce_aliases(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        parts = [str(x).strip() for x in value]
+    else:
+        parts = [p.strip() for p in str(value).split(",")]
+    out: list[str] = []
+    for a in parts:
+        if not a:
+            continue
+        # Guardrail: aliases no deben tener espacios
+        a = re.sub(r"\s+", "-", a)
+        if a not in out:
+            out.append(a)
+    return out
+
+
+def _validate_project_id(project_id: str) -> tuple[bool, str | None, str | None]:
+    pid = (project_id or "").strip()
+    if not pid:
+        return False, "missing_project_id", None
+
+    # Restricción conservadora: ids estables para paths.
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,63}", pid):
+        suggestion = re.sub(r"[^a-zA-Z0-9._-]+", "-", pid).strip("-_.").lower()
+        suggestion = re.sub(r"-+", "-", suggestion) or None
+        return False, "invalid_project_id", suggestion
+
+    return True, None, None
+
+
+def _ensure_safe_test_path(path: Path) -> tuple[bool, str | None]:
+    """Permite overrides solo dentro de .orchestrator_state/ (gitignored)."""
+
+    try:
+        st = STATE_DIR.resolve()
+        path_r = path.resolve()
+        path_r.relative_to(st)
+        return True, None
+    except Exception:
+        return False, "unsafe_test_path_outside_state_dir"
+
+
+def _parse_registry_kv_lines(lines: list[str]) -> dict[str, Any]:
+    fields: dict[str, Any] = {}
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#") or stripped.startswith("<!--"):
+            continue
+        m = re.match(r"^-?\s*(.+?):\s*(.*)$", stripped)
+        if not m:
+            continue
+        key = m.group(1).strip()
+        value = m.group(2).strip()
+        if key == "alias_permitidos":
+            fields[key] = _coerce_aliases(value)
+        else:
+            fields[key] = value
+    return fields
+
+
+def _parse_registry_blocks(registry_text: str) -> dict[str, Any]:
+    """Parse best-effort por headings '### <id>' para patch idempotente."""
+
+    lines = (registry_text or "").splitlines()
+    blocks: list[dict[str, Any]] = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("### "):
+            start = i
+            heading_pid = line[len("### ") :].strip()
+            i += 1
+            body: list[str] = []
+            while i < len(lines) and not lines[i].startswith("### "):
+                body.append(lines[i])
+                i += 1
+            end = i
+            fields = _parse_registry_kv_lines(body)
+            pid = str(fields.get("project_id") or heading_pid).strip()
+            blocks.append(
+                {
+                    "project_id": pid,
+                    "heading_project_id": heading_pid,
+                    "start": start,
+                    "end": end,
+                    "fields": fields,
+                }
+            )
+        else:
+            i += 1
+
+    return {"lines": lines, "blocks": blocks}
+
+
+def _render_registry_block(project_id: str, fields: dict[str, Any]) -> list[str]:
+    pid = (project_id or "").strip()
+
+    rendered: list[str] = [f"### {pid}", ""]
+
+    for key in REGISTRY_FIELD_ORDER:
+        if key == "project_id":
+            value = pid
+        else:
+            value = fields.get(key, "")
+
+        if key == "alias_permitidos":
+            aliases = _coerce_aliases(value)
+            rendered.append(f"{key}: {', '.join(aliases)}")
+            continue
+
+        v = "" if value is None else str(value)
+        rendered.append(f"{key}: {v}")
+
+    rendered.append("")
+    return rendered
+
+
+def _detect_registry_collisions(*, entries: list[dict[str, Any]], project_id: str, aliases: list[str]) -> dict[str, Any]:
+    pid_l = (project_id or "").strip().lower()
+
+    pid_collision = None
+    for e in entries:
+        ep = str(e.get("project_id") or "").strip()
+        if ep and ep.lower() == pid_l:
+            pid_collision = ep
+            break
+
+    alias_collisions: list[dict[str, str]] = []
+    aliases_l = {a.lower() for a in aliases if a}
+    for e in entries:
+        ep = str(e.get("project_id") or "").strip()
+        ealiases = e.get("alias_permitidos") or []
+        for a in ealiases:
+            if str(a).strip().lower() in aliases_l and ep.lower() != pid_l:
+                alias_collisions.append({"alias": str(a).strip(), "project_id": ep})
+
+    seen = set()
+    alias_collisions_uniq = []
+    for c in alias_collisions:
+        key = (c.get("alias"), c.get("project_id"))
+        if key in seen:
+            continue
+        seen.add(key)
+        alias_collisions_uniq.append(c)
+
+    return {
+        "project_id_collision": bool(pid_collision),
+        "project_id_collision_with": pid_collision,
+        "alias_collisions": alias_collisions_uniq,
+    }
+
+
+def _probe_onboarding_at(*, project_id: str, docs_projects_root: Path) -> dict[str, Any]:
+    pid = (project_id or "").strip()
+    if not pid:
+        return {"ok": True, "status": "unknown", "missing": []}
+
+    docs_dir = docs_projects_root / pid
+    missing = [name for name in PROJECT_ONBOARDING_REQUIRED_FILES if not (docs_dir / name).exists()]
+
+    if not docs_dir.exists():
+        return {"ok": True, "status": "missing", "docs_dir": str(docs_dir), "missing": PROJECT_ONBOARDING_REQUIRED_FILES}
+
+    if missing:
+        return {"ok": True, "status": "partial", "docs_dir": str(docs_dir), "missing": missing}
+
+    return {"ok": True, "status": "ready", "docs_dir": str(docs_dir), "missing": []}
+
+
+def enable_target_project(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Habilita formalmente un proyecto nuevo/no registrado (Plan-first -> Apply confirmado)."""
+
+    arguments = arguments or {}
+
+    mode = str(arguments.get("mode") or "plan").strip().lower()
+    if mode not in {"plan", "apply"}:
+        mode = "plan"
+
+    confirm = bool(arguments.get("confirm", False))
+    set_active = bool(arguments.get("set_active_project", False))
+
+    # Optional test-only overrides
+    test_mode = bool(arguments.get("test_mode", False))
+    registry_path_raw = str(arguments.get("registry_path") or "").strip()
+    docs_projects_root_raw = str(arguments.get("docs_projects_root") or "").strip()
+
+    registry_path = ROOT / "PROJECT_REGISTRY.md"
+    docs_projects_root = ROOT / "docs" / "projects"
+
+    if test_mode:
+        if registry_path_raw:
+            cand = Path(registry_path_raw).expanduser()
+            ok, err = _ensure_safe_test_path(cand)
+            if not ok:
+                return {"ok": True, "status": "blocked", "error": err, "mode": mode}
+            registry_path = cand
+
+        if docs_projects_root_raw:
+            cand = Path(docs_projects_root_raw).expanduser()
+            ok, err = _ensure_safe_test_path(cand)
+            if not ok:
+                return {"ok": True, "status": "blocked", "error": err, "mode": mode}
+            docs_projects_root = cand
+
+    project_id = str(arguments.get("project_id") or "").strip()
+    canonical_name = str(arguments.get("nombre_canónico") or arguments.get("nombre_canonico") or "").strip() or None
+
+    local_path_raw = str(arguments.get("local_path") or "").strip() or str(arguments.get("workspace_path") or "").strip() or None
+    repo_url_raw = str(arguments.get("repo_url") or arguments.get("repositorio_remoto") or "").strip() or None
+
+    environment_type = str(arguments.get("environment_type") or "").strip() or None
+    origen = str(arguments.get("origen") or arguments.get("origin") or "").strip() or None
+
+    aliases = _coerce_aliases(arguments.get("aliases") or arguments.get("alias_permitidos") or [])
+
+    ok_pid, pid_err, pid_suggestion = _validate_project_id(project_id)
+    if not ok_pid:
+        if pid_err == "missing_project_id":
+            return {
+                "ok": True,
+                "status": "missing_min_info",
+                "mode": mode,
+                "missing_fields": ["project_id"],
+                "next_frontier": "provide_project_id",
+                "next_question": "Indica un único project_id (kebab-case recomendado; p.ej. my-project).",
+            }
+
+        return {
+            "ok": True,
+            "status": "invalid_inputs",
+            "mode": mode,
+            "error": pid_err,
+            "project_id": project_id,
+            "suggested_project_id": pid_suggestion,
+            "next_frontier": "provide_valid_project_id",
+            "next_question": "project_id inválido. Confirma un id válido (a-z0-9._-; sin espacios).",
+        }
+
+    existing_entries, reg_warnings = _parse_registry_entries(registry_path)
+    collisions = _detect_registry_collisions(entries=existing_entries, project_id=project_id, aliases=aliases)
+
+    if collisions.get("alias_collisions"):
+        return {
+            "ok": True,
+            "status": "alias_collision",
+            "mode": mode,
+            "project_id": project_id,
+            "alias_collisions": collisions.get("alias_collisions"),
+            "next_frontier": "resolve_alias_collision",
+            "next_question": "Alias ambiguo/colisionado. Elige aliases únicos o confirma el project_id existente.",
+        }
+
+    local_probe: dict[str, Any] = {
+        "provided": bool(local_path_raw),
+        "path": local_path_raw,
+        "exists": False,
+        "git": None,
+    }
+
+    local_path_obj: Path | None = None
+    if local_path_raw:
+        try:
+            local_path_obj = Path(local_path_raw).expanduser().resolve()
+            local_probe["path"] = str(local_path_obj)
+            local_probe["exists"] = bool(local_path_obj.exists() and local_path_obj.is_dir())
+        except Exception:
+            local_path_obj = None
+            local_probe["exists"] = False
+
+    if local_path_obj and local_probe["exists"]:
+        local_probe["git"] = _git_probe_repo(local_path_obj)
+
+    repo_url = _redact_remote_url(repo_url_raw or "") or None
+
+    mismatch: dict[str, Any] | None = None
+    if repo_url and isinstance(local_probe.get("git"), dict) and local_probe["git"].get("is_git_repo"):
+        origin_remote = str(local_probe["git"].get("remote_origin") or "").strip()
+        if origin_remote and _normalize_repo_url(origin_remote) != _normalize_repo_url(repo_url):
+            mismatch = {
+                "type": "repo_url_vs_remote_origin_mismatch",
+                "repo_url": repo_url,
+                "remote_origin": origin_remote,
+            }
+
+    missing_fields: list[str] = []
+    if not canonical_name:
+        missing_fields.append("nombre_canónico")
+    if not repo_url:
+        missing_fields.append("repo_url")
+    if not local_path_raw:
+        missing_fields.append("local_path")
+    if not environment_type:
+        missing_fields.append("environment_type")
+
+    if not origen:
+        if environment_type and "replit" in environment_type.lower():
+            origen = "replit"
+        elif local_path_raw:
+            origen = "local"
+        else:
+            origen = "unknown"
+
+    proposed_fields: dict[str, Any] = {
+        "project_id": project_id,
+        "nombre_canónico": canonical_name or "unknown",
+        "alias_permitidos": aliases,
+        "ruta_local": str(local_path_obj) if (local_path_obj and local_probe.get("exists")) else "",
+        "repositorio_remoto": repo_url or "",
+        "origen": origen or "unknown",
+        "environment_type": environment_type or "unknown",
+        "repo_url": repo_url or "",
+        "replit_workspace_path": "",
+        "replit_join_url": "",
+        "local_path": str(local_path_obj) if (local_path_obj and local_probe.get("exists")) else "null",
+        "stack_detectado": "unknown",
+        "documentación_principal": "",
+        "código_fuente_relevante": "",
+        "estado_sincronización": "unknown",
+        "alertas_críticas": "",
+        "lecciones_locales": "",
+        "último_análisis": "",
+        "responsable": "unknown",
+    }
+
+    entry_exists = bool(collisions.get("project_id_collision"))
+
+    safe_to_apply = True
+    blockers: list[str] = []
+
+    if mismatch:
+        safe_to_apply = False
+        blockers.append(mismatch["type"])
+
+    registry_preview = {
+        "registry_path": str(registry_path),
+        "would_create": not entry_exists,
+        "would_update": entry_exists,
+        "entry_markdown": "\n".join(_render_registry_block(project_id, proposed_fields)).rstrip() + "\n",
+    }
+
+    scaffold_preview = {
+        "docs_projects_root": str(docs_projects_root),
+        "docs_dir": str(docs_projects_root / project_id),
+        "required_files": PROJECT_ONBOARDING_REQUIRED_FILES,
+        "onboarding": _probe_onboarding_at(project_id=project_id, docs_projects_root=docs_projects_root),
+    }
+
+    if mode == "plan":
+        status = "plan_ready" if safe_to_apply else "plan_blocked"
+        next_frontier = "apply_confirmed" if safe_to_apply else "resolve_blockers"
+
+        return {
+            "ok": True,
+            "status": status,
+            "mode": mode,
+            "project_id": project_id,
+            "warnings": reg_warnings,
+            "inputs": {
+                "nombre_canónico": canonical_name,
+                "aliases": aliases,
+                "repo_url": repo_url,
+                "local_path": local_probe.get("path"),
+                "environment_type": environment_type,
+                "origen": origen,
+            },
+            "missing_fields": missing_fields,
+            "collisions": collisions,
+            "local_probe": local_probe,
+            "mismatch": mismatch,
+            "safe_to_apply": safe_to_apply,
+            "blockers": blockers,
+            "registry": registry_preview,
+            "scaffold": scaffold_preview,
+            "next_frontier": next_frontier,
+            "next_question": "Confirma Apply (confirm=true) para registrar y crear scaffold." if safe_to_apply else "Hay bloqueos; corrige inputs antes de Apply.",
+        }
+
+    if not confirm:
+        return {
+            "ok": True,
+            "status": "confirmation_required",
+            "mode": mode,
+            "project_id": project_id,
+            "safe_to_apply": safe_to_apply,
+            "blockers": blockers,
+            "next_frontier": "confirm_apply",
+            "next_question": "Para aplicar, reintenta con confirm=true (Apply confirmado).",
+        }
+
+    if not safe_to_apply:
+        return {
+            "ok": True,
+            "status": "blocked",
+            "mode": mode,
+            "project_id": project_id,
+            "blockers": blockers,
+            "mismatch": mismatch,
+            "next_frontier": "resolve_blockers",
+            "next_question": "No se aplicó: hay inconsistencias (p.ej. repo_url vs remote origin). Corrige/confirm inputs y reintenta.",
+        }
+
+    try:
+        current_text = registry_path.read_text(encoding="utf-8", errors="replace") if registry_path.exists() else ""
+    except Exception as exc:
+        return {"ok": False, "status": "error", "mode": mode, "error": f"registry_read_failed:{exc}", "project_id": project_id}
+
+    parsed = _parse_registry_blocks(current_text)
+    lines: list[str] = parsed.get("lines") or []
+    blocks_list: list[dict[str, Any]] = parsed.get("blocks") or []
+
+    existing_block = None
+    for b in blocks_list:
+        if str(b.get("project_id") or "").strip().lower() == project_id.lower():
+            existing_block = b
+            break
+
+    registry_action = "created"
+    registry_changed = False
+    conflicts: list[dict[str, Any]] = []
+
+    if existing_block:
+        registry_action = "updated"
+        merged = dict(existing_block.get("fields") or {})
+
+        merged_aliases = _coerce_aliases(merged.get("alias_permitidos") or [])
+        for a in aliases:
+            if a not in merged_aliases:
+                merged_aliases.append(a)
+        merged["alias_permitidos"] = merged_aliases
+
+        for k, v in proposed_fields.items():
+            if k == "alias_permitidos":
+                continue
+            existing_val = merged.get(k)
+            if _is_nullish(existing_val):
+                merged[k] = v
+            else:
+                if not _is_nullish(v) and str(existing_val).strip() != str(v).strip():
+                    conflicts.append({"field": k, "existing": existing_val, "proposed": v})
+
+        if conflicts:
+            return {
+                "ok": True,
+                "status": "registry_conflict",
+                "mode": mode,
+                "project_id": project_id,
+                "conflicts": conflicts[:10],
+                "next_frontier": "resolve_registry_conflict",
+                "next_question": "No se aplicó: el project_id ya existe con valores distintos. Resuelve manualmente o usa un nuevo project_id.",
+            }
+
+                
+        new_block_lines = _render_registry_block(project_id, merged)
+        start = int(existing_block.get("start") or 0)
+
+        end = int(existing_block.get("end") or start)
+        lines = lines[:start] + new_block_lines + lines[end:]
+    else:
+        registry_action = "created"
+        new_block_lines = _render_registry_block(project_id, proposed_fields)
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.extend(new_block_lines)
+
+    # Determinar cambio real sobre el texto final normalizado (evita falsos positivos
+    # por diferencias solo en trailing whitespace/blank lines).
+    old_text_norm = (current_text or "").rstrip() + "\n"
+    new_text = "\n".join(lines).rstrip() + "\n"
+    registry_changed = new_text != old_text_norm
+
+    if registry_changed:
+        try:
+            registry_path.parent.mkdir(parents=True, exist_ok=True)
+            registry_path.write_text(new_text, encoding="utf-8")
+        except Exception as exc:
+            return {"ok": False, "status": "error", "mode": mode, "error": f"registry_write_failed:{exc}", "project_id": project_id}
+
+
+    scaffold_res = init_project_onboarding_scaffold(
+        {
+            "project_id": project_id,
+            "dry_run": False,
+            "test_mode": test_mode,
+            "registry_path": str(registry_path) if test_mode else "",
+            "docs_projects_root": str(docs_projects_root) if test_mode else "",
+        }
+    )
+
+    active_project_set = None
+    if set_active:
+        active_project_set = set_active_project({"project_id": project_id, "note": "enable_target_project"})
+
+    return {
+        "ok": True,
+        "status": "applied",
+        "mode": mode,
+        "project_id": project_id,
+        "registry": {
+            "registry_path": str(registry_path),
+            "action": registry_action,
+            "changed": registry_changed,
+        },
+        "scaffold": scaffold_res,
+        "active_project_set": active_project_set,
+        "next_frontier": "project_enabled",
+        "next_question": None,
+    }
+
+
 PROJECT_ONBOARDING_REQUIRED_FILES = [
     # Perfil + retoma (memoria operativa mínima, versionada)
     "PROJECT_PROFILE.md",
@@ -1747,14 +2299,37 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
 
     dry_run = bool(arguments.get("dry_run", False))
 
-    docs_dir = ROOT / "docs" / "projects" / project_id
+    # Optional test-only overrides (used by enable_target_project tests)
+    test_mode = bool(arguments.get("test_mode", False))
+    registry_path_raw = str(arguments.get("registry_path") or "").strip()
+    docs_projects_root_raw = str(arguments.get("docs_projects_root") or "").strip()
+
+    docs_projects_root = ROOT / "docs" / "projects"
+
+    if test_mode and docs_projects_root_raw:
+        cand = Path(docs_projects_root_raw).expanduser()
+        ok, err = _ensure_safe_test_path(cand)
+        if not ok:
+            return {"ok": False, "status": "error", "error": err}
+        docs_projects_root = cand
+
+    docs_dir = docs_projects_root / project_id
 
     created: list[str] = []
     skipped: list[str] = []
 
     # Metadata best-effort desde registry (si existe)
     registry_path = ROOT / "PROJECT_REGISTRY.md"
+
+    if test_mode and registry_path_raw:
+        cand = Path(registry_path_raw).expanduser()
+        ok, err = _ensure_safe_test_path(cand)
+        if not ok:
+            return {"ok": False, "status": "error", "error": err}
+        registry_path = cand
+
     entries, _warnings = _parse_registry_entries(registry_path)
+
     resolved = _resolve_by_query(project_id, entries) if entries else {"ok": False}
     entry = resolved.get("entry") if isinstance(resolved, dict) else None
 
@@ -4031,14 +4606,17 @@ TOOL_HANDLERS = {
     "check_opencode_run_status": check_opencode_run_status,
     "run_health_check": run_health_check,
     "verify_master_files": verify_master_files,
-    "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
+        "create_and_dispatch_opencode_handoff": create_and_dispatch_opencode_handoff,
     "operational_status": operational_status,
     "resolve_target_project": resolve_target_project,
+    "enable_target_project": enable_target_project,
+
     "plan_general_instruction": plan_general_instruction,
     "run_general_instruction_flow": run_general_instruction_flow,
-    "get_active_project": get_active_project,
-        "set_active_project": set_active_project,
+        "get_active_project": get_active_project,
+    "set_active_project": set_active_project,
     "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
+
     "sync_active_last_event_to_project_docs": sync_active_last_event_to_project_docs,
     "ingest_orchestrator_transfer": ingest_orchestrator_transfer,
 }
