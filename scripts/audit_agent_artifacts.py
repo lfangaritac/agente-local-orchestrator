@@ -882,12 +882,14 @@ def compute_operational_status(
             "extended_actions": nx.get("extended_actions", []),
         }
 
-        # Use recovery matrix to decide blocker vs attention
+                # Use recovery matrix to decide blocker vs attention
+        # Regla operativa: un run previo en estado failed NO debe bloquear el pre-gate de un nuevo run.
+        # Debe quedar como atención/recomendación, no como bloqueo global del repo.
         if decision == "stop":
-            blockers.append("latest_run_failed")
+            attention.append("latest_run_failed")
             if next_action is None:
-                next_action = {"decision": "stop", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check + check_opencode_run_status"}
-            exit_code = max(exit_code, 2)
+                next_action = {"decision": "verify", "tool": "mcp:run_health_check", "command": "(MCP) run_health_check + check_opencode_run_status"}
+
         elif decision == "wait" and should_stop:
             # stale or partial+in_progress: block advance (attention, not blocker)
             if hs == "stale":

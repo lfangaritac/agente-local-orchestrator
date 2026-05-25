@@ -253,7 +253,7 @@ def main() -> None:
 
     # --- Tests for compute_operational_status() ---
 
-    # 10) compute_operational_status sin git/subprocess, latest_run failed -> overall_status=error
+    # 10) compute_operational_status sin git/subprocess, latest_run failed -> NO bloquea pre-gate (attention)
     label_cs = "compute_operational_status_latest_run_failed"
     with tempfile.TemporaryDirectory(prefix="audit-op-status-") as td:
         root = Path(td)
@@ -270,21 +270,24 @@ def main() -> None:
             verify_master_files=False,
         )
 
-        if result.get("overall_status") != "error":
-            raise AssertionError(f"{label_cs}: overall_status debe ser 'error'. Got: {result}")
-        if exit_code != 2:
-            raise AssertionError(f"{label_cs}: exit_code debe ser 2. Got: {exit_code}")
+                
+        if result.get("overall_status") != "ok":
+            raise AssertionError(f"{label_cs}: overall_status debe ser 'ok' (no bloquea pre-gate). Got: {result}")
+
+        if exit_code != 0:
+            raise AssertionError(f"{label_cs}: exit_code debe ser 0 (no bloquea pre-gate). Got: {exit_code}")
         if result.get("latest_run_relevant") is None:
             raise AssertionError(f"{label_cs}: latest_run_relevant no debe ser None. Got: {result}")
         if (result.get("latest_run_relevant") or {}).get("health_status") != "failed":
             raise AssertionError(f"{label_cs}: latest_run health_status debe ser 'failed'. Got: {result}")
-        if result.get("build_blocked") is not True:
-            raise AssertionError(f"{label_cs}: build_blocked debe ser True. Got: {result}")
-        if "latest_run_failed" not in result.get("blockers", []):
-            raise AssertionError(f"{label_cs}: blockers debe contener 'latest_run_failed'. Got: {result}")
-        if (result.get("next_action") or {}).get("decision") != "stop":
-            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'stop'. Got: {result}")
+        if result.get("build_blocked") is not False:
+            raise AssertionError(f"{label_cs}: build_blocked debe ser False. Got: {result}")
+        if "latest_run_failed" not in result.get("attention", []):
+            raise AssertionError(f"{label_cs}: attention debe contener 'latest_run_failed'. Got: {result}")
+        if (result.get("next_action") or {}).get("decision") not in {"verify", "advance"}:
+            raise AssertionError(f"{label_cs}: next_action.decision debe ser 'verify' (o 'advance'). Got: {result}")
         cases.append({"label": label_cs, "ok": True, "result": result})
+
 
     # 11) compute_operational_status sin git/subprocess, sin runs -> overall_status=ok
     label_cs = "compute_operational_status_empty"

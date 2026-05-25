@@ -71,6 +71,25 @@ def parse_responses(stdout_lines: list[str]) -> list[dict]:
     return responses
 
 
+def wait_for_response_id(stdout_lines: list[str], message_id: int, timeout_s: float = 25.0) -> dict | None:
+    """Espera (poll) hasta que llegue una respuesta con id específico.
+
+    Importante: create_and_dispatch_opencode_handoff ejecuta pre-gates (quick checks)
+    que pueden tardar varios segundos; este helper evita flakiness por sleeps fijos.
+    """
+
+    deadline = time.time() + timeout_s
+
+    while time.time() < deadline:
+        for r in parse_responses(stdout_lines):
+            if r.get("id") == message_id:
+                return r
+        time.sleep(0.05)
+
+    return None
+
+
+
 def extract_tool_result(response: dict | None) -> dict | None:
     if not response:
         return None
@@ -108,7 +127,9 @@ def main() -> None:
     t_out.start()
     t_err.start()
 
-    messages = [
+        # 1) initialize + tools/list
+    send(
+        proc,
         {
             "jsonrpc": "2.0",
             "id": 1,
@@ -116,23 +137,25 @@ def main() -> None:
             "params": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {
-                    "name": "create-and-dispatch-test",
-                    "version": "0.1.0"
-                }
-            }
+                "clientInfo": {"name": "create-and-dispatch-test", "version": "0.1.0"},
+            },
         },
-        {
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {}
-        },
-        {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/list",
-            "params": {}
-        },
+        stderr_lines,
+    )
+    send(proc, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}, stderr_lines)
+    send(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, stderr_lines)
+
+    init_resp = wait_for_response_id(stdout_lines, 1, timeout_s=10)
+    tools_list_resp = wait_for_response_id(stdout_lines, 2, timeout_s=10)
+
+    tool_names: list[str] = []
+    if tools_list_resp:
+        tools = tools_list_resp.get("result", {}).get("tools", [])
+        tool_names = [tool.get("name") for tool in tools]
+
+    # 2) tools/call (sin autorización)
+    send(
+        proc,
         {
             "jsonrpc": "2.0",
             "id": 3,
@@ -152,10 +175,17 @@ def main() -> None:
                     "validation_commands": ["python -m py_compile scripts/test.py"],
                     "auto_approve_permissions": False,
                     "build_authorized": False,
-                    "user_authorized_build": False
-                }
-            }
+                    "user_authorized_build": False,
+                },
+            },
         },
+        stderr_lines,
+    )
+    call_unauthorized_resp = wait_for_response_id(stdout_lines, 3, timeout_s=35)
+
+    # 3) tools/call (con autorización)
+    send(
+        proc,
         {
             "jsonrpc": "2.0",
             "id": 4,
@@ -175,43 +205,25 @@ def main() -> None:
                     "validation_commands": ["python -m py_compile scripts/test.py"],
                     "auto_approve_permissions": False,
                     "build_authorized": False,
-                    "user_authorized_build": False
-                }
-            }
-        }
-    ]
+                    "user_authorized_build": False,
+                },
+            },
+        },
+        stderr_lines,
+    )
+    call_authorized_resp = wait_for_response_id(stdout_lines, 4, timeout_s=35)
 
-    try:
-        for msg in messages:
-            send(proc, msg, stderr_lines)
-            time.sleep(0.8)
+    # Cleanup server process
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
-        time.sleep(3)
+    call_unauthorized_result = extract_tool_result(call_unauthorized_resp)
+    call_authorized_result = extract_tool_result(call_authorized_resp)
 
-    finally:
-        if proc.poll() is None:
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-
-    responses = parse_responses(stdout_lines)
-
-    tool_names = []
-    call_unauthorized_result = None
-    call_authorized_result = None
-
-    for response in responses:
-        if response.get("id") == 2:
-            tools = response.get("result", {}).get("tools", [])
-            tool_names = [tool.get("name") for tool in tools]
-
-        if response.get("id") == 3:
-            call_unauthorized_result = extract_tool_result(response)
-
-        if response.get("id") == 4:
-            call_authorized_result = extract_tool_result(response)
 
     # Verificar archivos creados en disco
     unauthorized_run_id = call_unauthorized_result.get("run_id") if call_unauthorized_result else None
@@ -235,7 +247,7 @@ def main() -> None:
         authorized_files_ok = json_exists and md_exists and trace_exists and summary_exists
 
     result = {
-        "initialize_ok": any(r.get("id") == 1 and "result" in r for r in responses),
+        "initialize_ok": bool(init_resp and "result" in init_resp),
         "tools_list_ok": "create_and_dispatch_opencode_handoff" in tool_names,
         "tool_names": tool_names,
         "call_unauthorized_ok": call_unauthorized_result is not None,

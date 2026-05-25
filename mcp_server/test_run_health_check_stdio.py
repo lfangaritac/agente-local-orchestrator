@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import shutil
 import subprocess
 import sys
 import threading
 import time
+import uuid
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER = ROOT / "mcp_server" / "server.py"
 
-RUN_EXISTENTE = "20260509_103815_2841ce6d"
 RUN_INEXISTENTE = "00000000_missing_test"
+
 
 
 def reader_thread(pipe, lines: list[str]) -> None:
@@ -51,6 +53,17 @@ def parse_responses(stdout_lines: list[str]) -> list[dict]:
     return responses
 
 
+def wait_for_response_id(stdout_lines: list[str], message_id: int, timeout_s: float = 20.0) -> dict | None:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        for r in parse_responses(stdout_lines):
+            if r.get("id") == message_id:
+                return r
+        time.sleep(0.05)
+    return None
+
+
+
 def extract_tool_payload(response: dict | None) -> dict | None:
     if not response:
         return None
@@ -65,7 +78,52 @@ def extract_tool_payload(response: dict | None) -> dict | None:
         return None
 
 
+def _create_healthy_run() -> str:
+    """Crea un run mínimo 'healthy' (run_dir + TRACE + RUN_SUMMARY + agent_outputs).
+
+    Se usa para que el test sea auto-contenido y no dependa de run_ids hardcodeados
+    (los runs están gitignored por política).
+    """
+
+    run_id = f"healthcheck_{time.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "record_agent_result.py"),
+            "--run-id",
+            run_id,
+            "--agent",
+            "healthcheck-test-agent",
+            "--status",
+            "diagnostic",
+            "--summary",
+            "Synthetic agent output for MCP run_health_check stdio test.",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    assert completed.returncode == 0, f"No se pudo crear run healthy. rc={completed.returncode} stderr={completed.stderr}"
+
+    return run_id
+
+
+def _cleanup_run(run_id: str) -> None:
+    try:
+        run_dir = ROOT / "docs" / "agent_runs" / run_id
+        if run_dir.exists():
+            shutil.rmtree(run_dir, ignore_errors=True)
+    except Exception:
+        pass
+
+
 def main() -> None:
+    run_existente = _create_healthy_run()
+
     proc = subprocess.Popen(
         [sys.executable, str(SERVER)],
         cwd=ROOT,
@@ -77,6 +135,9 @@ def main() -> None:
         errors="replace",
     )
 
+
+    
+
     stdout_lines: list[str] = []
     stderr_lines: list[str] = []
 
@@ -85,45 +146,58 @@ def main() -> None:
     t_out.start()
     t_err.start()
 
-    messages = [
-        {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "run-health-check-test", "version": "0.1.0"},
-            },
-        },
-        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
-        {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-        {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "tools/call",
-            "params": {
-                "name": "run_health_check",
-                "arguments": {"run_id": RUN_EXISTENTE, "stale_minutes": 15},
-            },
-        },
-        {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "tools/call",
-            "params": {
-                "name": "run_health_check",
-                "arguments": {"run_id": RUN_INEXISTENTE, "stale_minutes": 15},
-            },
-        },
-    ]
-
     try:
-        for msg in messages:
-            send(proc, msg, stderr_lines)
-            time.sleep(0.7)
 
-        time.sleep(2.5)
+
+        # initialize + tools/list
+        send(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "run-health-check-test", "version": "0.1.0"},
+                },
+            },
+            stderr_lines,
+        )
+        send(proc, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}, stderr_lines)
+        send(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, stderr_lines)
+
+        tools_list_resp = wait_for_response_id(stdout_lines, 2, timeout_s=10)
+        tool_names = [t.get("name") for t in (tools_list_resp or {}).get("result", {}).get("tools", [])]
+
+        # run_health_check: existente
+        send(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "run_health_check", "arguments": {"run_id": run_existente, "stale_minutes": 15}},
+            },
+            stderr_lines,
+        )
+        resp_existente = wait_for_response_id(stdout_lines, 3, timeout_s=20)
+
+        # run_health_check: inexistente
+        send(
+            proc,
+            {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {"name": "run_health_check", "arguments": {"run_id": RUN_INEXISTENTE, "stale_minutes": 15}},
+            },
+            stderr_lines,
+        )
+        resp_inexistente = wait_for_response_id(stdout_lines, 4, timeout_s=20)
+
+        payload_existente = extract_tool_payload(resp_existente)
+        payload_inexistente = extract_tool_payload(resp_inexistente)
 
     finally:
         if proc.poll() is None:
@@ -133,22 +207,8 @@ def main() -> None:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
-    responses = parse_responses(stdout_lines)
+        _cleanup_run(run_existente)
 
-    tool_names: list[str] = []
-    payload_existente = None
-    payload_inexistente = None
-
-    for response in responses:
-        if response.get("id") == 2:
-            tools = response.get("result", {}).get("tools", [])
-            tool_names = [tool.get("name") for tool in tools]
-
-        if response.get("id") == 3:
-            payload_existente = extract_tool_payload(response)
-
-        if response.get("id") == 4:
-            payload_inexistente = extract_tool_payload(response)
 
     required_keys = {
         "ok",
@@ -170,11 +230,19 @@ def main() -> None:
     shape_ok_existente = bool(payload_existente and required_keys.issubset(set(payload_existente.keys())))
     shape_ok_inexistente = bool(payload_inexistente and required_keys.issubset(set(payload_inexistente.keys())))
 
+                
+
     content_ok_existente = bool(
         payload_existente
-        and payload_existente.get("run_id") == RUN_EXISTENTE
+        and payload_existente.get("run_id") == run_existente
         and payload_existente.get("health_status") == "healthy"
+        and payload_existente.get("exists") is True
     )
+
+
+
+
+
 
     content_ok_inexistente = bool(
         payload_inexistente
@@ -184,7 +252,7 @@ def main() -> None:
     )
 
     result = {
-        "initialize_ok": any(r.get("id") == 1 and "result" in r for r in responses),
+        "initialize_ok": bool(wait_for_response_id(stdout_lines, 1, timeout_s=2) is not None),
         "tools_list_ok": "run_health_check" in tool_names,
         "payload_shape_ok": shape_ok_existente and shape_ok_inexistente,
         "payload_content_ok": content_ok_existente and content_ok_inexistente,
