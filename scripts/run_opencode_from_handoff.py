@@ -25,6 +25,8 @@ import json
 import subprocess
 import sys
 import os
+import shutil
+
 
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -49,7 +51,158 @@ INBOX = ROOT / "docs" / "agent_queue" / "inbox"
 RUNS = ROOT / "docs" / "agent_runs"
 
 
+# ---------------------------------------------------------------------------
+# OpenCode CLI integration: resolver de ejecutable + mapping logical -> CLI
+# ---------------------------------------------------------------------------
+
+# Mapping aprobado explícitamente por arquitectura (logical_model -> cli_model).
+APPROVED_LOGICAL_TO_CLI_MODEL: dict[str, str] = {
+    "opencode-go/qwen3.6-plus": "opencode/qwen3.6-plus",
+    "opencode-go/kimi-k2.6": "opencode/kimi-k2.6",
+    "opencode-go/qwen3.5-plus": "opencode/qwen3.5-plus",
+}
+
+# Estos modelos lógicos existen en el routing del orquestador, pero NO tienen mapping aprobado.
+# Regla: bloquear con error claro (no degradar a modelos gratuitos).
+LOGICAL_MODELS_BLOCKED_WITHOUT_MAPPING: set[str] = {
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/deepseek-v4-pro",
+}
+
+
+def _truthy_env(name: str) -> bool:
+    v = str(os.environ.get(name, "")).strip().lower()
+    return v in {"1", "true", "yes", "y", "on"}
+
+
+def resolve_opencode_cmd() -> str | None:
+    """Resuelve la ruta a opencode.cmd de forma robusta.
+
+    Orden:
+    1) OPENCODE_CMD (si existe)
+    2) shutil.which('opencode.cmd')
+    3) Windows fallback: %APPDATA%\npm\opencode.cmd
+
+    Retorna None si no se encuentra.
+    """
+
+    override = str(os.environ.get("OPENCODE_CMD", "")).strip()
+    if override:
+        p = Path(override)
+        if p.exists():
+            return str(p)
+
+    found = shutil.which("opencode.cmd")
+    if found:
+        return found
+
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        fallback = Path(appdata) / "npm" / "opencode.cmd"
+        if fallback.exists():
+            return str(fallback)
+
+    return None
+
+
+def _format_model_list(models: list[str], *, limit: int = 40) -> str:
+    if not models:
+        return "(vacío)"
+    shown = models[:limit]
+    suffix = "" if len(models) <= limit else f"\n... ({len(models) - limit} más)"
+    return "\n".join(f"- {m}" for m in shown) + suffix
+
+
+def list_opencode_models(opencode_cmd: str) -> tuple[bool, list[str], str]:
+    """Lista modelos disponibles en el CLI.
+
+    Retorna (ok, models, error_msg).
+    """
+
+    code, stdout, stderr = run_command([opencode_cmd, "models"])
+    if code != 0:
+        return False, [], (stderr or stdout or "opencode models falló sin salida.").strip()
+
+    models = [ln.strip() for ln in (stdout or "").splitlines() if ln.strip()]
+    return True, models, ""
+
+
+def _is_forbidden_cli_model(cli_model: str) -> tuple[bool, str]:
+    """En este repo, modelos free y 'big-pickle' NO son modelos operativos por defecto.
+
+    - Modelos '*-free' solo se permiten con override explícito (smoke test):
+      OPENCODE_ALLOW_FREE_SMOKE_TEST=1
+    - 'opencode/big-pickle' solo se permite con override explícito:
+      OPENCODE_ALLOW_BIG_PICKLE=1
+
+    Retorna (forbidden, reason).
+    """
+
+    m = str(cli_model).strip()
+
+    if m == "opencode/big-pickle" and not _truthy_env("OPENCODE_ALLOW_BIG_PICKLE"):
+        return True, "Modelo 'opencode/big-pickle' bloqueado por política (solo con OPENCODE_ALLOW_BIG_PICKLE=1)."
+
+    if m.endswith("-free") and not _truthy_env("OPENCODE_ALLOW_FREE_SMOKE_TEST"):
+        return True, "Modelos '*-free' bloqueados por política (solo smoke test con OPENCODE_ALLOW_FREE_SMOKE_TEST=1)."
+
+    return False, ""
+
+
+def resolve_cli_model(*, logical_model: str, available_models: list[str]) -> tuple[bool, str, str]:
+    """Resuelve modelo lógico del orquestador -> modelo real del CLI.
+
+    Regla:
+    - Conserva logical_model (trazabilidad), pero pasa al CLI un modelo real (provider/model).
+    - Si no hay mapping aprobado, bloquear con error claro.
+    - No degradar automáticamente a modelos gratuitos.
+
+    Retorna (ok, cli_model, error_msg).
+    """
+
+    lm = str(logical_model or "").strip()
+
+    if not lm:
+        return False, "", "logical_model vacío."
+
+    if lm == "premium_by_scenario":
+        return False, "", (
+            "logical_model='premium_by_scenario' no es un modelo CLI. "
+            "Se requiere resolución explícita por escenario (y autorización si aplica)."
+        )
+
+    if lm in LOGICAL_MODELS_BLOCKED_WITHOUT_MAPPING:
+        return False, "", (
+            f"No hay mapping aprobado para logical_model={lm!r}. "
+            "Bloqueado por política (no degradar a modelos gratuitos)."
+        )
+
+    if lm.startswith("opencode-go/"):
+        cli = APPROVED_LOGICAL_TO_CLI_MODEL.get(lm)
+        if not cli:
+            return False, "", (
+                f"No hay mapping aprobado para logical_model={lm!r}. "
+                "Defina mapping explícito aprobado o configure routing para un modelo lógico soportado."
+            )
+    else:
+        # Si ya viene en formato CLI, se usa tal cual (sujeto a políticas de bloqueo y disponibilidad).
+        cli = lm
+
+    forbidden, reason = _is_forbidden_cli_model(cli)
+    if forbidden:
+        return False, "", f"cli_model_resolved={cli!r} bloqueado. {reason}"
+
+    if cli not in available_models:
+        return False, "", (
+            f"cli_model_resolved={cli!r} no está disponible en 'opencode models'. "
+            "Esto suele indicar un provider/plan distinto o falta de configuración."
+        )
+
+    return True, cli, ""
+
+
 def run_command(command: list[str]) -> tuple[int, str, str]:
+
     completed = subprocess.run(
         command,
         cwd=ROOT,
@@ -342,6 +495,8 @@ def main() -> None:
 
     args = parser.parse_args()
 
+        
+
     if args.run_id:
         handoff_path = handoff_for_run(args.run_id)
     else:
@@ -351,11 +506,19 @@ def main() -> None:
         safe_print("ERROR: No se encontró handoff Markdown en docs/agent_queue/inbox.")
         sys.exit(1)
 
+
     package = load_package_for_handoff(handoff_path)
     run_id = package.get("run_id", handoff_path.stem)
 
     agent = args.agent or package.get("target_agent") or "context-validator"
-    model = args.model or "opencode-go/qwen3.6-plus"
+
+
+    # Modelo lógico (routing interno del orquestador). NO debe pasarse directo al CLI si es opencode-go/...
+    logical_model_requested = (
+        args.model
+        or package.get("model")
+        or "opencode-go/qwen3.6-plus"
+    )
 
     # Auto-approve de permisos: solo cuando es explícito (flag) + package compatible.
     auto_approve_permissions = bool(args.auto_approve_permissions)
@@ -394,8 +557,34 @@ def main() -> None:
                 safe_print(f"ERROR: allowed_files contiene ruta sensible/bloqueada para auto_approve_permissions: {f!r}")
                 sys.exit(2)
 
+    opencode_cmd = resolve_opencode_cmd()
+    if not opencode_cmd:
+        safe_print(
+            "ERROR: No se encontró opencode.cmd. "
+            "Configura OPENCODE_CMD o asegúrate de que esté en PATH (npm global)."
+        )
+        sys.exit(2)
+
+    models_ok, available_models, models_err = list_opencode_models(opencode_cmd)
+    if not models_ok:
+        safe_print("ERROR: No se pudo listar modelos con 'opencode models'.")
+        safe_print(models_err)
+        sys.exit(2)
+
+    resolved_ok, cli_model_resolved, resolve_err = resolve_cli_model(
+        logical_model=logical_model_requested,
+        available_models=available_models,
+    )
+    if not resolved_ok:
+        safe_print("ERROR: No se pudo resolver logical_model -> cli_model (sin degradación).")
+        safe_print(f"- logical_model_requested: {logical_model_requested!r}")
+        safe_print("- Modelos disponibles en este CLI (opencode models):")
+        safe_print(_format_model_list(available_models))
+        safe_print(f"- Detalle: {resolve_err}")
+        sys.exit(2)
+
     command = [
-        "opencode.cmd",
+        opencode_cmd,
         "run",
     ]
 
@@ -407,7 +596,7 @@ def main() -> None:
         "--agent",
         agent,
         "--model",
-        model,
+        cli_model_resolved,
         "--file",
         str(handoff_path),
         "--format",
@@ -429,8 +618,10 @@ def main() -> None:
         safe_print(stdout)
 
     if code != 0:
-        safe_print(f"ERROR: opencode.cmd run falló con código {code}")
+        safe_print(f"ERROR: OpenCode run falló con código {code}")
         sys.exit(code)
+
+
 
     parsed = parse_opencode_jsonl(stdout)
     text = parsed.get("text", "")
@@ -471,11 +662,18 @@ def main() -> None:
     timestamp = datetime.datetime.now().isoformat(timespec="seconds")
     safe_timestamp = timestamp.replace(":", "-")
 
+
     result = {
         "run_id": run_id,
+
         "timestamp": timestamp,
         "agent": agent,
-        "model": model,
+        # Back-compat: 'model' refleja el modelo real usado por el CLI.
+        "model": cli_model_resolved,
+        "logical_model_requested": logical_model_requested,
+        "cli_model_resolved": cli_model_resolved,
+        "opencode_cmd": opencode_cmd,
+
         "status": status,
         "handoff_path": str(handoff_path.relative_to(ROOT)),
         "summary": summary,
@@ -490,21 +688,33 @@ def main() -> None:
         "out_of_scope_changes": out_of_scope[:50],
     }
 
+        
     result_path = outputs_dir / f"{safe_timestamp}_{agent}_opencode.json"
     write_json(result_path, result)
+
 
     raw_path = raw_outputs_dir / f"{safe_timestamp}_{agent}_opencode_raw.json"
     write_json(raw_path, parsed)
 
-    append_trace(run_id, agent, status, summary, model, handoff_path)
+
+    append_trace(run_id, agent, status, summary, cli_model_resolved, handoff_path)
+
+
     write_run_summary(run_id)
 
+        
     safe_print("=== Resultado registrado ===")
     safe_print(json.dumps({
+
         "status": "recorded",
         "run_id": run_id,
+
         "agent": agent,
-        "model": model,
+        "model": cli_model_resolved,
+
+        "logical_model_requested": logical_model_requested,
+        "cli_model_resolved": cli_model_resolved,
+
         "result_path": str(result_path),
         "raw_path": str(raw_path),
         "summary": summary,

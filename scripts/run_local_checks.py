@@ -115,14 +115,18 @@ def _build_checks(mode: str, *, include_mcp_stdio_tests: bool) -> list[tuple[str
     quick: list[tuple[str, list[str]]] = [
         _py_compile(r".\scripts\audit_agent_artifacts.py"),
         _py_compile(r".\scripts\run_opencode_from_handoff.py"),
+
+        _py_run(r".\scripts\test_opencode_cli_model_resolution.py"),
         _py_run(r".\scripts\test_postcheck_scope_guardrail.py"),
         _py_run(r".\scripts\test_audit_agent_artifacts_health.py"),
         _py_run(r".\scripts\test_audit_agent_artifacts_archive.py"),
-        _py_run(r".\scripts\test_create_and_dispatch_pregate.py"),
+                _py_run(r".\scripts\test_create_and_dispatch_pregate.py"),
+
     ]
 
     if mode == "quick":
         return quick
+
 
     # full (por defecto): checks adicionales sin side-effects.
     full_extra: list[tuple[str, list[str]]] = [
