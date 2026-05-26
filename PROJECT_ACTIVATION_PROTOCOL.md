@@ -27,6 +27,48 @@ El proyecto queda activado cuando puede ejecutarse el ciclo:
 
 definir tarea -> revisar contexto -> elegir agente/modelo -> ejecutar -> probar -> versionar -> validar en Replit.
 
+## Cierre de habilitacion operativa minima
+
+Registrar y documentar un proyecto no equivale automaticamente a dejarlo listo para trabajo funcional real.
+
+- Proyecto registrado: existe identidad confirmada, ruta local/remota conocida y entrada en el registro del orquestador.
+- Proyecto documentado: existe scaffold o contexto minimo con stack, estructura, riesgos, comandos, restricciones y fuentes relevantes.
+- Proyecto operativo para trabajo funcional controlado: ademas de lo anterior, existe evidencia suficiente para ejecutar cambios acotados con validaciones seguras y umbrales claros.
+
+Un proyecto solo debe declararse operativo cuando haya evidencia razonable de:
+
+- registro del proyecto en el orquestador;
+- scaffold/contexto documental minimo creado o actualizado;
+- repositorio objetivo identificado y estado Git conocido;
+- riesgos iniciales detectados;
+- entrypoints o mecanismo de arranque revisados para side effects cuando aplique;
+- comandos seguros y comandos bloqueados identificados;
+- baseline minima de validacion definida, o ausencia de baseline justificada;
+- pruebas seguras identificadas si existen;
+- exclusiones documentadas;
+- clasificacion inicial de tareas por riesgo;
+- declaracion final: listo, no listo o listo parcialmente, con proxima frontera.
+
+La habilitacion no debe perseguir cobertura total ni perfeccion. Debe cerrar cuando exista una baseline minima suficiente para empezar trabajo funcional real con control, o cuando quede documentado por que el proyecto aun no esta listo.
+
+Despues de declarar un proyecto listo para trabajo funcional controlado, las instrucciones futuras deben orientarse a necesidades reales del usuario, no a preparacion generica indefinida.
+
+Clasificacion transversal de tareas:
+
+- VERDE: documentacion, helpers puros, normalizadores, validaciones locales, tests aislados y cambios sin DB real ni servicios externos.
+- AMARILLA: endpoints o rutas con mocks, test_client o equivalente con aislamiento, logica funcional puntual con datos fake, cambios controlados que requieren baseline antes/despues y ajustes de payload/copy sin invocar servicios reales.
+- ROJA: DB real, migraciones, servicios externos reales, secrets, auth sensible, envios masivos, scripts operativos, deployment, infraestructura y cambios que puedan afectar datos reales.
+
+Formato breve de declaracion final:
+
+- Estado de habilitacion operativa: listo / no listo / listo parcialmente.
+- Listo para tareas VERDES: si/no.
+- Listo para tareas AMARILLAS con baseline/mocks: si/no.
+- Tareas ROJAS requieren autorizacion especial: si.
+- Baseline segura recomendada:
+- Comandos bloqueados:
+- Proxima frontera:
+
 ## Rutas operativas soportadas
 
 El orquestador reconoce dos rutas principales de activacion de proyectos:
