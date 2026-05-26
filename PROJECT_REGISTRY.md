@@ -54,3 +54,25 @@ alertas_críticas:
 lecciones_locales:
 último_análisis:
 responsable: unknown
+
+### embajadores-backend
+
+project_id: embajadores-backend
+nombre_canónico: Embajadores Backend
+alias_permitidos: embajadores, embajadores-backend
+ruta_local: C:\Users\murfe\source\repos\embajadores-backend
+repositorio_remoto: https://github.com/lfangaritac/embajadores-backend.git
+origen: github
+environment_type: github
+repo_url: https://github.com/lfangaritac/embajadores-backend.git
+replit_workspace_path: 
+replit_join_url: 
+local_path: C:\Users\murfe\source\repos\embajadores-backend
+stack_detectado: Python 3.11 Flask/Gunicorn + React/Vite admin portal + MySQL/Azure/Replit integrations
+documentación_principal: README.md, replit.md, docs/TECHNICAL_DOCUMENTATION.md, frontend/src/app/api/APIContract.md
+código_fuente_relevante: main.py, app.py, db.py, env_loader.py, whatsapp_webhook.py, voiceflow_client.py, routes/, services/, frontend/
+estado_sincronización: initial_analysis_completed
+alertas_críticas: docs/projects/embajadores-backend/CRITICAL_ALERTS.md
+lecciones_locales: docs/projects/embajadores-backend/LESSONS_LOCAL.md
+último_análisis: 2026-05-26
+responsable: unknown
