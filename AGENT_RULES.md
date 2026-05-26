@@ -457,9 +457,11 @@ Este sistema tiene como objetivo:
 - Integrar de forma eficiente:
   - Agente local de orquestaciÃ³n
   - Continue (copiloto)
+  - Codex en VS Code (superficie equivalente a Continue)
   - OpenCode (ejecuciÃ³n tÃ©cnica)
   - Replit (agente hÃ­brido)
   - Modelos premium (criterio experto)
+
 
 ---
 
@@ -491,6 +493,31 @@ Responsable de:
 - construcciÃ³n de respuesta unificada
 
 ---
+
+### 2.2.1 Codex en Visual Studio Code (superficie equivalente a Continue)
+
+Codex en VS Code es una superficie operativa alternativa y equivalente a Continue.
+
+Cuando el usuario inicia una sesion desde Codex en VS Code:
+- Codex asume el rol de copiloto/contexto que normalmente cumpliria Continue (curacion de contexto, clasificacion, planificacion, preparacion de handoffs, revision de resultados).
+- No requiere depender de Continue para operar.
+
+Modo integrado (Codex contexto + codificacion):
+- Solo se permite por instruccion expresa del usuario (p. ej. "Codex, asume contexto y codificacion").
+- Debe leer contexto rector antes de modificar.
+- Debe respetar SECURITY_POLICY.md y DEVELOPMENT_CHECKS.md.
+- Debe detenerse ante umbrales: secrets, migraciones, deployment, acciones destructivas, ampliacion de alcance, o costos/premium.
+
+Regla de seleccion (superficie activa):
+- Si la sesion inicia en Continue: Continue es el copiloto principal.
+- Si la sesion inicia en Codex: Codex es el copiloto principal.
+- OpenCode se mantiene como ejecutor tecnico especializado cuando se requiere ejecucion multiarchivo controlada y no existe autorizacion de modo integrado para Codex.
+
+---
+
+
+
+
 
 ### 2.3 OpenCode (Agente TÃ©cnico)
 

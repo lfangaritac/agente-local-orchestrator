@@ -4,7 +4,8 @@
 
 Definir las verificaciones minimas que debe ejecutar o reportar cualquier agente antes de considerar completa una tarea de codificacion.
 
-Este documento aplica especialmente a OpenCode como agente local de codificacion, pero tambien orienta a Continue, Replit Agent y cualquier modelo de apoyo.
+Este documento aplica especialmente a OpenCode como agente local de codificacion, pero tambien orienta a Continue, Codex en VS Code (cuando el usuario autorice modo integrado de codificacion), Replit Agent y cualquier modelo de apoyo.
+
 
 ## Regla principal
 

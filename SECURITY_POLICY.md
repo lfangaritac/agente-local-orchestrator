@@ -153,6 +153,19 @@ Requieren validación:
 
 ---
 
+### 5.4 Codex en VS Code (modo integrado)
+
+Si el usuario autoriza explícitamente que Codex asuma contexto + codificación (edición/validación) en una misma sesión, Codex debe operar con las mismas restricciones de seguridad del sistema:
+
+- no tocar ni exponer secrets/tokens/credenciales;
+- no versionar `.env`;
+- no ejecutar acciones destructivas sin autorización;
+- no hacer migraciones ni deployment sin autorización;
+- respetar el alcance autorizado y detenerse ante umbrales.
+
+---
+
+
 ## 6. CONTROL DE CONTEXTO
 
 ---

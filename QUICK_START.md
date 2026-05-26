@@ -12,7 +12,20 @@ Para clonar, rehidratar y validar este orquestador en distintas maquinas (multip
 
 ## Comandos principales
 
+### VS Code: superficies operativas (Continue o Codex)
+
+Este orquestador soporta dos superficies de copiloto/contexto en VS Code:
+
+- **Continue** (rol historico): copiloto contextual, curacion de contexto, handoffs.
+- **Codex en VS Code** (superficie equivalente): puede asumir integralmente el rol de Continue cuando la sesion inicia desde Codex.
+
+Modo integrado (Codex contexto + codificacion) solo por solicitud expresa del usuario y bajo `SECURITY_POLICY.md` + `DEVELOPMENT_CHECKS.md`.
+
+Referencia minima:
+- `AGENT_RULES.md`, `PROJECT_CONTEXT.md`, `MODEL_ROUTING.md`, `SECURITY_POLICY.md`.
+
 ### Activar o validar sistema de agentes
+
 
 ```powershell
 .\activate-agents.bat

@@ -407,6 +407,17 @@ Continue puede incluir codigo en su contexto, pero no se debe asumir cobertura t
 
 Regla: Continue debe declarar que fuentes o archivos reviso cuando consolide contexto para una tarea relevante.
 
+### Codex en VS Code (superficie equivalente a Continue)
+
+Codex en VS Code es una superficie operativa alternativa equivalente a Continue.
+
+Regla:
+- si la sesion inicia en Codex, Codex asume el rol de curador de contexto, clasificador, preparador de handoffs y revisor de resultados.
+- el routing de modelos y escalamiento (Go -> Zen -> Premium -> Replit) no cambia por la superficie; solo cambia quien cumple el rol de copiloto/contexto.
+- Codex puede asumir contexto + codificacion solo por solicitud expresa del usuario y bajo `SECURITY_POLICY.md` + `DEVELOPMENT_CHECKS.md`.
+
+
+
 ### OpenCode
 
 OpenCode opera como agente local especializado de codificacion.

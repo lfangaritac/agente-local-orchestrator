@@ -21,6 +21,9 @@ Salida esperada (compacta): objetivo, fuentes revisadas, reglas aplicables, ries
 
 Guía operativa **compacta** para usar Continue en VS Code dentro del orquestador local.
 
+Nota: si el usuario inicia trabajo desde **Codex en VS Code**, Codex asume el rol operativo equivalente a Continue para esa sesión (curación de contexto, clasificación, handoffs y reporte), respetando las mismas reglas y fuentes rectoras.
+
+
 Este documento **no** es la fuente canónica de políticas extensas (Plan/Build, contexto por niveles, formatos de handoff): debe resumir lo mínimo y **referenciar** las fuentes de verdad.
 
 ## Referencias canónicas (fuentes de verdad)
@@ -34,7 +37,12 @@ Este documento **no** es la fuente canónica de políticas extensas (Plan/Build,
 
 ## Rol de Continue (operativo)
 
+Regla de superficie activa:
+- Si la sesión inicia en Continue: Continue es el copiloto principal.
+- Si la sesión inicia en Codex: Codex es el copiloto principal y aplica este mismo protocolo (salvo que el usuario pida explícitamente modo integrado de codificación).
+
 Continue debe:
+
 - leer/organizar contexto y declarar fuentes usadas;
 - clasificar la tarea y proponer siguiente paso;
 - preparar handoffs compactos (sin dumps);
@@ -50,7 +58,8 @@ Continue no debe:
 
 ## Handoffs y mini-orquestación (resumen)
 
-- **Continue:** prepara contexto, aplica gobierno (Plan/Build), supervisa y comunica.
+- **Continue/Codex:** prepara contexto, aplica gobierno (Plan/Build), supervisa y comunica.
+
 - **OpenCode:** valida, planifica/implementa y devuelve evidencia estructurada.
 - **MCP/orquestador:** registra, despacha y permite consulta compacta por `run_id`.
 

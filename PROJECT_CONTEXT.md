@@ -100,11 +100,13 @@ Es una **capa lógica compuesta por**:
 - usuario;
 - documentación viva (Markdown);
 - Continue;
+- Codex en VS Code (superficie equivalente a Continue);
 - OpenCode;
 - modelos locales (Ollama);
 - Git;
 - reglas operativas;
 - futuras herramientas (scripts, MCP, CLI).
+
 
 ---
 
@@ -147,6 +149,18 @@ Rol:
 - coordinación conversacional.
 
 Continue lidera la **fase de planeación y estructuración**.
+
+### 4.4.1 Codex en VS Code (equivalente operativo)
+
+Cuando el usuario inicia el trabajo desde Codex en Visual Studio Code, Codex asume el rol operativo que normalmente cumpliría Continue para esa sesión:
+
+- curación de contexto;
+- clasificación de tarea;
+- preparación de instrucciones/handoffs;
+- revisión y reporte.
+
+Modo integrado (Codex contexto + codificación) solo por solicitud expresa del usuario y bajo `SECURITY_POLICY.md` + `DEVELOPMENT_CHECKS.md`.
+
 
 ---
 
