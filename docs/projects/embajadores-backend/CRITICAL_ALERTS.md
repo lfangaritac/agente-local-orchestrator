@@ -43,3 +43,11 @@ Alertas criticas locales iniciales.
 - do_not_do: no invocar endpoints que envien mensajes, generen reportes, escriban DB o disparen procesos.
 - required_check: autorizacion humana, entorno correcto y credenciales controladas.
 
+## ALERT-EMB-006 - `.env.example` contiene valores aparentemente reales
+
+- severity: `critical`
+- scope: `security`
+- trigger: cualquier lectura, handoff, diff, revision publica, commit, escalamiento, prompt externo o documentacion que toque `.env.example`.
+- do_not_do: no copiar, citar, pegar, resumir valores, enviar a modelos externos ni tratar `.env.example` como plantilla saneada.
+- required_check: rotar/revocar credenciales afectadas si aplican, reemplazar por placeholders antes de difundir, y revisar historial Git si se va a sanear el repositorio.
+- source: retoma local 2026-05-26; lectura controlada de `.env.example` sin reproducir valores.

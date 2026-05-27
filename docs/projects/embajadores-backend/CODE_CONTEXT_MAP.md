@@ -61,6 +61,8 @@ Mapa inicial de codigo.
 - `frontend/package.json`: `pnpm dev`, `pnpm build`.
 - `.replit`: run con Gunicorn; build con `pip install -r requirements.txt`; workflow `flask_server` ejecuta `uv add requests python-dotenv` (side effect).
 - `build.sh`: script de build (pendiente de lectura antes de ejecutar).
+- `orquestador`: wrapper shell versionado para transferir intencion hacia el orquestador local sin activar Replit Agent.
+- `scripts/orchestrator_bridge.py`: genera handoffs JSON/MD en `docs/handoffs/`; no ejecuta Replit Agent, no lee `.env` y no modifica codigo funcional.
 - `_scripts/*`: multiples migraciones y utilidades; no ejecutar sin autorizacion explicita.
 
 ## Archivos sensibles o de cuidado
@@ -70,4 +72,3 @@ Mapa inicial de codigo.
 - `certs/DigiCertGlobalRootCA.crt.pem` es certificado CA publico.
 - Archivos `.xlsx`, `.json`, `.txt`, SQL y logs/reportes pueden contener datos reales o PII; revisar con cautela.
 - `_scripts/*migrar*`, `migration_*.sql`, `fix_*.sql`, `admin_script_dual_compatibility.sql` pueden modificar DB.
-
