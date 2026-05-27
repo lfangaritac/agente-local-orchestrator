@@ -26,6 +26,30 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "semantic_context_gate",
+        "description": "Gate read-only que infiere senales desde una instruccion y devuelve referencias compactas de contexto relevante del proyecto.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "project_id registrado en PROJECT_REGISTRY.md.",
+                },
+                "instruction": {
+                    "type": "string",
+                    "description": "Instruccion original del usuario.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximo de referencias a devolver.",
+                    "default": 8,
+                },
+            },
+            "required": ["project_id", "instruction"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "select_agent_model",
         "description": "Selecciona de forma diagnóstica agente/modelo según escenario, riesgo y volumen.",
         "inputSchema": {
@@ -529,6 +553,11 @@ TOOL_SCHEMAS = [
                     "description": "Si true, ejecuta orchestrator_preflight para verificar fuentes transversales mínimas.",
                     "default": True,
                 },
+                "include_semantic_context_gate": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta Semantic Context Gate read-only antes de sugerir edicion o dispatch.",
+                    "default": True,
+                },
             },
             "required": ["instruction"],
             "additionalProperties": False,
@@ -590,6 +619,11 @@ TOOL_SCHEMAS = [
                     "description": "Si true, incluye orchestrator_preflight en el plan.",
                     "default": True,
                 },
+                "include_semantic_context_gate": {
+                    "type": "boolean",
+                    "description": "Si true, incluye Semantic Context Gate en el plan.",
+                    "default": True,
+                },
             },
             "additionalProperties": False,
         },
@@ -637,6 +671,11 @@ TOOL_SCHEMAS = [
                 "include_preflight": {
                     "type": "boolean",
                     "description": "Si true, ejecuta orchestrator_preflight.",
+                    "default": True,
+                },
+                "include_semantic_context_gate": {
+                    "type": "boolean",
+                    "description": "Si true, ejecuta Semantic Context Gate read-only antes de sugerir edicion o dispatch.",
                     "default": True,
                 },
                 "authorize_onboarding_scaffold_write": {

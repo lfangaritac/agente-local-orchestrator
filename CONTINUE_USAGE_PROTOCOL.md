@@ -30,6 +30,7 @@ Este documento **no** es la fuente canónica de políticas extensas (Plan/Build,
 
 - Plan/Build + aprobaciones por umbral: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md` (sección 25).
 - Contexto mínimo, niveles, context pack y exclusiones: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+- Gate semántico de contexto antes de editar/diagnosticar: `docs/protocols/SEMANTIC_CONTEXT_GATE_PROTOCOL.md`.
 - Regla Always Applied mínima: `.continue/rules/context-contract-governance.md`.
 - Formato Continue → OpenCode (handoff): `.continue/rules/continue-opencode-handoff.md`.
 
@@ -115,11 +116,12 @@ Onboarding mínimo al vincular un proyecto:
 ### Secuencia estándar interna (aplicar por defecto)
 1) Resolver/confirmar **proyecto objetivo** (si no está confirmado: operar en diagnóstico). Referencias: `PROJECT_REGISTRY.md`, `docs/protocols/PROJECT_ENABLEMENT_PROTOCOL.md`.
 2) Ejecutar **preflight** (fuentes mínimas, alertas, lecciones) y declarar suficiencia. Referencias: `TARGET_PROJECT_CONTEXT_CONTRACT.md`, `docs/alerts/GLOBAL_CRITICAL_ALERTS.md`, `docs/lessons/GLOBAL_LESSONS_LEARNED.md`.
-3) Clasificar **modo** (Plan/Build) + **riesgo/volumen** + **alcance**.
-4) Decidir **executor**: Continue (contexto), OpenCode (validación/ejecución), Replit (entorno real), premium (seguridad/arquitectura/criticidad). Referencias: `MODEL_ROUTING.md`, `AGENT_ORCHESTRATION.md`.
-5) Identificar **autorizaciones requeridas** (premium/Replit/secrets/deployment/migraciones/destructivo/ampliación de alcance). Referencia: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
-6) Actuar solo dentro de la frontera segura; si se cruza umbral: **detenerse y preguntar**.
-7) Validar y cerrar con evidencia mínima + `next_frontier` **solo al final** (o al detectar bloqueo/umbral), sin dumps; por referencias. Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+3) Ejecutar **Semantic Context Gate** con la instrucción original antes de editar o diagnosticar con impacto. El gate infiere señales desde la instrucción, busca en índices/docs/reglas del proyecto y devuelve referencias compactas. Si no encuentra contexto suficiente para una tarea de Build o riesgo medio+, detener Build y ampliar lectura read-only. Referencia: `docs/protocols/SEMANTIC_CONTEXT_GATE_PROTOCOL.md`; herramienta: `scripts/semantic_context_gate.py`.
+4) Clasificar **modo** (Plan/Build) + **riesgo/volumen** + **alcance**.
+5) Decidir **executor**: Continue (contexto), OpenCode (validación/ejecución), Replit (entorno real), premium (seguridad/arquitectura/criticidad). Referencias: `MODEL_ROUTING.md`, `AGENT_ORCHESTRATION.md`.
+6) Identificar **autorizaciones requeridas** (premium/Replit/secrets/deployment/migraciones/destructivo/ampliación de alcance). Referencia: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
+7) Actuar solo dentro de la frontera segura; si se cruza umbral: **detenerse y preguntar**.
+8) Validar y cerrar con evidencia mínima + `next_frontier` **solo al final** (o al detectar bloqueo/umbral), sin dumps; por referencias. Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
 
 ### Aclaración: Plan vs comandos diagnósticos/read-only
 La política canónica de Plan/Build vive en `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.

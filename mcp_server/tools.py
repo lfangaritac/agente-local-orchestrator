@@ -55,6 +55,7 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 ALLOWED_TOOLS = {
     "orchestrator_preflight",
+    "semantic_context_gate",
     "select_agent_model",
     "build_handoff_package",
     "run_diagnostic_flow",
@@ -327,6 +328,7 @@ def ingest_orchestrator_transfer(arguments: dict[str, Any] | None = None) -> dic
     include_git = bool(arguments.get("include_git", True))
     include_orchestrator_status = bool(arguments.get("include_orchestrator_status", True))
     include_preflight = bool(arguments.get("include_preflight", True))
+    include_semantic_context_gate = bool(arguments.get("include_semantic_context_gate", True))
 
     start = time.perf_counter()
 
@@ -516,6 +518,7 @@ def ingest_orchestrator_transfer(arguments: dict[str, Any] | None = None) -> dic
             "include_git": include_git,
             "include_orchestrator_status": include_orchestrator_status,
             "include_preflight": include_preflight,
+            "include_semantic_context_gate": include_semantic_context_gate,
         }
     )
 
@@ -633,6 +636,42 @@ def orchestrator_preflight(_: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         **result,
         "parsed": _json_or_text(result.get("stdout", "")),
+    }
+
+
+def semantic_context_gate(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    project_id = str(arguments.get("project_id") or "").strip()
+    instruction = str(arguments.get("instruction") or "").strip()
+    max_results = int(arguments.get("max_results") or 8)
+
+    if not project_id:
+        return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
+    if not instruction:
+        return {"ok": False, "status": "error", "error": "instruction es obligatorio."}
+
+    result = _run_python_script(
+        [
+            "scripts/semantic_context_gate.py",
+            "--project",
+            project_id,
+            "--instruction",
+            instruction,
+            "--max-results",
+            str(max_results),
+            "--output",
+            "json",
+        ],
+        timeout=90,
+        max_output_chars=32768,
+    )
+    parsed = _json_or_text(result.get("stdout", ""))
+    return {
+        **result,
+        # returncode=2 is a valid gate decision (blocked_*), not a tool crash.
+        "ok": result.get("returncode") in {0, 2},
+        "parsed": parsed,
     }
 
 
@@ -3796,6 +3835,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     include_orchestrator_status = bool(arguments.get("include_orchestrator_status", True))
     include_preflight = bool(arguments.get("include_preflight", True))
+    include_semantic_context_gate = bool(arguments.get("include_semantic_context_gate", True))
 
 
     classified = _classify_general_instruction(instruction)
@@ -3957,6 +3997,30 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "next_question": "El working tree del proyecto objetivo no está limpio. Limpia/commit manualmente y reintenta (no se aplican stashes automáticamente).",
         }
 
+    # 4.05) Gate semantico de contexto: no depende de memoria humana.
+    semantic_gate: dict[str, Any] | None = None
+    semantic_gate_status: str | None = None
+    if include_semantic_context_gate and project_id:
+        sg_args = {"project_id": str(project_id), "instruction": instruction, "max_results": 8}
+        sg = semantic_context_gate(sg_args)
+        semantic_gate = sg.get("parsed") if isinstance(sg.get("parsed"), dict) else {"raw": sg.get("stdout"), "stderr": sg.get("stderr")}
+        semantic_gate_status = str(semantic_gate.get("status") or "") if isinstance(semantic_gate, dict) else None
+        tool_plan.append({"tool": "semantic_context_gate", "arguments": sg_args})
+
+        if semantic_gate_status and semantic_gate_status.startswith("blocked"):
+            return {
+                "ok": True,
+                "status": "blocked",
+                "blocked_by": "semantic_context_gate",
+                "instruction": instruction,
+                "classified": classified,
+                "project_id": project_id,
+                "semantic_context_gate": semantic_gate,
+                "tool_plan": tool_plan,
+                "next_frontier": "context_discovery",
+                "next_question": "El Semantic Context Gate no encontró contexto suficiente para avanzar con seguridad. Amplía lectura read-only o confirma una fuente contextual.",
+            }
+
     # 4.1) Onboarding documental/contextual (scaffold) — mínimo canónico.
     # Si el proyecto objetivo no tiene scaffold en docs/projects/<project_id>/, iniciarlo antes
     # de avanzar a ejecución o dispatch.
@@ -4084,6 +4148,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "premium" not in authorizations_required
         and "replit" not in authorizations_required
         and orchestrator_ready_to_advance
+        and semantic_gate_status not in {"needs_context_review"}
     )
 
     recommended_next_tool_call: dict[str, Any] | None = None
@@ -4108,6 +4173,12 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
 
     if safe_to_dispatch:
         next_frontier = "dispatch_opencode"
+    elif semantic_gate_status == "needs_context_review":
+        next_frontier = "review_semantic_context"
+        next_question = (
+            "Semantic Context Gate encontró referencias relevantes. Lee las fuentes top antes de editar "
+            "o despachar ejecución; luego reintenta con el contexto incorporado."
+        )
     elif not orchestrator_ready_to_advance:
         next_frontier = "fix_orchestrator"
         next_question = (
@@ -4130,6 +4201,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "recommended_model": recommended_model,
         "authorizations_required": authorizations_required,
         "next_frontier": next_frontier,
+        "semantic_context_gate_status": semantic_gate_status,
     }
 
     onboarding = _probe_project_onboarding(str(project_id or ""))
@@ -4196,6 +4268,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         },
         "escalation_decision": escalation,
         "authorizations_required": authorizations_required,
+        "semantic_context_gate": semantic_gate,
         "tool_plan": tool_plan,
         "recommended_next_tool_call": recommended_next_tool_call,
         "next_frontier": next_frontier,
@@ -4613,7 +4686,8 @@ TOOL_HANDLERS = {
 
     "plan_general_instruction": plan_general_instruction,
     "run_general_instruction_flow": run_general_instruction_flow,
-        "get_active_project": get_active_project,
+    "semantic_context_gate": semantic_context_gate,
+    "get_active_project": get_active_project,
     "set_active_project": set_active_project,
     "init_project_onboarding_scaffold": init_project_onboarding_scaffold,
 
