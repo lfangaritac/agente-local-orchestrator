@@ -121,7 +121,8 @@ Onboarding mínimo al vincular un proyecto:
 5) Decidir **executor**: Continue (contexto), OpenCode (validación/ejecución), Replit (entorno real), premium (seguridad/arquitectura/criticidad). Referencias: `MODEL_ROUTING.md`, `AGENT_ORCHESTRATION.md`.
 6) Identificar **autorizaciones requeridas** (premium/Replit/secrets/deployment/migraciones/destructivo/ampliación de alcance). Referencia: `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.
 7) Actuar solo dentro de la frontera segura; si se cruza umbral: **detenerse y preguntar**.
-8) Validar y cerrar con evidencia mínima + `next_frontier` **solo al final** (o al detectar bloqueo/umbral), sin dumps; por referencias. Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
+8) Si hubo Build/corrección relevante, evaluar si cambió contexto reutilizable del proyecto (rutas, reglas, tablas, integraciones, errores/fixes, fuentes obsoletas). Si hay señal clara, actualizar por referencias el índice semántico con `project_context_indexer` / `scripts/project_context_indexer.py --apply`; si no hay señal, no tocarlo.
+9) Validar y cerrar con evidencia mínima + `next_frontier` **solo al final** (o al detectar bloqueo/umbral), sin dumps; por referencias. Referencia: `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`.
 
 ### Aclaración: Plan vs comandos diagnósticos/read-only
 La política canónica de Plan/Build vive en `docs/protocols/AGENT_AUTOMATION_PROTOCOL.md#25`.

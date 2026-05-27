@@ -56,6 +56,7 @@ os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 ALLOWED_TOOLS = {
     "orchestrator_preflight",
     "semantic_context_gate",
+    "project_context_indexer",
     "select_agent_model",
     "build_handoff_package",
     "run_diagnostic_flow",
@@ -672,6 +673,31 @@ def semantic_context_gate(arguments: dict[str, Any] | None = None) -> dict[str, 
         # returncode=2 is a valid gate decision (blocked_*), not a tool crash.
         "ok": result.get("returncode") in {0, 2},
         "parsed": parsed,
+    }
+
+
+def project_context_indexer(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    arguments = arguments or {}
+
+    project_id = str(arguments.get("project_id") or "").strip()
+    apply = bool(arguments.get("apply", False))
+    if not project_id:
+        return {"ok": False, "status": "error", "error": "project_id es obligatorio."}
+
+    command = [
+        "scripts/project_context_indexer.py",
+        "--project",
+        project_id,
+        "--output",
+        "json",
+    ]
+    if apply:
+        command.append("--apply")
+
+    result = _run_python_script(command, timeout=120, max_output_chars=32768)
+    return {
+        **result,
+        "parsed": _json_or_text(result.get("stdout", "")),
     }
 
 
@@ -2276,6 +2302,7 @@ PROJECT_ONBOARDING_REQUIRED_FILES = [
 
     # Índices / auditoría / alertas (operación por referencias)
     "CONTEXT_INDEX.md",
+    "SEMANTIC_TAG_INDEX.md",
     "CODE_CONTEXT_MAP.md",
     "DOCUMENTATION_AUDIT.md",
     "CRITICAL_ALERTS.md",
@@ -2484,8 +2511,19 @@ def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) ->
             f"# CONTEXT_INDEX — {project_id}\n\n"
             "Índice de contexto por referencias (ver `docs/context/REFERENCE_BASED_CONTEXT_PROTOCOL.md`).\n\n"
             "## Documentación encontrada\n\n- (pendiente)\n\n"
+            "## Índice semántico\n\n- Ver: `SEMANTIC_TAG_INDEX.md`\n\n"
             "## Decisiones relevantes\n\n- (pendiente)\n\n"
             "## Runs / evidencia\n\n- (pendiente; referenciar por run_id + rutas)\n"
+        ),
+        "SEMANTIC_TAG_INDEX.md": (
+            f"# SEMANTIC_TAG_INDEX — {project_id}\n\n"
+            "Índice canónico de etiquetas semánticas del proyecto.\n\n"
+            "Reglas:\n"
+            "- No pegar dumps/logs; usar rutas y referencias.\n"
+            "- No duplicar documentación fuente; apuntar a ella.\n"
+            "- Actualizar solo cuando un avance cambie contexto reutilizable.\n\n"
+            "## Tags\n\n"
+            "- (pendiente; generar/actualizar con `scripts/project_context_indexer.py`)\n"
         ),
         "CODE_CONTEXT_MAP.md": (
             f"# CODE_CONTEXT_MAP — {project_id}\n\n"
@@ -3745,6 +3783,7 @@ def _collect_project_versioned_memory(*, project_id: str, level: int) -> dict[st
             "ERRORS_AND_FIXES.md",
             "CRITICAL_ALERTS.md",
             "LESSONS_LOCAL.md",
+            "SEMANTIC_TAG_INDEX.md",
             "HANDOFF_LOG.md",
             "SYNC_STATUS.md",
         )
@@ -3997,30 +4036,6 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "next_question": "El working tree del proyecto objetivo no está limpio. Limpia/commit manualmente y reintenta (no se aplican stashes automáticamente).",
         }
 
-    # 4.05) Gate semantico de contexto: no depende de memoria humana.
-    semantic_gate: dict[str, Any] | None = None
-    semantic_gate_status: str | None = None
-    if include_semantic_context_gate and project_id:
-        sg_args = {"project_id": str(project_id), "instruction": instruction, "max_results": 8}
-        sg = semantic_context_gate(sg_args)
-        semantic_gate = sg.get("parsed") if isinstance(sg.get("parsed"), dict) else {"raw": sg.get("stdout"), "stderr": sg.get("stderr")}
-        semantic_gate_status = str(semantic_gate.get("status") or "") if isinstance(semantic_gate, dict) else None
-        tool_plan.append({"tool": "semantic_context_gate", "arguments": sg_args})
-
-        if semantic_gate_status and semantic_gate_status.startswith("blocked"):
-            return {
-                "ok": True,
-                "status": "blocked",
-                "blocked_by": "semantic_context_gate",
-                "instruction": instruction,
-                "classified": classified,
-                "project_id": project_id,
-                "semantic_context_gate": semantic_gate,
-                "tool_plan": tool_plan,
-                "next_frontier": "context_discovery",
-                "next_question": "El Semantic Context Gate no encontró contexto suficiente para avanzar con seguridad. Amplía lectura read-only o confirma una fuente contextual.",
-            }
-
     # 4.1) Onboarding documental/contextual (scaffold) — mínimo canónico.
     # Si el proyecto objetivo no tiene scaffold en docs/projects/<project_id>/, iniciarlo antes
     # de avanzar a ejecución o dispatch.
@@ -4092,6 +4107,32 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             },
             "followup_scheme_template": _build_followup_scheme(run_id=None),
         }
+
+    # 4.2) Gate semantico de contexto: no depende de memoria humana.
+    # Se ejecuta despues del onboarding mínimo: si faltan índices base, la frontera correcta
+    # es onboarding_required, no context_discovery.
+    semantic_gate: dict[str, Any] | None = None
+    semantic_gate_status: str | None = None
+    if include_semantic_context_gate and project_id:
+        sg_args = {"project_id": str(project_id), "instruction": instruction, "max_results": 8}
+        sg = semantic_context_gate(sg_args)
+        semantic_gate = sg.get("parsed") if isinstance(sg.get("parsed"), dict) else {"raw": sg.get("stdout"), "stderr": sg.get("stderr")}
+        semantic_gate_status = str(semantic_gate.get("status") or "") if isinstance(semantic_gate, dict) else None
+        tool_plan.append({"tool": "semantic_context_gate", "arguments": sg_args})
+
+        if semantic_gate_status and semantic_gate_status.startswith("blocked"):
+            return {
+                "ok": True,
+                "status": "blocked",
+                "blocked_by": "semantic_context_gate",
+                "instruction": instruction,
+                "classified": classified,
+                "project_id": project_id,
+                "semantic_context_gate": semantic_gate,
+                "tool_plan": tool_plan,
+                "next_frontier": "context_discovery",
+                "next_question": "El Semantic Context Gate no encontró contexto suficiente para avanzar con seguridad. Amplía lectura read-only o confirma una fuente contextual.",
+            }
 
     # 5) Routing: seleccionar agente/modelo a partir de escenario/riesgo/volumen
 
@@ -4687,6 +4728,7 @@ TOOL_HANDLERS = {
     "plan_general_instruction": plan_general_instruction,
     "run_general_instruction_flow": run_general_instruction_flow,
     "semantic_context_gate": semantic_context_gate,
+    "project_context_indexer": project_context_indexer,
     "get_active_project": get_active_project,
     "set_active_project": set_active_project,
     "init_project_onboarding_scaffold": init_project_onboarding_scaffold,

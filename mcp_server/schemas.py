@@ -50,6 +50,26 @@ TOOL_SCHEMAS = [
         },
     },
     {
+        "name": "project_context_indexer",
+        "description": "Construye o actualiza el SEMANTIC_TAG_INDEX.md canónico de un proyecto usando lectura acotada de docs/codigo por referencias.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "project_id": {
+                    "type": "string",
+                    "description": "project_id registrado en PROJECT_REGISTRY.md.",
+                },
+                "apply": {
+                    "type": "boolean",
+                    "description": "Si true, escribe docs/projects/<project-id>/SEMANTIC_TAG_INDEX.md cuando hay cambios. Si false, solo reporta.",
+                    "default": False,
+                },
+            },
+            "required": ["project_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "select_agent_model",
         "description": "Selecciona de forma diagnóstica agente/modelo según escenario, riesgo y volumen.",
         "inputSchema": {

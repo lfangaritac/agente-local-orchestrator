@@ -2,6 +2,10 @@
 
 Indice de contexto por referencias. No reemplaza fuentes originales.
 
+## Semantic Tag Index
+
+- `SEMANTIC_TAG_INDEX.md`: indice canonico de etiquetas semanticas del proyecto. Fuente prioritaria para `semantic_context_gate` antes de busqueda libre.
+
 ## Documentacion encontrada
 
 - `README.md`: quick start, endpoints iniciales, variables base y despliegue Replit/Azure.
@@ -28,4 +32,3 @@ Indice de contexto por referencias. No reemplaza fuentes originales.
 
 - `git status -sb` en repo objetivo: limpio tras clonacion.
 - `git status -sb` en orquestador: cambios esperados en registry y scaffold.
-

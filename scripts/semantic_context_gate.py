@@ -21,6 +21,7 @@ REGISTRY = ROOT / "PROJECT_REGISTRY.md"
 STOPWORDS = {
     "analiza",
     "analizar",
+    "app",
     "cada",
     "como",
     "contexto",
@@ -44,6 +45,8 @@ STOPWORDS = {
     "sobre",
     "todo",
     "todos",
+    "usando",
+    "user",
     "and",
     "for",
     "from",
@@ -101,6 +104,7 @@ class Match:
     score: int
     matched_terms: list[str]
     snippets: list[str]
+    source_type: str = "free_search"
 
 
 def parse_registry(path: Path) -> dict[str, Project]:
@@ -205,6 +209,59 @@ def candidate_files(project: Project) -> list[Path]:
     return sorted(candidates.values(), key=lambda p: str(p).lower())
 
 
+def priority_files(project: Project) -> list[Path]:
+    if project.project_id == "orchestrator":
+        return []
+    docs_dir = ROOT / "docs" / "projects" / project.project_id
+    names = (
+        "SEMANTIC_TAG_INDEX.md",
+        "CONTEXT_INDEX.md",
+        "CODE_CONTEXT_MAP.md",
+        "DOCUMENTATION_AUDIT.md",
+        "PROJECT_RESUME.md",
+        "CURRENT_FRONTIER.md",
+        "ERRORS_AND_FIXES.md",
+    )
+    return [docs_dir / name for name in names if (docs_dir / name).exists()]
+
+
+def score_semantic_tag_index(path: Path, terms: list[str]) -> list[Match]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")[:250_000]
+    except OSError:
+        return []
+
+    blocks = re.split(r"(?m)^###\s+", text)
+    matches: list[Match] = []
+    for block in blocks[1:]:
+        lines = block.splitlines()
+        if not lines:
+            continue
+        tag = lines[0].strip()
+        body = "\n".join(lines[1:])
+        signals_match = re.search(r"(?m)^-\s*signals:\s*(.+)$", body.lower())
+        signal_terms = set(re.findall(r"`([^`]+)`", signals_match.group(1) if signals_match else ""))
+        primary_haystack = " ".join([tag.lower(), *sorted(signal_terms)])
+        full_haystack = f"{primary_haystack}\n{body.lower()}"
+        matched = [term for term in terms if term in primary_haystack]
+        if not matched:
+            continue
+        critical_boost = 80 if "critical_before_build" in full_haystack else 40
+        score = 420 + critical_boost + sum(full_haystack.count(term) for term in matched)
+        snippets = [f"tag: {tag}"]
+        snippets.extend(line_snippets(body, matched, max_snippets=2))
+        matches.append(
+            Match(
+                path=str(path),
+                score=score,
+                matched_terms=matched[:20],
+                snippets=snippets,
+                source_type="semantic_tag_index",
+            )
+        )
+    return matches
+
+
 def line_snippets(text: str, terms: list[str], max_snippets: int = 3) -> list[str]:
     snippets: list[str] = []
     lowered_terms = [term.lower() for term in terms]
@@ -276,6 +333,20 @@ def build_report(project_id: str, instruction: str, max_results: int) -> dict:
         project = parse_registry(REGISTRY).get(project_id)
     terms = infer_terms(instruction)
     if not project:
+        docs_dir = ROOT / "docs" / "projects" / project_id
+        if docs_dir.exists():
+            project = Project(project_id=project_id)
+        else:
+            return {
+                "status": "blocked_missing_project",
+                "project_id": project_id,
+                "instruction": instruction,
+                "terms": terms,
+                "matches": [],
+                "message": f"Project not found in {REGISTRY}",
+            }
+
+    if not project:
         return {
             "status": "blocked_missing_project",
             "project_id": project_id,
@@ -285,11 +356,24 @@ def build_report(project_id: str, instruction: str, max_results: int) -> dict:
             "message": f"Project not found in {REGISTRY}",
         }
 
-    matches = [
-        match
-        for path in candidate_files(project)
-        if (match := score_file(path, terms)) is not None
-    ]
+    priority = priority_files(project)
+    priority_keys = {str(path.resolve()).lower() for path in priority}
+    matches: list[Match] = []
+
+    for path in priority:
+        if path.name == "SEMANTIC_TAG_INDEX.md":
+            matches.extend(score_semantic_tag_index(path, terms))
+        elif (match := score_file(path, terms)) is not None:
+            match.source_type = "project_context_index"
+            match.score += 60
+            matches.append(match)
+
+    for path in candidate_files(project):
+        if str(path.resolve()).lower() in priority_keys:
+            continue
+        if (match := score_file(path, terms)) is not None:
+            matches.append(match)
+
     matches.sort(key=lambda item: item.score, reverse=True)
     top = matches[:max_results]
 

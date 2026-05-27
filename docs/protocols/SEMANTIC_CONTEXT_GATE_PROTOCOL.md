@@ -32,12 +32,14 @@ No es necesario para respuestas conversacionales simples sin accion sobre reposi
    - verbos de accion que aumenten riesgo (`corrige`, `implementa`, `push`, `migra`, `deploy`, `diagnostica`).
 
 2. Construir el corpus compacto:
+   - índice semántico canónico del proyecto: `docs/projects/<project_id>/SEMANTIC_TAG_INDEX.md`;
    - indices locales del orquestador para el proyecto: `docs/projects/<project_id>/*.md`;
    - documentacion principal registrada en `PROJECT_REGISTRY.md`;
    - `README.md`, `replit.md`, `docs/**/*.md`, `.agents/**/*.md` del repo objetivo cuando exista ruta local;
    - excluir secrets, `.env`, artefactos voluminosos, logs y salidas generadas.
 
 3. Puntuar referencias:
+   - primero bloques de `SEMANTIC_TAG_INDEX.md` que coincidan con señales de la instrucción;
    - boost por coincidencia en ruta/nombre de archivo;
    - boost por identificadores exactos;
    - conteo de terminos en contenido;
@@ -70,6 +72,14 @@ python scripts\semantic_context_gate.py --project embajadores-backend --instruct
 ```
 
 Salida esperada: estado, terminos inferidos, referencias top, snippets y decision de suficiencia.
+
+El índice semántico se construye/actualiza con:
+
+```powershell
+python scripts\project_context_indexer.py --project embajadores-backend --apply
+```
+
+`--apply` es explícito: sin ese flag, la herramienta solo reporta si habría cambios.
 
 ## Regla operativa
 

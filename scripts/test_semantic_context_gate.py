@@ -21,8 +21,11 @@ def test_gate_finds_voiceflow_identity_context() -> None:
     )
 
     assert report["status"] == "needs_context_review"
+    assert report["matches"][0]["source_type"] == "semantic_tag_index"
+    assert "semantic_tag_index.md" in report["matches"][0]["path"].replace("\\", "/").lower()
     paths = [str(match["path"]).replace("\\", "/").lower() for match in report["matches"]]
     joined = "\n".join(paths)
+    assert "tag: voiceflow.identity" in "\n".join(report["matches"][0]["snippets"]).lower()
     assert "docs/technical_documentation.md" in joined
     assert ".agents/skills/voiceflow-project-rules/skill.md" in joined
 

@@ -259,6 +259,18 @@ Debe incluir:
 - zonas que Continue puede revisar para contexto;
 - zonas que no deben tocarse sin autorización.
 
+## 11.1 Fase 7b — Índice semántico canónico
+
+Debe generarse o actualizarse `SEMANTIC_TAG_INDEX.md` cuando existan señales reutilizables de contexto.
+
+Este índice vive en `docs/projects/<project-id>/` y es la fuente prioritaria del Semantic Context Gate. Debe contener etiquetas, señales, criticidad, vigencia y fuentes por referencia, sin duplicar documentación ni pegar dumps.
+
+La herramienta inicial es read-only contra el proyecto objetivo y solo escribe el índice con autorización explícita:
+
+`python scripts\project_context_indexer.py --project <project-id> --apply`
+
+El índice debe actualizarse después de avances relevantes solo si el cambio afecta contexto reutilizable: nuevas rutas, decisiones, errores/fixes, integraciones, tablas, reglas locales o fuentes obsoletas.
+
 ## 12. Fase 8 — Contrastación documentación-código
 
 Debe ejecutarse una contrastación inicial entre documentación y código.

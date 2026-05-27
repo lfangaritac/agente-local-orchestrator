@@ -12,6 +12,7 @@ Fase v0.1. Implementación inicial segura.
 
 - `orchestrator_preflight`
 - `semantic_context_gate`
+- `project_context_indexer`
 - `operational_status`
 - `verify_master_files`
 - `resolve_target_project`
