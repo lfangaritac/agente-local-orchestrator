@@ -71,8 +71,30 @@ local_path: C:\Users\murfe\source\repos\embajadores-backend
 stack_detectado: Python 3.11 Flask/Gunicorn + React/Vite admin portal + MySQL/Azure/Replit integrations
 documentación_principal: README.md, replit.md, docs/TECHNICAL_DOCUMENTATION.md, frontend/src/app/api/APIContract.md
 código_fuente_relevante: main.py, app.py, db.py, env_loader.py, whatsapp_webhook.py, voiceflow_client.py, routes/, services/, frontend/
-estado_sincronización: initial_analysis_completed
+estado_sincronización: synced_to_88291e9_post_replit_dual_whatsapp_senders
 alertas_críticas: docs/projects/embajadores-backend/CRITICAL_ALERTS.md
 lecciones_locales: docs/projects/embajadores-backend/LESSONS_LOCAL.md
-último_análisis: 2026-05-26
+último_análisis: 2026-06-02
+responsable: unknown
+
+### riskmanager-compliance
+
+project_id: riskmanager-compliance
+nombre_canónico: RiskManager Compliance
+alias_permitidos: riskmanager, riskmanager-compliance, risk-manager-compliance, riskmanagercompliance
+ruta_local: C:\Users\murfe\source\repos\Riskmanagercompliance
+repositorio_remoto: https://github.com/lfangaritac/Riskmanagercompliance.git
+origen: github
+environment_type: github
+repo_url: https://github.com/lfangaritac/Riskmanagercompliance.git
+replit_workspace_path:
+replit_join_url:
+local_path: C:\Users\murfe\source\repos\Riskmanagercompliance
+stack_detectado: pnpm workspace; Node.js 24; TypeScript 5.9; React 18 + Vite + Tailwind v4 + shadcn/ui; Express 5 API; PostgreSQL + Drizzle ORM; OpenAPI/Orval/Zod
+documentación_principal: replit.md, package.json, pnpm-workspace.yaml, lib/api-spec/openapi.yaml
+código_fuente_relevante: artifacts/grc/src/app/, artifacts/api-server/src/routes/, lib/db/src/schema/, lib/api-spec/openapi.yaml, lib/api-client-react/, lib/api-zod/
+estado_sincronización: cloned_clean_main_b8220e7
+alertas_críticas: docs/projects/riskmanager-compliance/CRITICAL_ALERTS.md
+lecciones_locales: docs/projects/riskmanager-compliance/LESSONS_LOCAL.md
+último_análisis: 2026-05-29
 responsable: unknown

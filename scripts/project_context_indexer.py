@@ -66,6 +66,38 @@ TAG_RULES: dict[str, dict[str, set[str]]] = {
         "required_any": {"reporte", "report", "informes", "especial", "special"},
         "signals": {"usuarioespecialid", "usuarios_especiales", "special_users", "permitewhatsapp", "especial", "reportes"},
     },
+    "training.flow": {
+        "required_any": {"formacion", "modulo", "recurso", "pregunta"},
+        "signals": {"siguiente_elemento", "registrar_evento", "validar_respuesta", "avance", "finalizado", "porcentaje"},
+    },
+    "faq.questions": {
+        "required_any": {"faq", "preguntas", "pregunta"},
+        "signals": {"faq", "preguntas", "respuesta_pregunta", "faq_siguiente", "preguntas_escritas"},
+    },
+    "football.challenge": {
+        "required_any": {"futbol", "jornada", "pronostico", "ranking"},
+        "signals": {"futbol", "jornada", "pronostico", "ranking", "premios", "recalcular", "puntajes"},
+    },
+    "retos.sync": {
+        "required_any": {"retos-sync", "retoidexterno", "retos_ciclos", "retos_seguimiento", "puntos colombia"},
+        "signals": {"retos-sync", "retoidexterno", "retos_cargas_audit", "retos_ciclos", "retos_seguimiento", "retos_ganadores", "api push", "sftp", "azure blob", "puntos colombia", "fecha_corte", "fechacorte"},
+    },
+    "mrp.content": {
+        "required_any": {"mrp", "modulo", "recurso", "aliado"},
+        "signals": {"mrp", "mrp_aliado", "moduloid", "recursoid", "contenido", "upload", "migracion"},
+    },
+    "voiceflow.sync": {
+        "required_any": {"voiceflow", "vf", "snapshot", "api-steps"},
+        "signals": {"sync", "snapshot", "api_steps", "diagnostics", "diff", "project-published", "normalizer"},
+    },
+    "ai.agentic_reports": {
+        "required_any": {"agentic", "openai", "consulta", "query"},
+        "signals": {"agentic", "openai", "query", "consulta", "intent", "sql", "report_spec"},
+    },
+    "admin.portal": {
+        "required_any": {"frontend", "react", "vite", "portal", "admin"},
+        "signals": {"admin", "portal", "usuarios", "aliados", "analytics", "reportes", "comunicaciones"},
+    },
     "db.mysql": {
         "required_any": {"mysql", "sql", "db", "database"},
         "signals": {"mysql", "azure", "migration", "migracion", "insert", "select", "table", "tabla"},
@@ -76,11 +108,11 @@ TAG_RULES: dict[str, dict[str, set[str]]] = {
     },
     "frontend.risk_module": {
         "required_any": {"frontend", "react", "vite"},
-        "signals": {"risk", "riesgo", "riesgos", "aip"},
+        "signals": {"risk_module", "aip", "privacy_risk", "riesgo_privacidad"},
     },
     "privacy.aip.risks": {
-        "required_any": {"privacy", "privacidad", "aip", "pii", "datos"},
-        "signals": {"privacy", "privacidad", "aip", "pii", "datos_personales", "riesgos"},
+        "required_any": {"privacy", "privacidad", "aip", "pii", "datos_personales"},
+        "signals": {"privacy", "privacidad", "aip", "pii", "datos_personales", "riesgo_privacidad"},
     },
     "replit.deployment": {
         "required_any": {"replit", "deployment", "deploy", "gunicorn"},
@@ -154,6 +186,8 @@ def _score_tag(tokens: set[str], rule: dict[str, set[str]]) -> tuple[int, set[st
 def _criticality(tag: str) -> str:
     if tag in {"voiceflow.identity", "auth.jwt", "reports.special_users", "privacy.aip.risks"}:
         return "critical_before_build"
+    if tag in {"training.flow", "football.challenge", "mrp.content", "ai.agentic_reports"}:
+        return "recommended_for_plan"
     if tag.startswith("db.") or tag.startswith("replit."):
         return "critical_before_build"
     return "recommended_for_plan"

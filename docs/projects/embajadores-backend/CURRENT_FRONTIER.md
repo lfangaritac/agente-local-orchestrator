@@ -1,7 +1,7 @@
 # CURRENT_FRONTIER - embajadores-backend
 
-- last_updated: `2026-05-26`
-- status: `in_progress`
+- last_updated: `2026-05-28`
+- status: `context_onboarding_v1_ready`
 
 ## Instruccion/objetivo agotado
 
@@ -20,9 +20,9 @@
 
 ## Umbral actual
 
-- blocking_threshold: `authorization_required`
+- blocking_threshold: `runtime_or_security_authorization_required`
 - why_blocked:
-  - El HEAD local actual (`a71fa8687c9c928e3b0701394bbaaefdbcad2be8`) ya no coincide con el ultimo HEAD revisado originalmente (`a0215e92792684bf2a1b903034bb1da99e78ed6a`); se requiere resincronizacion contextual antes de cambios.
+  - El onboarding contextual queda sincronizado hasta `ffb8f3cd76e87601a0487b2043a7e3ff209ed0cf`, pero no sustituye validacion runtime ni decisiones de implementacion.
   - `.env.example` contiene valores aparentemente reales; no debe copiarse ni enviarse a handoffs/modelos externos y requiere saneamiento/rotacion autorizada.
   - Validaciones mas profundas pueden requerir ejecucion de Python/pytest y potencialmente import de app con side effects de bootstrap.
   - Cualquier ejecucion con DB/WhatsApp/Voiceflow/Pinecone/OpenAI/Azure necesita entorno seguro y secrets sin exponer.
@@ -30,10 +30,10 @@
 
 ## Proxima accion recomendada
 
-- next_action: primero resincronizar cambios desde `a0215e92792684bf2a1b903034bb1da99e78ed6a` hasta `a71fa8687c9c928e3b0701394bbaaefdbcad2be8`; luego sanear/rotar secrets de `.env.example` con autorizacion; despues ejecutar validaciones no destructivas.
+- next_action: para cualquier nueva instruccion, ejecutar `semantic_context_gate`, leer fuentes top y decidir Plan/Build. Para retos periodicos/Puntos Colombia, leer `docs/retos-sync/*` y tratarlo como diagnostico/propuesta hasta autorizacion de diseno/Build. Sanear/rotar secrets expuestos antes de usar entorno real.
 - requires_user_action: si, autorizar comandos concretos.
 - suggested_agent: `OpenCode context-validator`
-- suggested_model_line: `Go` para resincronizacion read-only; seguridad/secrets requiere revision humana y posible premium si se prepara remediacion de historial.
+- suggested_model_line: `Go` para validacion read-only y cambios acotados; seguridad/secrets requiere revision humana y posible premium si se prepara remediacion de historial.
 
 ## Referencias
 
@@ -89,3 +89,20 @@
   - `python -m pytest tests/test_resolver_celular_destino.py tests/test_ue_session_persistence.py -q` -> `11 passed`.
   - `python -m pytest tests -q` -> `54 passed, 1 skipped`.
   - `python -m pytest -q` -> falla por `_scripts/test_*` que intentan Azure MySQL/engine real; no atribuible al hotfix.
+
+## Retoma onboarding contexto 2026-05-27
+
+- estado: `context_onboarding_v1_ready`
+- HEAD objetivo detectado/revisado: `2812ff05d88d06b0e03511ecdee974c2bb442e14`.
+- `semantic_context_gate` ejecutado para la instruccion de retoma; fuentes top: `SEMANTIC_TAG_INDEX.md`, `PROJECT_RESUME.md`, `CURRENT_FRONTIER.md`, `CODE_CONTEXT_MAP.md`, `DOCUMENTATION_AUDIT.md`, `docs/TECHNICAL_DOCUMENTATION.md` y `.agents/skills/voiceflow-project-rules/SKILL.md`.
+- `project_context_indexer` ejecutado en modo read-only; resultado: 13 tags, `changed: False`.
+- siguiente frontera segura: operar por referencias y lectura focalizada; no hacer Build funcional, runtime, migraciones, deploy, endpoints de envio ni manejo de secrets sin autorizacion.
+
+## Sincronizacion post-pull retos-sync 2026-05-28
+
+- estado: `synced_to_ffb8f3c_context_retoma`
+- HEAD objetivo detectado/revisado: `ffb8f3cd76e87601a0487b2043a7e3ff209ed0cf`.
+- rango incorporado: 27 commits desde `2812ff0`; incluye docs `docs/retos-sync/*`, ajustes futbol, refresco UE session desde webhook, script de envio WhatsApp programado y assets adjuntos.
+- `semantic_context_gate` para retoma post-pull: fuentes top `docs/retos-sync/propuesta_tecnica_integracion_retos.md`, `03_alternativas_integracion.md`, `07_plan_habilitacion.md`, `CURRENT_FRONTIER.md`, `CODE_CONTEXT_MAP.md`, `CONTEXT_INDEX.md`.
+- `project_context_indexer --apply`: 14 tags; nuevo tag `retos.sync`; se ajustaron reglas para evitar falsos positivos de tags AIP/privacy.
+- PDF adjunto identificado en Downloads; no extraido por falta de parser PDF local. Usar como insumo complementario y preferir Markdown versionado para trazabilidad.

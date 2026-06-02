@@ -51,3 +51,21 @@ Alertas criticas locales iniciales.
 - do_not_do: no copiar, citar, pegar, resumir valores, enviar a modelos externos ni tratar `.env.example` como plantilla saneada.
 - required_check: rotar/revocar credenciales afectadas si aplican, reemplazar por placeholders antes de difundir, y revisar historial Git si se va a sanear el repositorio.
 - source: retoma local 2026-05-26; lectura controlada de `.env.example` sin reproducir valores.
+
+## ALERT-EMB-007 - Secrets expuestos durante sesion local
+
+- severity: `critical`
+- scope: `security`
+- trigger: cualquier uso futuro de Meta, Voiceflow, DB, Pinecone, Azure Storage, GitHub PAT o variables copiadas durante la sesion 2026-05-28.
+- do_not_do: no reutilizar tokens/passwords/connection strings pegados en chat, buffers del editor o scripts temporales; no commitear scripts con valores reales.
+- required_check: rotar/revocar credenciales expuestas antes de operacion productiva; mantener scripts de entorno como plantillas sin valores reales o usar gestores de secrets.
+- source: sesion local 2026-05-28; archivo temporal `scripts/set_embajadores_env_template.ps1` eliminado del orquestador tras cumplir su finalidad.
+
+## ALERT-EMB-008 - Script de envio WhatsApp programado tiene side effects externos
+
+- severity: `critical`
+- scope: `operations`
+- trigger: `_scripts/envio_10_30_bogota.py` o cualquier envio con templates `lanzamiento_reto_solo_texto` y `opcion2`.
+- do_not_do: no ejecutar el script sin destinatarios confirmados, horario confirmado, autorizacion humana, secrets Meta seguros y verificacion de que `opcion2` se envia como imagen inline.
+- required_check: revisar destinatarios, templates, `IMAGE_URL`, zona horaria `America/Bogota`, logs y tasa de envio; confirmar que no es una prueba contra usuarios reales no autorizados.
+- source: pull `ffb8f3c`; `_scripts/envio_10_30_bogota.py`.
