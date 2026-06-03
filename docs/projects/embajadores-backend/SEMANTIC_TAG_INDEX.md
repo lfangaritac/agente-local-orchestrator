@@ -61,9 +61,9 @@ Rules:
   - `README.md` (doc; score=28; signals=`azure`, `database`, `db`, `migration`, `mysql`, `select`, `sql`)
   - `app.py` (code; score=28; signals=`azure`, `database`, `db`, `insert`, `mysql`, `select`, `sql`)
   - `svc.py` (code; score=28; signals=`database`, `db`, `insert`, `mysql`, `select`, `sql`, `table`)
+  - `docs/TECHNICAL_DOCUMENTATION.md` (doc; score=27; signals=`azure`, `db`, `insert`, `mysql`, `sql`, `tabla`, `table`)
   - `auth_web.py` (code; score=27; signals=`db`, `insert`, `mysql`, `select`, `sql`, `tabla`, `table`)
   - `routes/futbol_routes.py` (code; score=27; signals=`db`, `insert`, `mysql`, `select`, `sql`, `tabla`, `table`)
-  - `docs/TECHNICAL_DOCUMENTATION.md` (doc; score=24; signals=`azure`, `db`, `insert`, `mysql`, `sql`, `tabla`)
 
 ### faq.questions
 - criticality: `recommended_for_plan`
@@ -90,8 +90,8 @@ Rules:
   - `README.md` (doc; score=21; signals=`futbol`, `jornada`, `pronostico`)
   - `tests/test_futbol_endpoints.py` (test; score=21; signals=`futbol`, `jornada`, `pronostico`)
   - `routes/admin_usuarios_routes.py` (code; score=14; signals=`futbol`, `pronostico`)
-  - `docs/retos-sync/04_modelo_canonico_datos.md` (doc; score=7; signals=`ranking`)
-  - `docs/retos-sync/05_endpoints_servicios_propuestos.md` (doc; score=7; signals=`ranking`)
+  - `docs/TECHNICAL_DOCUMENTATION.md` (doc; score=7; signals=`futbol`)
+  - `docs/retos-sync/01_inventario_backend_actual.md` (doc; score=7; signals=`futbol`)
 
 ### mrp.content
 - criticality: `recommended_for_plan`
@@ -200,7 +200,7 @@ Rules:
   - `whatsapp_webhook.py` (code; score=39; signals=`delivery`, `document`, `documento`, `entrega`, `enviar`, `reporte`, `send`, `telefono`, `wa_from`, `wa_id`)
   - `routes/special_reports_routes.py` (code; score=35; signals=`delivery`, `document`, `documento`, `entrega`, `enviar`, `reporte`, `send`, `telefono`, `wa_from`, `whatsapp`)
   - `.agents/skills/voiceflow-project-rules/SKILL.md` (doc; score=33; signals=`document`, `documento`, `entrega`, `enviar`, `reporte`, `telefono`, `wa_from`, `wa_id`, `whatsapp`)
-  - `replit.md` (doc; score=23; signals=`delivery`, `document`, `reporte`, `telefono`, `wa_from`, `whatsapp`)
+  - `replit.md` (doc; score=26; signals=`delivery`, `document`, `reporte`, `send`, `telefono`, `wa_from`, `whatsapp`)
   - `message_router.py` (code; score=23; signals=`delivery`, `entrega`, `enviar`, `send`, `wa_from`, `whatsapp`)
   - `decorators/require_auth_especial.py` (code; score=21; signals=`document`, `documento`, `wa_from`, `wa_id`, `whatsapp`)
   - `db.py` (code; score=20; signals=`delivery`, `entrega`, `telefono`, `wa_from`, `whatsapp`)

@@ -7,7 +7,7 @@
 - head_reviewed: `88291e9`
 - current_head_detected: `88291e9`
 - last_sync: `2026-06-02`
-- sync_type: `post_pull_replit_dual_whatsapp_senders`
+- sync_type: `post_docs_update_dual_whatsapp_senders`
 - agent: `Codex`
 - status: `parcialmente_listo`
 
@@ -18,6 +18,7 @@
 - Codigo: `main.py`, `app.py`, `db.py`, `env_loader.py`, `whatsapp_webhook.py`, `voiceflow_client.py`, inventario de `routes/`, `services/`, `repositories/`, `tests/`.
 - Retoma post-pull: `docs/retos-sync/*`, `_scripts/envio_10_30_bogota.py`, `routes/futbol_routes.py`, `whatsapp_webhook.py`, `services/ue_session_service.py`, `tests/test_ue_webhook_session.py`.
 - Cambio reciente validado: `a9e5efb Support dual WhatsApp senders for Embajadores`, posteriormente sincronizado por fast-forward hasta `88291e9 Merge remote-tracking branch 'origin/main'`.
+- Documentacion reciente actualizada: `docs/TECHNICAL_DOCUMENTATION.md`, `replit.md`, `docs/retos-sync/01_inventario_backend_actual.md` para politica `EMBAJADORES_PRIMARY` / `EMBAJADORES_LEGACY`.
 
 ## Estado Git
 
@@ -35,6 +36,7 @@
 - Decidir tratamiento de archivos no trackeados del sistema de agentes en el repo objetivo.
 - Mantener `semantic_context_gate` como primer paso de toda nueva instruccion sobre Embajadores.
 - Para tareas de WhatsApp, usar tag `whatsapp.delivery` y revisar `whatsapp_webhook.py`, `app.py` y scripts proactivos antes de modificar.
+- Versionar cambios documentales de Embajadores cuando se autorice commit/push.
 - Si la tarea menciona retos periodicos, Puntos Colombia, API Push, SFTP/MFT, Azure Blob, ganadores o auditoria de cargas, usar tag `retos.sync` y leer `docs/retos-sync/*` antes de planificar.
 - Sanear `.env.example` y rotar/revocar credenciales si aplican, con autorizacion humana.
 - Ejecutar validaciones no destructivas autorizadas.

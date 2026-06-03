@@ -209,3 +209,30 @@
 - pendientes:
   - revisar si los commits remotos posteriores agregaron validaciones/runtime relevantes para los dos senders.
   - decidir tratamiento de `routes/futbol_routes.py` local antes de futuras operaciones Git sensibles.
+
+## Actualizacion documentacion doble sender WhatsApp - 2026-06-02
+
+- agente_emisor: `Codex`
+- agente_receptor_sugerido: `Continue/Codex + OpenCode context-validator`
+- objetivo: actualizar documentacion relevante de `embajadores-backend` para reflejar el soporte de dos senders WhatsApp de Embajadores y la separacion con Summum.
+- proyecto_objetivo: `embajadores-backend`
+- contexto_previo:
+  - `semantic_context_gate` para la instruccion documental -> `status: ok`.
+  - tag principal consultado: `whatsapp.delivery`.
+  - repo objetivo ya sincronizado hasta `88291e9`.
+- archivos_actualizados:
+  - `docs/TECHNICAL_DOCUMENTATION.md`
+  - `replit.md`
+  - `docs/retos-sync/01_inventario_backend_actual.md`
+- cambios_documentados:
+  - `EMBAJADORES_PRIMARY` como sender actual/default usando `META_WA_*`.
+  - `EMBAJADORES_LEGACY` como sender opcional usando `EMBAJADORES_WA_LEGACY_*`.
+  - `SUMMUM_WA_ENABLED=false` como default; Summum solo enrutable si se habilita explicitamente.
+  - politica de salida: inbound responde por el mismo sender; proactivos usan `get_default_sender_config()`; campañas pueden pasar `sender_label` o `project_config`.
+  - endpoints/scripts proactivos sender-aware: `/enviar-plantilla`, `/enviar-plantilla-masivo`, `/internal/broadcast-reto-trimestral`, `_scripts/broadcast_reto_trimestral.py`, `_scripts/envio_10_30_bogota.py`, `_scripts/enviar_reto_futbolero_one_off.py`.
+- validacion:
+  - `git diff --check -- docs/TECHNICAL_DOCUMENTATION.md replit.md docs/retos-sync/01_inventario_backend_actual.md` -> sin errores.
+  - `project_context_indexer --apply` -> `changed: True`, `SEMANTIC_TAG_INDEX.md` actualizado.
+- pendientes:
+  - versionar cambios documentales del repo objetivo si se autoriza commit/push.
+  - conservar fuera de este cambio `routes/futbol_routes.py`, que sigue como modificacion local ajena.
