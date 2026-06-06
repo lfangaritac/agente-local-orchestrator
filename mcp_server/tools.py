@@ -2551,7 +2551,128 @@ def _build_standard_project_context_pack(
     }
 
 
+def _get_context_pack_ref_by_role(context_pack: dict[str, Any], role: str) -> dict[str, Any] | None:
+    refs = context_pack.get("refs") if isinstance(context_pack, dict) else None
+    if not isinstance(refs, list):
+        return None
+    for r in refs:
+        if isinstance(r, dict) and str(r.get("role") or "") == role:
+            return r
+    return None
+
+
+def _looks_like_stub_markdown(text: str | None) -> bool:
+    t = (text or "").strip().lower()
+    if not t:
+        return True
+
+    stub_markers = (
+        "(pendiente)",
+        "instruction_summary: (1 línea",
+        "instruction_summary: (1 linea",
+        "next_action: (1 línea",
+        "next_action: (1 linea",
+        "status: `unknown",
+        "status: unknown",
+    )
+    return any(m in t for m in stub_markers)
+
+
+def _parse_current_frontier_preview(preview: str | None) -> dict[str, Any]:
+    t = (preview or "").replace("\r\n", "\n")
+    out: dict[str, Any] = {
+        "status": None,
+        "blocking_threshold": None,
+        "next_action": None,
+        "requires_user_action": None,
+    }
+
+    def _extract(pattern: str) -> str | None:
+        m = re.search(pattern, t, flags=re.IGNORECASE | re.MULTILINE)
+        if not m:
+            return None
+        v = (m.group(1) or "").strip()
+        return v or None
+
+    out["status"] = _extract(r"^-\s*status:\s*`?([^`\n]+)`?\s*$")
+    out["blocking_threshold"] = _extract(r"^-\s*blocking_threshold:\s*`?([^`\n]+)`?\s*$")
+    out["next_action"] = _extract(r"^-\s*next_action:\s*(.+?)\s*$")
+    out["requires_user_action"] = _extract(r"^-\s*requires_user_action:\s*(.+?)\s*$")
+
+    return out
+
+
+def _analyze_resume_from_context_pack(*, context_pack: dict[str, Any], instruction_normalized: str) -> dict[str, Any]:
+    """Analiza memoria versionada (previews) para decidir si se requiere executor/handoff."""
+
+    versioned_memory = context_pack.get("versioned_memory") if isinstance(context_pack, dict) else None
+    extracts = versioned_memory.get("extracts") if isinstance(versioned_memory, dict) else None
+    previews = versioned_memory.get("previews") if isinstance(versioned_memory, dict) else None
+
+    frontier_ref = _get_context_pack_ref_by_role(context_pack, "current_frontier") or {}
+    resume_ref = _get_context_pack_ref_by_role(context_pack, "project_resume") or {}
+
+    frontier_extract = extracts.get("current_frontier") if isinstance(extracts, dict) else None
+    resume_extract = extracts.get("project_resume") if isinstance(extracts, dict) else None
+
+    frontier_preview = None
+    resume_preview = None
+    if isinstance(previews, dict):
+        frontier_preview = previews.get("current_frontier_preview")
+        resume_preview = previews.get("project_resume_preview")
+    if frontier_preview is None and isinstance(frontier_ref, dict):
+        frontier_preview = frontier_ref.get("preview")
+    if resume_preview is None and isinstance(resume_ref, dict):
+        resume_preview = resume_ref.get("preview")
+
+    frontier = frontier_extract if isinstance(frontier_extract, dict) else _parse_current_frontier_preview(str(frontier_preview or ""))
+
+    blocking = str(frontier.get("blocking_threshold") or "").strip().lower()
+    blocked = bool(blocking and blocking not in {"none", "unknown"})
+
+    next_action = str(frontier.get("next_action") or "").strip()
+
+    reasons: list[str] = []
+    needs_executor = False
+    next_question = None
+
+    if blocked:
+        reasons.append(f"blocked_by_threshold:{blocking}")
+        next_question = (
+            f"Según CURRENT_FRONTIER.blocking_threshold=`{blocking}`, se requiere una decisión/autorización para avanzar. "
+            "¿Autorizas/desbloqueas ese umbral?"
+        )
+    else:
+        frontier_is_stub = not any(frontier.values()) and _looks_like_stub_markdown(str(frontier_preview or ""))
+        resume_has_fields = isinstance(resume_extract, dict) and any(resume_extract.values())
+        resume_is_stub = not resume_has_fields and _looks_like_stub_markdown(str(resume_preview or ""))
+
+        if frontier_is_stub and resume_is_stub:
+            needs_executor = True
+            reasons.append("memory_stub")
+        elif not next_action or _looks_like_stub_markdown(next_action):
+            needs_executor = True
+            reasons.append("missing_next_action")
+        elif re.search(r"\b(context-validator|planner|debugger|builder|opencode)\b", next_action, flags=re.IGNORECASE):
+            needs_executor = True
+            reasons.append("next_action_mentions_executor")
+
+    if ("siguiente frontera" in instruction_normalized) or instruction_normalized.startswith("avanza") or ("avanza con" in instruction_normalized):
+        reasons.append("advance_language")
+
+    return {
+        "blocked": blocked,
+        "blocking_threshold": blocking or None,
+        "needs_executor": bool(needs_executor),
+        "reasons": reasons,
+        "next_action": next_action or None,
+        "next_question": next_question,
+        "frontier": frontier,
+    }
+
+
 def init_project_onboarding_scaffold(arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+
     """Crea (si falta) el scaffold documental mínimo en docs/projects/<project-id>/.
 
     Objetivo: iniciar onboarding sin copiar chats completos ni volcar artefactos.
@@ -3498,16 +3619,18 @@ def _extract_project_query_from_instruction(norm: str) -> str | None:
 
     patterns = [
         r"(?:cambia|cambiar|salta|saltar|ir)\s+a\s+([a-z0-9._-]+)",
+        r"(?:retoma|retomar|reanuda|reanudar|resume)\s+([a-z0-9._-]+)",
         r"(?:trabaja|trabajar)\s+en\s+([a-z0-9._-]+)",
-                r"(?:proyecto|project)\s+([a-z0-9._-]+)",
+        r"(?:proyecto|project)\s+([a-z0-9._-]+)",
         r"(?:en)\s+([a-z0-9._-]+)\s*$",
     ]
+
 
     for pat in patterns:
         m = re.search(pat, n)
 
         if m:
-            candidate = (m.group(1) or "").strip()
+            candidate = (m.group(1) or "").strip().strip(".,;:!?")
             if candidate and candidate not in {"este", "this", "activo", "active"}:
                 return candidate
 
@@ -3533,7 +3656,7 @@ def _extract_project_query_for_bridge_handoff(norm: str) -> str | None:
     for pat in patterns:
         m = re.search(pat, n)
         if m:
-            candidate = (m.group(1) or "").strip()
+            candidate = (m.group(1) or "").strip().strip(".,;:!?")
             if candidate and candidate not in {"este", "this", "proyecto", "bridge", "handoff"}:
                 return candidate
 
@@ -3595,44 +3718,60 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     extracted_project_query = _extract_project_query_from_instruction(norm)
 
 
+    wants_active_project = ("proyecto activo" in norm) or ("active project" in norm)
 
+    resume_keywords = (
+        "retoma",
+        "retomar",
+        "reanuda",
+        "reanud",
+        "resume",
+        "volver",
+        "continua",
+        "continuar",
+        "continuemos",
+    )
+    resume_requested = wants_active_project or any(k in norm for k in resume_keywords)
 
-    # Señales de “retoma/continuidad” (sin depender del historial conversacional).
-    # Nota: `norm` ya viene normalizado (lower + sin acentos).
-    resume_requested = any(
+    # Opt-in: sincronizar referencias del last_event de sesión hacia docs/projects/<project-id>/...
+    sync_last_event_requested = any(
         k in norm
         for k in (
-            "retoma",
-            "retomar",
-            "reanuda",
-            "reanud",
-            "resume",
-            "volver",
-            "continua",
-            "continu",
-            "sigue",
-            "seguir",
-            "donde quedamos",
-            "where we left",
-            "left off",
+            "sincroniza",
+            "sincronizar",
+            "sincronizacion",
+            "sync last_event",
+            "sync last event",
+            "actualiza referencias",
         )
+    )
+
+    # Guardrail: aplicar solo si el texto contiene un opt-in inequívoco.
+    sync_last_event_apply_authorized = sync_last_event_requested and any(
+        k in norm for k in ("autorizo", "autorizado", "autorizacion concedida", "concedo autorizacion")
     )
 
     # Intent
     intent = "unknown"
     scenario = "context-validation"
 
+    is_advance_phrase = ("siguiente frontera" in norm) or norm.startswith("avanza") or ("avanza con" in norm)
+
     if _is_bridge_handoff_request(norm):
         intent = "ingest_bridge_handoff"
-        scenario = "context-validation"
-    elif resume_requested:
-        intent = "resume"
         scenario = "context-validation"
     elif any(k in norm for k in ("diagnostica", "diagnosticar", "diagnostico")):
         intent = "diagnose"
         scenario = "context-validation"
-
-    elif "siguiente frontera" in norm or norm.startswith("avanza") or "avanza con" in norm:
+    elif is_advance_phrase and resume_requested:
+        # Ej: "avanza con el proyecto activo" → resume + planning
+        intent = "resume"
+        scenario = "planning"
+    elif resume_requested:
+        # Incluye: "retoma dpm", "continúa donde quedamos", etc.
+        intent = "resume"
+        scenario = "context-validation"
+    elif is_advance_phrase:
         intent = "advance"
         scenario = "planning"
     elif "prepara" in norm and ("low-risk" in norm or "bajo riesgo" in norm or "low risk" in norm):
@@ -3641,6 +3780,7 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
     elif "evalua" in norm and ("replit" in norm or "premium" in norm):
         intent = "evaluate_escalation"
         scenario = "context-validation"
+
 
     # Risk (very coarse)
     risk = "medium"
@@ -3713,6 +3853,10 @@ def _classify_general_instruction(instruction: str) -> dict[str, Any]:
         "replit_triggered": replit_triggered,
         "extracted_project_query": extracted_project_query,
         "resume_requested": resume_requested,
+        "wants_active_project": wants_active_project,
+        "sync_last_event_requested": sync_last_event_requested,
+        "sync_last_event_apply_authorized": sync_last_event_apply_authorized,
+
 
         # Bridge handoff hints (best-effort)
         "bridge_project_query": bridge_project_query,
@@ -3777,7 +3921,7 @@ def _build_standard_context_pack(
     project_query_source: str | None,
     resolution: dict[str, Any] | None,
     onboarding: dict[str, Any] | None,
-        missing_files: list[str] | None,
+    missing_files: list[str] | None,
     preflight_status: str | None,
     orchestrator_summary: dict[str, Any] | None,
     versioned_memory: dict[str, Any] | None,
@@ -3850,6 +3994,7 @@ def _build_standard_context_pack(
 
         
     pack: dict[str, Any] = {
+        "status": "ok",
         "level": lvl,
 
         "protocol": "reference-based",
@@ -3880,6 +4025,30 @@ def _build_standard_context_pack(
     # incluir solo por referencias + extractos compactos.
     if isinstance(versioned_memory, dict) and versioned_memory:
         pack["versioned_memory"] = versioned_memory
+        files = versioned_memory.get("files")
+        if isinstance(files, dict):
+            role_by_name = {
+                "PROJECT_RESUME.md": "project_resume",
+                "CURRENT_FRONTIER.md": "current_frontier",
+                "ERRORS_AND_FIXES.md": "errors_and_fixes",
+                "CRITICAL_ALERTS.md": "critical_alerts",
+                "LESSONS_LOCAL.md": "lessons_local",
+                "SEMANTIC_TAG_INDEX.md": "semantic_tag_index",
+                "HANDOFF_LOG.md": "handoff_log",
+                "SYNC_STATUS.md": "sync_status",
+            }
+            refs = []
+            for name, meta in files.items():
+                if not isinstance(meta, dict):
+                    continue
+                refs.append({
+                    "role": role_by_name.get(str(name), str(name)),
+                    "path": meta.get("path"),
+                    "exists": meta.get("exists"),
+                    "size_bytes": meta.get("size_bytes"),
+                })
+            if refs:
+                pack["refs"] = refs
     if isinstance(session_memory, dict) and session_memory:
         pack["session_memory"] = session_memory
 
@@ -4205,9 +4374,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
     project_id = resolution.get("project_id")
 
     # 3) Si requiere preparar workspace (clone), detenerse ahí.
-
-
-    if resolution.get("clone_required") is True:
+    if resolution.get("clone_required") is True and classified.get("intent") != "resume":
         return {
             "ok": True,
             "status": "workspace_not_ready",
@@ -4225,9 +4392,8 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
             "next_question": "Workspace local no está listo (clone_required=true). ¿Autorizas preparar el workspace (sin clonar automáticamente) y/o quieres proporcionar local_path existente?",
         }
 
-        # 4) Git dirty del proyecto objetivo: bloquear antes de avanzar a ejecución.
-
-    if "working_tree_dirty" in (resolution.get("risks") or []):
+    # 4) Git dirty del proyecto objetivo: bloquear antes de avanzar a ejecución.
+    if "working_tree_dirty" in (resolution.get("risks") or []) and classified.get("intent") != "resume":
         return {
             "ok": True,
             "status": "blocked",
@@ -4339,6 +4505,55 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
                 "next_question": "El Semantic Context Gate no encontró contexto suficiente para avanzar con seguridad. Amplía lectura read-only o confirma una fuente contextual.",
             }
 
+    # Construir context_pack antes del routing: las retomas lo usan para decidir si hace falta executor.
+    context_level_arg = arguments.get("context_level")
+    if classified.get("intent") == "resume" and classified.get("scenario") == "planning":
+        default_context_pack_level = 1
+    elif classified.get("intent") in {"resume", "advance"}:
+        default_context_pack_level = 0
+    else:
+        default_context_pack_level = 1
+    try:
+        context_pack_level = int(context_level_arg) if context_level_arg is not None else default_context_pack_level
+    except Exception:
+        context_pack_level = default_context_pack_level
+
+    versioned_memory = None
+    if project_id and str(project_id) != "orchestrator":
+        versioned_memory = _collect_project_versioned_memory(project_id=str(project_id), level=context_pack_level)
+
+    session_memory = None
+    # Incluir last_event solo si es relevante (coincide con proyecto actual o fue la fuente de selección).
+    if active_pid and (project_query_source == "active_project" or active_pid == str(project_id)):
+        session_memory = {
+            "active_project_path": str(ACTIVE_PROJECT_PATH),
+            "active_project_id": active_pid,
+            "last_event": _extract_active_last_event_compact(active_state),
+        }
+
+    context_pack = _build_standard_context_pack(
+        level=context_pack_level,
+        instruction=instruction,
+        mode="Plan",
+        classified=classified,
+        project_id=str(project_id) if project_id else None,
+        project_query_source=project_query_source,
+        resolution=(resolution if isinstance(resolution, dict) else None),
+        onboarding=(onboarding if isinstance(onboarding, dict) else None),
+        missing_files=None,
+        preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
+        orchestrator_summary=orchestrator_summary,
+        versioned_memory=versioned_memory,
+        session_memory=session_memory,
+    )
+
+    resume_analysis: dict[str, Any] | None = None
+    if classified.get("intent") == "resume" and isinstance(context_pack, dict):
+        resume_analysis = _analyze_resume_from_context_pack(
+            context_pack=context_pack,
+            instruction_normalized=str(classified.get("instruction_normalized") or ""),
+        )
+
     # 5) Routing: seleccionar agente/modelo a partir de escenario/riesgo/volumen
 
     selector = select_agent_model(
@@ -4398,7 +4613,16 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
     )
 
     recommended_next_tool_call: dict[str, Any] | None = None
-    if safe_to_dispatch and isinstance(recommended_agent, str) and isinstance(recommended_model, str):
+    if (
+        safe_to_dispatch
+        and isinstance(recommended_agent, str)
+        and isinstance(recommended_model, str)
+        and (
+            classified.get("intent") != "resume"
+            or (isinstance(resume_analysis, dict) and bool(resume_analysis.get("needs_executor")))
+        )
+    ):
+
         recommended_next_tool_call = {
             "tool": "create_and_dispatch_opencode_handoff",
             "arguments": {
@@ -4436,8 +4660,18 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         blockers = ", ".join(authorizations_required) if authorizations_required else "autorización"
         next_question = f"Se requiere {blockers} antes de despachar ejecución. ¿Autorizas? (sin autorización: solo Plan/read-only)."
 
-            # Compact summary for Continue
+    # Resume override: si la memoria versionada es suficiente, NO despachar por defecto.
+    if classified.get("intent") == "resume" and isinstance(resume_analysis, dict):
+        if resume_analysis.get("blocked") is True:
+            next_frontier = "blocked"
+            next_question = resume_analysis.get("next_question") or next_question
+        elif resume_analysis.get("needs_executor") is not True:
+            next_frontier = "resume_ready"
+            next_question = None
+
+    # Compact summary for Continue
     compact_message = {
+
         "project_id": project_id,
         "intent": classified["intent"],
         "scenario": classified["scenario"],
@@ -4450,47 +4684,6 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "semantic_context_gate_status": semantic_gate_status,
     }
 
-    onboarding = _probe_project_onboarding(str(project_id or ""))
-
-    # Nivel 0: retoma rápida / mínimo operativo. Nivel 1: default operativo.
-    context_level_arg = arguments.get("context_level")
-    default_context_pack_level = 0 if classified.get("intent") in {"resume", "advance"} else 1
-    try:
-        context_pack_level = int(context_level_arg) if context_level_arg is not None else default_context_pack_level
-    except Exception:
-        context_pack_level = default_context_pack_level
-
-    versioned_memory = None
-    if project_id and str(project_id) != "orchestrator":
-        versioned_memory = _collect_project_versioned_memory(project_id=str(project_id), level=context_pack_level)
-
-    session_memory = None
-    # Incluir last_event solo si es relevante (coincide con proyecto actual o fue la fuente de selección).
-    if active_pid and (project_query_source == "active_project" or active_pid == str(project_id)):
-        session_memory = {
-            "active_project_path": str(ACTIVE_PROJECT_PATH),
-            "active_project_id": active_pid,
-            "last_event": _extract_active_last_event_compact(active_state),
-        }
-
-    context_pack = _build_standard_context_pack(
-        level=context_pack_level,
-        instruction=instruction,
-        mode="Plan",
-        classified=classified,
-        project_id=str(project_id) if project_id else None,
-        project_query_source=project_query_source,
-        resolution=(resolution if isinstance(resolution, dict) else None),
-        onboarding=(onboarding if isinstance(onboarding, dict) else None),
-        missing_files=None,
-        preflight_status=preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
-        orchestrator_summary=orchestrator_summary,
-        versioned_memory=versioned_memory,
-        session_memory=session_memory,
-    )
-
-
-
     return {
         "ok": True,
 
@@ -4502,6 +4695,7 @@ def plan_general_instruction(arguments: dict[str, Any] | None = None) -> dict[st
         "context_pack_level": context_pack_level,
         "context_pack": context_pack,
         "onboarding": onboarding,
+        "resume": resume_analysis,
 
         "preflight_status": preflight_parsed.get("status") if isinstance(preflight_parsed, dict) else None,
         "orchestrator": orchestrator_summary,
@@ -4749,8 +4943,26 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
                 },
             )
 
+    # Opt-in: sincronizar referencias last_event -> docs/projects/<project-id>/ (dry_run siempre; apply solo con opt-in explícito).
+    if bool(classified.get("sync_last_event_requested")) and isinstance(plan, dict):
+        pid_for_sync = str(plan.get("project_id") or "").strip()
+        if pid_for_sync:
+            try:
+                sync_preview = sync_active_last_event_to_project_docs({"project_id": pid_for_sync, "dry_run": True, "apply": False})
+                base["sync_last_event"] = {"requested": True, "preview": sync_preview}
+            except Exception:
+                base["sync_last_event"] = {"requested": True, "preview": None, "error": "sync_preview_failed"}
+
+            if mode == "dispatch_if_safe" and bool(classified.get("sync_last_event_apply_authorized")):
+                try:
+                    sync_apply = sync_active_last_event_to_project_docs({"project_id": pid_for_sync, "dry_run": False, "apply": True})
+                    base["sync_last_event"]["applied"] = sync_apply
+                except Exception:
+                    base["sync_last_event"]["apply_error"] = "sync_apply_failed"
+
     if mode == "plan":
         return base
+
 
 
     # dispatch_if_safe
@@ -4793,7 +5005,7 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
             base["next_frontier"] = "init_onboarding_scaffold"
             return base
 
-                # Compact-first: exponer solo lo necesario (conteos + ruta)
+        # Compact-first: exponer solo lo necesario (conteos + ruta)
         created = scaffold_result.get("created") if isinstance(scaffold_result, dict) else None
         skipped = scaffold_result.get("skipped") if isinstance(scaffold_result, dict) else None
         base["onboarding_scaffold"] = {
@@ -4821,7 +5033,19 @@ def run_general_instruction_flow(arguments: dict[str, Any] | None = None) -> dic
     authorizations_required = plan.get("authorizations_required") if isinstance(plan, dict) else None
 
     # Si no hay next tool call seguro, no despachar.
+    if not isinstance(recommended, dict) and isinstance(plan, dict) and plan.get("next_frontier") == "resume_ready":
+        base["dispatch"] = {
+            "attempted": False,
+            "status": "not_required",
+            "reason": "Retoma resuelta con memoria versionada/context_pack; no se requiere dispatch.",
+            "authorizations_required": authorizations_required or [],
+        }
+        base["next_frontier"] = plan.get("next_frontier")
+        base["next_question"] = plan.get("next_question")
+        return base
+
     if not isinstance(recommended, dict):
+
         base["dispatch"] = {
             "attempted": False,
             "status": "not_safe_to_dispatch",
@@ -4984,7 +5208,6 @@ if __name__ == "__main__":
 
     if args.self_test:
         self_test()
-
 
 
 
