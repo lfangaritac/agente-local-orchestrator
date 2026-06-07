@@ -39,7 +39,7 @@ Nota de parsing (scripts/apply_to_project.py):
 project_id: data-privacy-management-d
 nombre_canónico: DataPrivacyManagement(D) Workspace
 alias_permitidos: dpm, data-privacy-management, dataprivacymanagement-d, dpm-replit
-ruta_local:
+ruta_local: C:\Agente_Projects\riskmanagement360
 repositorio_remoto: https://github.com/lfangaritac/DataPrivacyManagement
 origen: replit
 environment_type: replit-git
@@ -111,12 +111,12 @@ environment_type: github
 repo_url: https://github.com/lfangaritac/Riskmanagement360.git
 replit_workspace_path:
 replit_join_url:
-local_path: null
+local_path: C:\Agente_Projects\riskmanagement360
 stack_detectado: unknown
 documentación_principal:
 código_fuente_relevante:
-estado_sincronización: unknown
+estado_sincronización: cloned_clean_main_16c05c8
 alertas_críticas:
 lecciones_locales:
-último_análisis:
+último_análisis: 2026-06-07
 responsable: unknown

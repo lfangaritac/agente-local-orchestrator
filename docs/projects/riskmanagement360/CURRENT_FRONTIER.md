@@ -1,7 +1,7 @@
 # CURRENT_FRONTIER - riskmanagement360
 
 - last_updated: `2026-06-07T10:30:06`
-- status: `blocked`
+- status: `in_progress`
 
 ## Instruccion/objetivo que se intento agotar
 
@@ -12,21 +12,22 @@
 
 - completed: entrada creada en `PROJECT_REGISTRY.md`.
 - completed: scaffold creado en `docs/projects/riskmanagement360/`.
+- completed: workspace clonado en `C:\Agente_Projects\riskmanagement360`.
 - completed: `resolve_target_project(project_query="riskmanagement360")` confirma `project_id=riskmanagement360`.
+- completed: repo local limpio en `main` alineado con `origin/main` en `16c05c8`.
 - completed: aliases registrados: `riskmanagement360`, `risk-management-360`, `risk360`.
-- remaining: preparar workspace local si se necesita operar sobre codigo fuente.
 - remaining: inspeccionar README/docs/codigo del repo objetivo para completar contexto tecnico.
 - remaining: generar/actualizar indice semantico con fuentes reales despues de clonar o declarar `local_path`.
 
 ## Umbral que impide avanzar mas
 
-- blocking_threshold: `authorization_required`
-- why_blocked: el repo remoto esta registrado, pero no existe workspace local en `C:\Agente_Projects\riskmanagement360`; el orquestador reporta `clone_required=true`.
+- blocking_threshold: `none`
+- why_blocked: no hay bloqueo operativo actual; falta diagnostico/context indexing de contenido real antes de cambios funcionales.
 
 ## Proxima accion recomendada unica
 
-- next_action: autorizar preparar/clonar workspace local o proporcionar `local_path` existente para `Riskmanagement360`.
-- requires_user_action: si, autorizar clone/preparacion de workspace o indicar ruta local.
+- next_action: ejecutar diagnostico/context indexing read-only sobre `C:\Agente_Projects\riskmanagement360` antes de proponer cambios funcionales.
+- requires_user_action: no para diagnostico read-only; si para cambios Build, secrets, deploy o dependencias.
 - suggested_agent: context-validator
 - suggested_model_line: Go
 
@@ -34,4 +35,5 @@
 
 - registry_ref: `PROJECT_REGISTRY.md`
 - project_docs_ref: `docs/projects/riskmanagement360/`
+- local_workspace_ref: `C:\Agente_Projects\riskmanagement360`
 - repo_ref: `https://github.com/lfangaritac/Riskmanagement360.git`

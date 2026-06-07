@@ -15,10 +15,12 @@ Proyecto vinculado al orquestador local como repositorio GitHub objetivo. La des
 
 - `PROJECT_REGISTRY.md`
 - Repo remoto: `https://github.com/lfangaritac/Riskmanagement360.git`
-- Workspace local sugerido por el orquestador: `C:\Agente_Projects\riskmanagement360`
+- Workspace local: `C:\Agente_Projects\riskmanagement360`
 
 ## Estado inicial
 
 - Registro maestro creado.
 - Scaffold documental creado en `docs/projects/riskmanagement360/`.
-- Workspace local aun no preparado; `resolve_target_project` reporta `clone_required=true`.
+- Workspace local preparado y clonado en `C:\Agente_Projects\riskmanagement360`.
+- Branch local: `main`.
+- Commit remoto/local observado: `16c05c8 Update files from Figma Make`.
