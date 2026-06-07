@@ -65,8 +65,8 @@ repositorio_remoto: https://github.com/lfangaritac/embajadores-backend.git
 origen: github
 environment_type: github
 repo_url: https://github.com/lfangaritac/embajadores-backend.git
-replit_workspace_path: 
-replit_join_url: 
+replit_workspace_path:
+replit_join_url:
 local_path: C:\Users\murfe\source\repos\embajadores-backend
 stack_detectado: Python 3.11 Flask/Gunicorn + React/Vite admin portal + MySQL/Azure/Replit integrations
 documentación_principal: README.md, replit.md, docs/TECHNICAL_DOCUMENTATION.md, frontend/src/app/api/APIContract.md
@@ -97,4 +97,26 @@ estado_sincronización: cloned_clean_main_b8220e7
 alertas_críticas: docs/projects/riskmanager-compliance/CRITICAL_ALERTS.md
 lecciones_locales: docs/projects/riskmanager-compliance/LESSONS_LOCAL.md
 último_análisis: 2026-05-29
+responsable: unknown
+
+### riskmanagement360
+
+project_id: riskmanagement360
+nombre_canónico: Riskmanagement360
+alias_permitidos: riskmanagement360, risk-management-360, risk360
+ruta_local:
+repositorio_remoto: https://github.com/lfangaritac/Riskmanagement360.git
+origen: github
+environment_type: github
+repo_url: https://github.com/lfangaritac/Riskmanagement360.git
+replit_workspace_path:
+replit_join_url:
+local_path: null
+stack_detectado: unknown
+documentación_principal:
+código_fuente_relevante:
+estado_sincronización: unknown
+alertas_críticas:
+lecciones_locales:
+último_análisis:
 responsable: unknown
