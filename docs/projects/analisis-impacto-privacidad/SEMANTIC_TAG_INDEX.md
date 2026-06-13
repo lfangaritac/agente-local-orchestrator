@@ -47,6 +47,7 @@ Indice semantico compacto por referencias.
   - `server/setup-assistant.ts`
   - `server/update-assistant-vs.ts`
   - `SECRETS_MANIFEST.md`
+  - `docs/SECRETS_SETUP.md`
 
 ## db.postgres.drizzle
 
@@ -59,6 +60,21 @@ Indice semantico compacto por referencias.
   - `shared/schema.ts`
   - `package.json`
   - `scripts/post-merge.sh`
+  - `.env.example`
+
+## runtime.secrets
+
+- criticality: critico antes de Build
+- status: vigente
+- signals: secrets, env, .env, DATABASE_URL, OPENAI_API_KEY, Replit Secrets, start-dev, check_env, PORT, NODE_ENV
+- sources:
+  - `.env.example`
+  - `.env.replit.example`
+  - `SECRETS_MANIFEST.md`
+  - `docs/SECRETS_SETUP.md`
+  - `scripts/check_env.py`
+  - `scripts/start-dev.ps1`
+  - `.gitignore`
 
 ## frontend.tailwind.precompiled
 
@@ -82,4 +98,3 @@ Indice semantico compacto por referencias.
   - `tsconfig.json`
   - `client/src/App.tsx`
   - `client/src/components/section-view.tsx`
-
