@@ -98,3 +98,25 @@ alertas_críticas: docs/projects/riskmanager-compliance/CRITICAL_ALERTS.md
 lecciones_locales: docs/projects/riskmanager-compliance/LESSONS_LOCAL.md
 último_análisis: 2026-05-29
 responsable: unknown
+
+### analisis-impacto-privacidad
+
+project_id: analisis-impacto-privacidad
+nombre_canónico: Plataforma AIP - Analisis de Impacto en Privacidad
+alias_permitidos: aip, analisis-impacto-privacidad, analisis_impacto_privacidad, privacidad-aip, privacy-impact-assessment
+ruta_local: C:\Users\murfe\source\repos\Analisis_impacto_privacidad
+repositorio_remoto: https://github.com/lfangaritac/Analisis_impacto_privacidad.git
+origen: github
+environment_type: github
+repo_url: https://github.com/lfangaritac/Analisis_impacto_privacidad.git
+replit_workspace_path:
+replit_join_url:
+local_path: C:\Users\murfe\source\repos\Analisis_impacto_privacidad
+stack_detectado: React 18 + Vite 7 + Express 5 + TypeScript 5.6 + PostgreSQL + Drizzle ORM + OpenAI integrations
+documentación_principal: replit.md, docs/DOCUMENTACION_TECNICA.md, docs/test_reports/baseline_validacion_local_aip_20260504.md, docs/test_reports/opencode_diagnostico_typescript_aip_20260504.md, package.json, drizzle.config.ts
+código_fuente_relevante: client/src/App.tsx, client/src/components/, client/src/index.css, server/index.ts, server/routes.ts, server/storage.ts, server/ai.ts, server/db.ts, server/docx-generator.ts, shared/schema.ts
+estado_sincronización: cloned_clean_main_9c5ed18
+alertas_críticas: docs/projects/analisis-impacto-privacidad/CRITICAL_ALERTS.md
+lecciones_locales: docs/projects/analisis-impacto-privacidad/LESSONS_LOCAL.md
+último_análisis: 2026-06-13
+responsable: unknown
